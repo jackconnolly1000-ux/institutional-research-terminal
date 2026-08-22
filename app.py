@@ -56,27 +56,20 @@ def get_comprehensive_financials(ticker: str) -> dict:
         ebitda_str = f"${ebitda/1e9:.2f}B" if ebitda and abs(ebitda) >= 1e9 else (f"${ebitda/1e6:.2f}M" if ebitda else "N/A")
         return {"mcap": mcap_str, "price": price_str, "fpe": fpe_str, "rev_growth": rev_str, "gross_margin": gross_margin, "op_margin": op_margin, "profit_margin": profit_margin, "roe": roe, "debt_to_equity": debt_to_equity, "fcf": fcf_str, "ebitda": ebitda_str}
     except Exception as e:
-        st.error(f"yFinance Error for {ticker}: {e}")
         return {k: "N/A" for k in ["mcap", "price", "fpe", "rev_growth", "gross_margin", "op_margin", "profit_margin", "roe", "debt_to_equity", "fcf", "ebitda"]}
 
 def sec_get_request(url: str, headers: dict, retries: int = 3):
     for attempt in range(retries):
         try:
             resp = requests.get(url, headers=headers, timeout=12)
-            if resp.status_code == 200: 
-                return resp
-            elif resp.status_code == 429: 
-                time.sleep(1.5 * (attempt + 1))
-            else:
-                st.error(f"SEC API Blocked: {url} returned Status {resp.status_code}. (Streamlit IPs may be blocked by SEC firewall).")
-                return None
-        except Exception as e: 
-            time.sleep(1.0)
+            if resp.status_code == 200: return resp
+            elif resp.status_code == 429: time.sleep(1.5 * (attempt + 1))
+        except Exception: time.sleep(1.0)
     return None
 
 @st.cache_data(ttl=3600)
 def fetch_firm_data(ticker: str) -> dict:
-    headers = {'User-Agent': f'InstitutionalResearch Terminal Contact_Admin@research-terminal.com', 'Accept-Encoding': 'gzip, deflate'}
+    headers = {'User-Agent': f'InstitutionalResearch analyst_{ticker.lower()}@research-terminal.com'}
     tickers_url = "https://www.sec.gov/files/company_tickers.json"
     
     resp = sec_get_request(tickers_url, headers)
@@ -84,13 +77,10 @@ def fetch_firm_data(ticker: str) -> dict:
     try:
         data = resp.json()
     except json.JSONDecodeError:
-        st.error("Failed to parse SEC company_tickers JSON.")
         return None
         
     cik_padded = next((str(v['cik_str']).zfill(10) for v in data.values() if v['ticker'].upper() == ticker.upper()), None)
-    if not cik_padded: 
-        st.error(f"Ticker {ticker} not found in SEC database.")
-        return None
+    if not cik_padded: return None
         
     subs_url = f"https://data.sec.gov/submissions/CIK{cik_padded}.json"
     time.sleep(0.15)
@@ -108,9 +98,7 @@ def fetch_firm_data(ticker: str) -> dict:
     insider_velocity = len(recent_4s)
     
     idx_curr = next((i for i, f in enumerate(form_list) if f in ['10-K', '10-Q']), -1)
-    if idx_curr == -1: 
-        st.error(f"No 10-K or 10-Q found for {ticker}.")
-        return None
+    if idx_curr == -1: return None
         
     form_type = form_list[idx_curr]
     acc_curr = filings['accessionNumber'][idx_curr].replace('-', '')
@@ -215,7 +203,7 @@ def extract_unified_profile(sec_payload: dict) -> dict:
     """
     try:
         response = client.messages.create(
-            model="claude-3-5-sonnet-20240620", max_tokens=4000,
+            model="claude-sonnet-5", max_tokens=4000,
             tools=[UNIFIED_EXTRACTION_TOOL], tool_choice={"type": "tool", "name": "record_comprehensive_firm_analysis"},
             messages=[{"role": "user", "content": prompt}]
         )
@@ -233,9 +221,7 @@ def extract_unified_profile(sec_payload: dict) -> dict:
                     "financials": sec_payload["financials"], "insider_velocity": sec_payload["insider_velocity"], "event_markers": sec_payload["event_markers"]
                 }
         return None
-    except Exception as e: 
-        st.error(f"Anthropic API Error for {ticker}: {e}")
-        return None
+    except Exception as e: return None
 
 def generate_interactive_chart(ticker, events):
     try:
@@ -289,7 +275,7 @@ def generate_excel(profiles):
     return buf.getvalue()
 
 # --- STREAMLIT UI ---
-st.title("Institutional Research Terminal V5.1 Debugger")
+st.title("Institutional Research Terminal V5.0")
 st.markdown("Event-Driven Interactive Charting + Form 4 Insider Tracking + CapEx/Supply Chain Engine", unsafe_allow_html=True)
 
 tickers_input = st.text_input("Target Equities (comma separated):", value="FAST, STRL")
@@ -301,14 +287,9 @@ if st.button("Generate Tear Sheet"):
             profiles = []
             for t in raw_list:
                 sec_data = fetch_firm_data(t)
-                if not sec_data:
-                    continue
-                    
-                prof = extract_unified_profile(sec_data)
-                if not prof:
-                    continue
-                    
-                profiles.append(prof)
+                if sec_data:
+                    prof = extract_unified_profile(sec_data)
+                    if prof: profiles.append(prof)
             
             if profiles:
                 st.success("Analysis Complete.")
