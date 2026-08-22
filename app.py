@@ -19,15 +19,21 @@ import streamlit as st
 # --- STREAMLIT PAGE CONFIG ---
 st.set_page_config(page_title="Institutional Research Terminal", layout="wide", initial_sidebar_state="collapsed")
 
-# Secure Key Retrieval via Streamlit Secrets
+# --- SECURE KEY RETRIEVAL (UPDATED FOR TOML RESILIENCE) ---
 try:
-    API_KEY = st.secrets["ANTHROPIC_API_KEY"]
-    client = Anthropic(api_key=API_KEY, timeout=60.0)
+    if "ANTHROPIC_API_KEY" not in st.secrets:
+        st.error("ANTHROPIC_API_KEY was not found in Streamlit Secrets. Please check the Secrets tab in App Settings.")
+        st.stop()
+    
+    raw_key = st.secrets["ANTHROPIC_API_KEY"]
+    # Strip any accidental newlines, spaces, or carriage returns
+    clean_key = str(raw_key).strip().replace("\n", "").replace(" ", "").replace("\r", "")
+    client = Anthropic(api_key=clean_key, timeout=60.0)
 except Exception as e:
-    st.error("ANTHROPIC_API_KEY secret not detected. Please add it to Streamlit Secrets.")
+    st.error(f"Initialization Error: {e}")
     st.stop()
 
-# --- BACKEND FUNCTIONS (Unchanged logic, wrapped in st.cache_data for speed) ---
+# --- BACKEND FUNCTIONS ---
 @st.cache_data(ttl=3600)
 def get_comprehensive_financials(ticker: str) -> dict:
     try:
