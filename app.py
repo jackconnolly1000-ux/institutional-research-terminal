@@ -18,7 +18,7 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v8.8",
+    page_title="Institutional Research Terminal v8.9",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -39,7 +39,7 @@ st.markdown("""
     h2, h3, h4 { color: #f8fafc !important; font-weight: 600; }
     .stCaption, small { color: #787b86 !important; }
     
-    /* Completely Flatten All Streamlit Default Block Backgrounds */
+    /* Completely Neutralize Streamlit Block Background Artifacts */
     div[data-testid="stHorizontalBlock"],
     div[data-testid="stVerticalBlock"],
     div[data-testid="column"],
@@ -47,15 +47,6 @@ st.markdown("""
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
-    }
-    
-    /* Unified Command Toolbar Container */
-    .command-toolbar {
-        background-color: #1e222d;
-        border: 1px solid #2a2e39;
-        padding: 16px;
-        border-radius: 6px;
-        margin-bottom: 0px;
     }
     
     /* Autocomplete Dropdown Container */
@@ -71,11 +62,11 @@ st.markdown("""
     
     /* Native Input Box Dark Styling */
     .stTextInput input {
-        background-color: #131722 !important;
+        background-color: #1e222d !important;
         color: #ffffff !important;
         border: 1px solid #363c4e !important;
         border-radius: 4px;
-        padding: 6px 10px;
+        padding: 8px 12px;
         font-family: monospace;
         font-size: 0.95rem;
     }
@@ -91,10 +82,10 @@ st.markdown("""
         font-weight: 600;
         border: none;
         border-radius: 4px;
-        padding: 0.4rem 0.8rem;
+        padding: 0.45rem 0.9rem;
         font-size: 0.9rem;
         transition: background 0.2s ease;
-        margin-top: 24px;
+        margin-top: 28px;
     }
     .stButton button:hover {
         background: #1e53e5 !important;
@@ -416,11 +407,10 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- UNIFIED FLUSH COMMAND TOOLBAR ---
+# --- STREAMLINED FLUSH SEARCH & TOOLBAR (NO WRAPPER ARTIFACTS) ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
-st.markdown("<div class='command-toolbar'>", unsafe_allow_html=True)
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
 with col_bar1:
@@ -435,8 +425,6 @@ with col_bar3:
         st.rerun()
 with col_bar4:
     run_btn = st.button("⚡ Run Terminal", use_container_width=True)
-
-st.markdown("</div>", unsafe_allow_html=True)
 
 # --- REAL-TIME SMART MATCHING DROPDOWN (PREFIX & NAME PRIORITIZED) ---
 sec_directory = load_sec_directory()
