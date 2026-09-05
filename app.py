@@ -18,7 +18,7 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v7.6",
+    page_title="Institutional Research Terminal v7.7",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -48,14 +48,15 @@ st.markdown("""
         margin-bottom: 0px;
     }
     
-    /* Tighter Autocomplete Dropdown Box */
-    .autocomplete-container {
+    /* Vertical Autocomplete Dropdown Panel aligned left-to-right */
+    .autocomplete-dropdown {
         background-color: #181c25;
         border: 1px solid #2a2e39;
         border-top: none;
         border-radius: 0 0 6px 6px;
-        padding: 8px 12px 12px 12px;
-        margin-bottom: 16px;
+        padding: 10px 14px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.4);
     }
     
     /* Input Box Styling */
@@ -88,14 +89,16 @@ st.markdown("""
         background: #1e53e5 !important;
     }
     
-    /* Suggestion Row Buttons */
+    /* Suggestion Row Styling (Ticker Bolder/Bigger, Company Name Under) */
     div.stButton > button[key^="sugg_"] {
         background-color: #1e222d !important;
         border: 1px solid #2a2e39 !important;
         text-align: left !important;
         color: #f8fafc !important;
-        font-size: 0.85rem !important;
-        padding: 6px 10px !important;
+        font-size: 0.95rem !important;
+        font-weight: 700 !important;
+        padding: 8px 12px !important;
+        margin-bottom: 4px !important;
     }
     div.stButton > button[key^="sugg_"]:hover {
         background-color: #2962ff !important;
@@ -156,13 +159,13 @@ def load_sec_directory() -> pd.DataFrame:
             return pd.DataFrame(rows)
     except Exception:
         pass
-    # Fallback default dataframe so startup never fails or blocks
     return pd.DataFrame([
         {"ticker": "AAPL", "name": "Apple Inc."},
         {"ticker": "MSFT", "name": "Microsoft Corp."},
         {"ticker": "NVDA", "name": "Nvidia Corp."},
         {"ticker": "FAST", "name": "Fastenal Co."},
-        {"ticker": "STRL", "name": "Sterling Infrastructure Inc."}
+        {"ticker": "STRL", "name": "Sterling Infrastructure Inc."},
+        {"ticker": "AAP", "name": "Advance Auto Parts Inc."}
     ], columns=["ticker", "name"])
 
 @st.cache_data(ttl=3600)
@@ -418,7 +421,7 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR & TIGHT AUTOCOMPLETE PANEL ---
+# --- COMMAND TOOLBAR & VERTICAL AUTOCOMPLETE PANEL ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
@@ -440,21 +443,24 @@ with col_bar4:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- SLEEK MATCHING SUGGESTIONS PANEL ---
+# --- VERTICAL AUTOCOMPLETE DROPDOWN (SEARCHES TICKER & NAME, SHOWS AT LEAST 5) ---
 sec_directory = load_sec_directory()
 current_query = tickers_input.split(',')[-1].strip().upper()
 
 if current_query and not sec_directory.empty:
+    # Match both ticker symbol and company name
     matches = sec_directory[
         sec_directory['ticker'].str.contains(current_query, case=False, na=False) |
         sec_directory['name'].str.contains(current_query, case=False, na=False)
-    ].head(5)
+    ].head(5) # At least 5 similarly spelled/matched stocks
     
     if not matches.empty:
-        st.markdown("<div class='autocomplete-container'>", unsafe_allow_html=True)
-        st.caption("🔍 Matching Ticker Suggestions:")
+        st.markdown("<div class='autocomplete-dropdown'>", unsafe_allow_html=True)
+        st.caption("🔍 Matching Ticker & Company Suggestions:")
         for idx, (_, row) in enumerate(matches.iterrows()):
-            if st.button(f"📌  {row['ticker']}  —  {row['name']}", key=f"sugg_{row['ticker']}_{idx}", use_container_width=True):
+            # Ticker larger/bolder on top, company name underneath inside button layout
+            btn_label = f"{row['ticker']} \n {row['name']}"
+            if st.button(btn_label, key=f"sugg_{row['ticker']}_{idx}", use_container_width=True):
                 parts = [t.strip() for t in tickers_input.split(',') if t.strip()]
                 if parts:
                     parts[-1] = row['ticker']
@@ -529,6 +535,6 @@ else:
     st.markdown("""
         <div style='background-color: #1e222d; border: 1px solid #2a2e39; padding: 20px; border-radius: 6px; text-align: center;'>
             <h3 style='color: #ffffff; margin-bottom: 8px;'>Terminal Ready</h3>
-            <p style='color: #787b86; margin: 0;'>Select a preset basket above or type in the search bar to preview live ticker suggestions, then click <b>Run Terminal</b>.</p>
+            <p style='color: #787b86; margin: 0;'>Select a preset basket above or type in the search bar to preview live stock suggestions, then click <b>Run Terminal</b>.</p>
         </div>
     """, unsafe_allow_html=True)
