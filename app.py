@@ -15,10 +15,11 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from anthropic import Anthropic
 import streamlit as st
+from st_keyup import st_keyup
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v9.4",
+    page_title="Institutional Research Terminal v9.6",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -43,10 +44,27 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"],
     div[data-testid="stVerticalBlock"],
     div[data-testid="column"],
-    div[data-testid="element-container"] {
+    div[data-testid="element-container"],
+    div[data-testid="stToolbar"] {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
+    }
+    
+    /* Target st_keyup Component Iframe to Match Dark Theme */
+    iframe[title="st_keyup.st_keyup"] {
+        background-color: #1e222d !important;
+        border-radius: 4px !important;
+        border: 1px solid #363c4e !important;
+    }
+    
+    /* Flush Command Toolbar Container */
+    .terminal-toolbar {
+        background-color: #1e222d;
+        border: 1px solid #2a2e39;
+        padding: 16px;
+        border-radius: 6px;
+        margin-bottom: 10px;
     }
     
     /* Autocomplete Dropdown Container */
@@ -58,24 +76,6 @@ st.markdown("""
         padding: 12px 16px;
         margin-bottom: 20px;
         box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-    }
-    
-    /* Bulletproof Native Input & BaseWeb Dark Styling (Eliminates White Boxes) */
-    .stTextInput input, div[data-baseweb="input"], div[data-baseweb="base-input"] {
-        background-color: #1e222d !important;
-        color: #ffffff !important;
-        border-color: #363c4e !important;
-    }
-    .stTextInput input {
-        color: #ffffff !important;
-        font-family: monospace !important;
-        font-size: 0.95rem !important;
-        border-radius: 4px;
-        padding: 8px 12px;
-    }
-    .stTextInput input:focus {
-        border-color: #2962ff !important;
-        box-shadow: 0 0 0 1px #2962ff !important;
     }
     
     /* Professional Action Button */
@@ -410,14 +410,15 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- STREAMLINED FLUSH COMMAND TOOLBAR ---
+# --- COMMAND TOOLBAR WITH INSTANT KEYUP SEARCH ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
+st.markdown("<div class='terminal-toolbar'>", unsafe_allow_html=True)
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
 with col_bar1:
-    tickers_input = st.text_input("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, label_visibility="visible", placeholder="Search ticker or company name...")
+    tickers_input = st_keyup("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, placeholder="Search ticker or company name...", key="ticker_keyup_input", debounce=150)
 with col_bar2:
     if st.button("Load Tech (AAPL)", use_container_width=True):
         st.session_state.tickers_input = "AAPL"
@@ -428,6 +429,8 @@ with col_bar3:
         st.rerun()
 with col_bar4:
     run_btn = st.button("⚡ Run Terminal", use_container_width=True)
+
+st.markdown("</div>", unsafe_allow_html=True)
 
 # --- REAL-TIME SMART MATCHING DROPDOWN (PREFIX & NAME PRIORITIZED) ---
 sec_directory = load_sec_directory()
@@ -496,7 +499,7 @@ if run_btn:
                     cols[4].metric("FCF", f['fcf'])
                     cols[5].metric("Market Cap", f['mcap'])
                     
-                    chart_fig = generate_interactive_chart(p['ticker'], p['event_markers'])
+                    chart_fig = z = generate_interactive_chart(p['ticker'], p['event_markers'])
                     if chart_fig: st.plotly_chart(chart_fig, use_container_width=True)
                     
                     col1, col2 = st.columns(2)
