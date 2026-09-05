@@ -19,7 +19,7 @@ from st_keyup import st_keyup
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v8.0",
+    page_title="Institutional Research Terminal v8.1",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -44,7 +44,7 @@ st.markdown("""
     .command-bar {
         background-color: #1e222d;
         border: 1px solid #2a2e39;
-        padding: 12px 16px;
+        padding: 16px;
         border-radius: 6px;
         margin-bottom: 0px;
     }
@@ -60,15 +60,16 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
     
-    /* Input Box Styling */
-    .stTextInput input, div[data-baseweb="input"] input {
+    /* Universal Dark Input Box Styling (Fixes st_keyup white box) */
+    input, textarea, div[data-baseweb="input"] > div, div[data-baseweb="base-input"] {
         background-color: #131722 !important;
         color: #ffffff !important;
-        border: 1px solid #363c4e !important;
-        border-radius: 4px;
-        padding: 6px 10px;
-        font-family: monospace;
-        font-size: 0.95rem;
+        border-color: #363c4e !important;
+    }
+    input {
+        color: #ffffff !important;
+        font-family: monospace !important;
+        font-size: 0.95rem !important;
     }
     
     /* Professional Action Button */
@@ -402,12 +403,13 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR WITH REAL-TIME KEYUP SEARCH (CLEAN LABELLESS INPUT) ---
+# --- COMMAND TOOLBAR WITH REAL-TIME KEYUP SEARCH (CLEAN DARK INPUT) ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
 st.markdown("<div class='command-bar'>", unsafe_allow_html=True)
-st.caption("Target Tickers (Comma-separated or Search)")
+st.markdown("<div style='font-size: 0.85rem; color: #787b86; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;'>Target Tickers (Comma-separated or Search)</div>", unsafe_allow_html=True)
+
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
 with col_bar1:
@@ -430,7 +432,6 @@ sec_directory = load_sec_directory()
 current_query = tickers_input.split(',')[-1].strip().upper()
 
 if current_query and not sec_directory.empty:
-    # Prioritize prefix matches (starts with query) so relevant tickers appear first
     exact_ticker = sec_directory[sec_directory['ticker'].str.startswith(current_query, na=False)]
     exact_name = sec_directory[sec_directory['name'].str.contains(current_query, case=False, na=False) & ~sec_directory['ticker'].str.startswith(current_query, na=False)]
     matches = pd.concat([exact_ticker, exact_name]).head(5)
