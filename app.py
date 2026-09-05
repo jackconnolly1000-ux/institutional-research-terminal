@@ -18,7 +18,7 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v8.7",
+    page_title="Institutional Research Terminal v8.8",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -39,13 +39,23 @@ st.markdown("""
     h2, h3, h4 { color: #f8fafc !important; font-weight: 600; }
     .stCaption, small { color: #787b86 !important; }
     
-    /* Completely Strip Streamlit Container Block Backgrounds */
-    div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlock"],
+    /* Completely Flatten All Streamlit Default Block Backgrounds */
     div[data-testid="stHorizontalBlock"],
+    div[data-testid="stVerticalBlock"],
+    div[data-testid="column"],
     div[data-testid="element-container"] {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
+    }
+    
+    /* Unified Command Toolbar Container */
+    .command-toolbar {
+        background-color: #1e222d;
+        border: 1px solid #2a2e39;
+        padding: 16px;
+        border-radius: 6px;
+        margin-bottom: 0px;
     }
     
     /* Autocomplete Dropdown Container */
@@ -61,7 +71,7 @@ st.markdown("""
     
     /* Native Input Box Dark Styling */
     .stTextInput input {
-        background-color: #1e222d !important;
+        background-color: #131722 !important;
         color: #ffffff !important;
         border: 1px solid #363c4e !important;
         border-radius: 4px;
@@ -406,10 +416,11 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- STREAMLINED FLUSH COMMAND TOOLBAR ---
+# --- UNIFIED FLUSH COMMAND TOOLBAR ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
+st.markdown("<div class='command-toolbar'>", unsafe_allow_html=True)
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
 with col_bar1:
@@ -424,6 +435,8 @@ with col_bar3:
         st.rerun()
 with col_bar4:
     run_btn = st.button("⚡ Run Terminal", use_container_width=True)
+
+st.markdown("</div>", unsafe_allow_html=True)
 
 # --- REAL-TIME SMART MATCHING DROPDOWN (PREFIX & NAME PRIORITIZED) ---
 sec_directory = load_sec_directory()
