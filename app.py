@@ -16,57 +16,94 @@ from bs4 import BeautifulSoup
 from anthropic import Anthropic
 import streamlit as st
 
-# --- STREAMLIT PAGE CONFIG & HIGH-CONTRAST CSS ---
+# --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v6.4",
+    page_title="Institutional Research Terminal v7.0",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 st.markdown("""
     <style>
-    /* Global High-Contrast Text Fix */
+    /* Global High-Contrast Professional Theme */
     .stApp, .stMarkdown, p, span, label, div {
-        color: #f1f5f9 !important;
-    }
-    
-    /* Main Background */
-    .stApp {
-        background-color: #0e1117;
+        color: #d1d4dc !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    
-    /* Headers */
-    h1, h2, h3, h4 {
-        color: #ffffff !important;
-        font-weight: 600;
+    .stApp {
+        background-color: #131722;
     }
     
-    /* Captions */
-    .stCaption, small {
-        color: #94a3b8 !important;
+    /* Typography */
+    h1 { color: #ffffff !important; font-weight: 700; font-size: 1.8rem !important; letter-spacing: -0.5px; }
+    h2, h3, h4 { color: #f8fafc !important; font-weight: 600; }
+    .stCaption, small { color: #787b86 !important; }
+    
+    /* Compact Command Toolbar */
+    .command-bar {
+        background-color: #1e222d;
+        border: 1px solid #2a2e39;
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 16px;
     }
     
     /* Input Box Styling */
     .stTextInput input {
-        background-color: #18181b !important;
-        color: #f8fafc !important;
-        border: 1px solid #3f3f46 !important;
-        border-radius: 6px;
+        background-color: #131722 !important;
+        color: #ffffff !important;
+        border: 1px solid #363c4e !important;
+        border-radius: 4px;
+        padding: 6px 10px;
+        font-family: monospace;
+        font-size: 0.95rem;
+    }
+    .stTextInput input:focus {
+        border-color: #2962ff !important;
+        box-shadow: 0 0 0 1px #2962ff !important;
     }
     
-    /* Button Styling */
+    /* Professional Action Button */
     .stButton button {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+        background: #2962ff !important;
         color: white !important;
         font-weight: 600;
         border: none;
-        border-radius: 6px;
-        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+        transition: background 0.2s ease;
     }
     .stButton button:hover {
-        background: linear-gradient(135deg, #1d4ed8 100%, #1e40af 100%) !important;
-        color: white !important;
+        background: #1e53e5 !important;
+    }
+    
+    /* Metric Cards */
+    div[data-testid="stMetric"] {
+        background-color: #1e222d;
+        border: 1px solid #2a2e39;
+        padding: 10px 14px;
+        border-radius: 4px;
+    }
+    div[data-testid="stMetric"] label {
+        color: #787b86 !important;
+        font-size: 0.75rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+        color: #ffffff !important;
+        font-size: 1.25rem !important;
+        font-weight: 600;
+        font-family: monospace;
+    }
+    
+    /* Info/Warning Callouts */
+    .stAlert {
+        background-color: #1e222d !important;
+        border: 1px solid #2a2e39 !important;
+        color: #d1d4dc !important;
+        border-radius: 4px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -280,7 +317,7 @@ def generate_interactive_chart(ticker, events):
         hist = yf.Ticker(ticker).history(period="6mo")
         if hist.empty: return None
         
-        fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'], increasing_line_color='#22c55e', decreasing_line_color='#ef4444', name='Price')])
+        fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'], increasing_line_color='#089981', decreasing_line_color='#f23645', name='Price')])
         
         if events:
             e_dates, e_labels, y_vals = [], [], []
@@ -293,15 +330,15 @@ def generate_interactive_chart(ticker, events):
                 except: pass
             
             if e_dates:
-                fig.add_trace(go.Scatter(x=e_dates, y=y_vals, mode='markers+text', marker=dict(symbol='triangle-down', size=12, color='#3b82f6'), text=e_labels, textposition='top center', textfont=dict(color='#3b82f6', size=11, family="monospace"), name='SEC Event'))
+                fig.add_trace(go.Scatter(x=e_dates, y=y_vals, mode='markers+text', marker=dict(symbol='triangle-down', size=10, color='#2962ff'), text=e_labels, textposition='top center', textfont=dict(color='#2962ff', size=10, family="monospace"), name='SEC Event'))
                 
-        fig.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=10, b=0), height=320, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", xaxis_rangeslider_visible=False, showlegend=False, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#27272a'))
+        fig.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=10, b=0), height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", xaxis_rangeslider_visible=False, showlegend=False, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#2a2e39'))
         return fig
     except Exception: return None
 
 def generate_excel(profiles):
     wb = openpyxl.Workbook()
-    header_fill, header_font = PatternFill(start_color="18181b", end_color="18181b", fill_type="solid"), Font(color="ffffff", bold=True)
+    header_fill, header_font = PatternFill(start_color="1e222d", end_color="1e222d", fill_type="solid"), Font(color="ffffff", bold=True)
     
     ws_quant = wb.active
     ws_quant.title = "Financial Model Feed"
@@ -326,37 +363,41 @@ def generate_excel(profiles):
     wb.save(buf)
     return buf.getvalue()
 
-# --- MAIN WORKSPACE HEADER ---
-st.markdown("<h1 style='margin-bottom: 0px;'>Institutional Research Terminal</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color: #94a3b8; font-size: 1.1rem; margin-top: 2px;'>SEC EDGAR Disclosure Extraction • Form 4 Insider Velocity • CapEx & Risk Engine</p>", unsafe_allow_html=True)
+# --- SLEEK COMPACT HEADER ---
+c_head1, c_head2 = st.columns([3, 1])
+c_head1.markdown("<h1>INSTITUTIONAL RESEARCH TERMINAL</h1>", unsafe_allow_html=True)
+c_head1.markdown("<p style='color: #787b86; margin-top: -10px; font-size: 0.95rem;'>SEC EDGAR Ingestion • Form 4 Insider Velocity • Quant & Risk Analytics</p>", unsafe_allow_html=True)
+c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style='background: #1e222d; border: 1px solid #2a2e39; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #089981;'>● LIVE FEED</span></div>", unsafe_allow_html=True)
+
 st.divider()
 
-# --- PERMANENT MAIN CONTROL PANEL CARD ---
-st.markdown("""
-    <div style='background-color: #18181b; border: 1px solid #27272a; padding: 20px; border-radius: 8px; margin-bottom: 24px;'>
-        <h3 style='margin-top: 0px; color: #ffffff;'>🎛️ Terminal Control Panel</h3>
-    </div>
-""", unsafe_allow_html=True)
-
-# Session state initialization for presets
+# --- PROFESSIONAL COMPACT COMMAND TOOLBAR ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
-col_p1, col_p2, col_p3 = st.columns([1, 1, 2])
-if col_p1.button("📌 Load Tech (AAPL)"):
-    st.session_state.tickers_input = "AAPL"
-if col_p2.button("📌 Load Industrials (FAST, STRL)"):
-    st.session_state.tickers_input = "FAST, STRL"
+st.markdown("<div class='command-bar'>", unsafe_allow_html=True)
+col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
-tickers_input = st.text_input("Target Equities (Single ticker or comma-separated peers):", value=st.session_state.tickers_input)
-run_btn = st.button("🚀 Generate Institutional Tear Sheet", use_container_width=True)
-st.divider()
+with col_bar1:
+    tickers_input = st.text_input("Target Tickers (Comma-separated)", value=st.session_state.tickers_input, label_visibility="collapsed")
+with col_bar2:
+    if st.button("Load Tech (AAPL)", use_container_width=True):
+        st.session_state.tickers_input = "AAPL"
+        st.rerun()
+with col_bar3:
+    if st.button("Load Industrials", use_container_width=True):
+        st.session_state.tickers_input = "FAST, STRL"
+        st.rerun()
+with col_bar4:
+    run_btn = st.button("⚡ Run Terminal", use_container_width=True)
 
-# --- EXECUTION & DISPLAY ---
+st.markdown("</div>", unsafe_allow_html=True)
+
+# --- EXECUTION & HIGH-DENSITY DISPLAY ---
 if run_btn:
     raw_list = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     if raw_list:
-        with st.spinner("Parsing SEC filings, running YoY risk deltas, and compiling institutional data..."):
+        with st.spinner("Executing SEC EDGAR parsing, YoY risk delta, and quantitative modeling..."):
             profiles = []
             for t in raw_list:
                 sec_data = fetch_firm_data(t)
@@ -365,15 +406,15 @@ if run_btn:
                     if prof: profiles.append(prof)
             
             if profiles:
-                st.success(f"Successfully compiled analysis for: {', '.join([p['ticker'] for p in profiles])}")
+                st.success(f"Analysis successfully compiled for: {', '.join([p['ticker'] for p in profiles])}")
                 st.divider()
                 
                 for p in profiles:
                     f = p['financials']
                     ins_vel = p['insider_velocity']
                     
-                    st.markdown(f"### 📈 {p['ticker']} — {p['company_name']}")
-                    st.caption(f"Industry: {p['industry']} | Primary Filing: {p['form_type']}")
+                    st.markdown(f"### {p['ticker']} — {p['company_name']}")
+                    st.caption(f"Industry: {p['industry']} | Filing: {p['form_type']}")
                     
                     cols = st.columns(6)
                     cols[0].metric("Insider 90D", str(ins_vel))
@@ -392,11 +433,11 @@ if run_btn:
                         for item in p['bull']:
                             st.info(f"**{item['target']}** ({item['impact']})\n\n{item['description']}\n\n*{item['quote']}*")
                     with col2:
-                        st.subheader("⚠️ Supply Chain & Vulnerabilities")
+                        st.subheader("⚠️ Supply Chain & Risks")
                         for item in p['bear']:
                             st.warning(f"**{item['target']}** ({item['impact']} | {item.get('trend', 'STABLE')})\n\n{item['description']}\n\n*{item['quote']}*")
                     
-                    st.subheader("🏛️ SEC Form 8-K Material Events")
+                    st.subheader("🏛️ SEC Form 8-K Events")
                     if not p['eight_k']:
                         st.write("No recent material events found.")
                     else:
@@ -412,11 +453,11 @@ if run_btn:
                     st.divider()
 
                 excel_data = generate_excel(profiles)
-                st.download_button(label="📊 Download Consolidated Quant Workbook (.xlsx)", data=excel_data, file_name="Institutional_Model.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button(label="📊 Download Institutional Model (.xlsx)", data=excel_data, file_name="Institutional_Model.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 else:
     st.markdown("""
-        <div style='background-color: #18181b; border: 1px solid #27272a; padding: 24px; border-radius: 8px;'>
-            <h3>Terminal Ready</h3>
-            <p style='color: #cbd5e1;'>Select a preset basket above or type any ticker into the control panel, then click <b>Generate Institutional Tear Sheet</b> to load live SEC filings, AI risk delta insights, and quant metrics.</p>
+        <div style='background-color: #1e222d; border: 1px solid #2a2e39; padding: 20px; border-radius: 6px; text-align: center;'>
+            <h3 style='color: #ffffff; margin-bottom: 8px;'>Terminal Ready</h3>
+            <p style='color: #787b86; margin: 0;'>Select a preset basket above or enter custom tickers in the command bar, then click <b>Run Terminal</b> to initialize live SEC data ingestion and AI analytics.</p>
         </div>
     """, unsafe_allow_html=True)
