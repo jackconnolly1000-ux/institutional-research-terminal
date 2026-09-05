@@ -18,7 +18,7 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v8.5",
+    page_title="Institutional Research Terminal v8.6",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -39,12 +39,11 @@ st.markdown("""
     h2, h3, h4 { color: #f8fafc !important; font-weight: 600; }
     .stCaption, small { color: #787b86 !important; }
     
-    /* Clean Flush Toolbar */
+    /* Remove Gray Box Wrappers for a Clean Flat Aesthetic */
     .stHorizontalBlock {
-        background-color: #1e222d;
-        border: 1px solid #2a2e39;
-        padding: 14px 16px;
-        border-radius: 6px;
+        background-color: transparent !important;
+        border: none !important;
+        padding: 0px !important;
     }
     
     /* Autocomplete Dropdown Container */
@@ -60,7 +59,7 @@ st.markdown("""
     
     /* Native Input Box Dark Styling */
     .stTextInput input {
-        background-color: #131722 !important;
+        background-color: #1e222d !important;
         color: #ffffff !important;
         border: 1px solid #363c4e !important;
         border-radius: 4px;
