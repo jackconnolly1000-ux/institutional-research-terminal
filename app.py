@@ -18,7 +18,7 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v8.9",
+    page_title="Institutional Research Terminal v9.0",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -39,14 +39,16 @@ st.markdown("""
     h2, h3, h4 { color: #f8fafc !important; font-weight: 600; }
     .stCaption, small { color: #787b86 !important; }
     
-    /* Completely Neutralize Streamlit Block Background Artifacts */
+    /* Completely Eliminate All Streamlit Container Card Backgrounds & Borders */
     div[data-testid="stHorizontalBlock"],
     div[data-testid="stVerticalBlock"],
     div[data-testid="column"],
-    div[data-testid="element-container"] {
+    div[data-testid="element-container"],
+    div.stForm {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
+        border-radius: 0px !important;
     }
     
     /* Autocomplete Dropdown Container */
@@ -407,7 +409,7 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- STREAMLINED FLUSH SEARCH & TOOLBAR (NO WRAPPER ARTIFACTS) ---
+# --- STREAMLINED FLUSH SEARCH & TOOLBAR ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
