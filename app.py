@@ -15,10 +15,11 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from anthropic import Anthropic
 import streamlit as st
+from st_keyup import st_keyup
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v9.1",
+    page_title="Institutional Research Terminal v9.2",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -39,39 +40,41 @@ st.markdown("""
     h2, h3, h4 { color: #f8fafc !important; font-weight: 600; }
     .stCaption, small { color: #787b86 !important; }
     
-    /* Completely Eliminate All Container Card Backgrounds & Borders */
+    /* Completely Neutralize Container Background Artifacts */
     div[data-testid="stHorizontalBlock"],
     div[data-testid="stVerticalBlock"],
     div[data-testid="column"],
-    div[data-testid="element-container"],
-    div.stForm {
+    div[data-testid="element-container"] {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
-        border-radius: 0px !important;
     }
     
-    /* Clean Flat Autocomplete Suggestions Area */
-    .autocomplete-clean {
-        background-color: #161a23;
-        border-left: 2px solid #2962ff;
-        padding: 8px 14px;
-        margin-bottom: 4px;
+    /* Force Component Iframes (st_keyup) into Dark Theme */
+    iframe {
+        background-color: transparent !important;
+        color-scheme: dark;
+        border: none !important;
     }
     
-    /* Native Input Box Dark Styling */
-    .stTextInput input {
-        background-color: #1e222d !important;
-        color: #ffffff !important;
-        border: 1px solid #363c4e !important;
-        border-radius: 4px;
-        padding: 8px 12px;
-        font-family: monospace;
-        font-size: 0.95rem;
+    /* Unified Command Toolbar Container */
+    .command-toolbar {
+        background-color: #1e222d;
+        border: 1px solid #2a2e39;
+        padding: 16px;
+        border-radius: 6px;
+        margin-bottom: 0px;
     }
-    .stTextInput input:focus {
-        border-color: #2962ff !important;
-        box-shadow: 0 0 0 1px #2962ff !important;
+    
+    /* Autocomplete Dropdown Container */
+    .autocomplete-dropdown {
+        background-color: #181c25;
+        border: 1px solid #2a2e39;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
     
     /* Professional Action Button */
@@ -84,7 +87,7 @@ st.markdown("""
         padding: 0.45rem 0.9rem;
         font-size: 0.9rem;
         transition: background 0.2s ease;
-        margin-top: 28px;
+        margin-top: 24px;
     }
     .stButton button:hover {
         background: #1e53e5 !important;
@@ -406,14 +409,14 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- STREAMLINED FLUSH SEARCH & TOOLBAR ---
+# --- COMMAND TOOLBAR WITH INSTANT KEYUP SEARCH ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
 with col_bar1:
-    tickers_input = st.text_input("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, label_visibility="visible", placeholder="Search ticker or company name...")
+    tickers_input = st_keyup("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, placeholder="Search ticker or company name...", key="ticker_keyup_input", debounce=150)
 with col_bar2:
     if st.button("Load Tech (AAPL)", use_container_width=True):
         st.session_state.tickers_input = "AAPL"
@@ -425,7 +428,7 @@ with col_bar3:
 with col_bar4:
     run_btn = st.button("⚡ Run Terminal", use_container_width=True)
 
-# --- REAL-TIME SMART MATCHING SUGGESTIONS (FLASH OVERLAY) ---
+# --- REAL-TIME SMART MATCHING DROPDOWN (CLEAN TERMINAL PANEL) ---
 sec_directory = load_sec_directory()
 current_query = tickers_input.split(',')[-1].strip().upper()
 
@@ -435,13 +438,17 @@ if current_query and not sec_directory.empty:
     matches = pd.concat([exact_ticker, exact_name]).head(5)
     
     if not matches.empty:
-        st.caption("🔍 Matching Ticker & Company Suggestions:")
+        st.markdown("<div class='autocomplete-dropdown'>", unsafe_allow_html=True)
+        st.caption("🔍 Matching Ticker & Company Suggestions (Real-Time):")
+        
         for idx, (_, row) in enumerate(matches.iterrows()):
-            st.markdown("<div class='autocomplete-clean'>", unsafe_allow_html=True)
             s_col1, s_col2 = st.columns([4, 1])
             with s_col1:
                 st.markdown(f"""
-                    <div style='font-size: 1.1rem; font-weight: 800; color: #ffffff; font-family: monospace;'>{row['ticker']} <span style='font-size: 0.85rem; font-weight: 400; color: #94a3b8;'>— {row['name']}</span></div>
+                    <div style='padding: 4px 0;'>
+                        <span style='font-size: 1.1rem; font-weight: 800; color: #ffffff; font-family: monospace;'>{row['ticker']}</span>
+                        <span style='font-size: 0.88rem; color: #94a3b8; margin-left: 10px;'>{row['name']}</span>
+                    </div>
                 """, unsafe_allow_html=True)
             with s_col2:
                 if st.button("Select", key=f"sugg_btn_{row['ticker']}_{idx}", use_container_width=True):
@@ -452,7 +459,10 @@ if current_query and not sec_directory.empty:
                         parts = [row['ticker']]
                     st.session_state.tickers_input = ", ".join(parts)
                     st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            if idx < len(matches) - 1:
+                st.markdown("<hr style='margin: 4px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
+                
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # --- EXECUTION & HIGH-DENSITY DISPLAY ---
 if run_btn:
