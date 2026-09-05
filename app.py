@@ -18,7 +18,7 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v8.4",
+    page_title="Institutional Research Terminal v8.5",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -39,16 +39,15 @@ st.markdown("""
     h2, h3, h4 { color: #f8fafc !important; font-weight: 600; }
     .stCaption, small { color: #787b86 !important; }
     
-    /* Compact Command Toolbar */
-    .command-bar {
+    /* Clean Flush Toolbar */
+    .stHorizontalBlock {
         background-color: #1e222d;
         border: 1px solid #2a2e39;
-        padding: 16px;
+        padding: 14px 16px;
         border-radius: 6px;
-        margin-bottom: 0px;
     }
     
-    /* Left-to-Right Full-Width Autocomplete Dropdown Container */
+    /* Autocomplete Dropdown Container */
     .autocomplete-dropdown {
         background-color: #181c25;
         border: 1px solid #2a2e39;
@@ -84,6 +83,7 @@ st.markdown("""
         padding: 0.4rem 0.8rem;
         font-size: 0.9rem;
         transition: background 0.2s ease;
+        margin-top: 24px;
     }
     .stButton button:hover {
         background: #1e53e5 !important;
@@ -405,11 +405,10 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR WITH NATIVE REAL-TIME SEARCH ---
+# --- STREAMLINED FLUSH COMMAND TOOLBAR ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
-st.markdown("<div class='command-bar'>", unsafe_allow_html=True)
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
 with col_bar1:
@@ -424,8 +423,6 @@ with col_bar3:
         st.rerun()
 with col_bar4:
     run_btn = st.button("⚡ Run Terminal", use_container_width=True)
-
-st.markdown("</div>", unsafe_allow_html=True)
 
 # --- REAL-TIME SMART MATCHING DROPDOWN (PREFIX & NAME PRIORITIZED) ---
 sec_directory = load_sec_directory()
