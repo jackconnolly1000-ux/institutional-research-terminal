@@ -19,7 +19,7 @@ from st_keyup import st_keyup
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v8.2",
+    page_title="Institutional Research Terminal v8.3",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -60,7 +60,14 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
     
-    /* Universal Dark Input Box & Component Iframe Styling */
+    /* Force Custom Component Iframes (st_keyup) into Dark Theme */
+    iframe {
+        background-color: #131722 !important;
+        color-scheme: dark;
+        border-radius: 4px;
+    }
+    
+    /* Universal Dark Input Box Styling */
     input, textarea, div[data-baseweb="input"] > div, div[data-baseweb="base-input"] {
         background-color: #131722 !important;
         color: #ffffff !important;
@@ -70,13 +77,6 @@ st.markdown("""
         color: #ffffff !important;
         font-family: monospace !important;
         font-size: 0.95rem !important;
-    }
-    
-    /* Force Custom Component Iframes (st_keyup) into Dark Theme */
-    iframe {
-        background-color: #131722 !important;
-        color-scheme: dark;
-        border-radius: 4px;
     }
     
     /* Professional Action Button */
@@ -410,12 +410,12 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR WITH REAL-TIME KEYUP SEARCH (DARK THEME FIXED) ---
+# --- COMMAND TOOLBAR WITH REAL-TIME KEYUP SEARCH (DARK THEME CLEAN) ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
 st.markdown("<div class='command-bar'>", unsafe_allow_html=True)
-st.markdown("<div style='font-size: 0.85rem; color: #787b86; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;'>Target Tickers (Comma-separated or Search)</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-size: 0.75rem; color: #787b86; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;'>Target Tickers (Comma-separated or Search)</div>", unsafe_allow_html=True)
 
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
