@@ -16,8 +16,62 @@ from bs4 import BeautifulSoup
 from anthropic import Anthropic
 import streamlit as st
 
-# --- STREAMLIT PAGE CONFIG ---
-st.set_page_config(page_title="Institutional Research Terminal", layout="wide", initial_sidebar_state="collapsed")
+# --- STREAMLIT PAGE CONFIG & INSTITUTIONAL CSS ---
+st.set_page_config(
+    page_title="Institutional Research Terminal v6.0",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+st.markdown("""
+    <style>
+    /* Main Theme Styling */
+    .stApp {
+        background-color: #0e1117;
+        color: #f1f5f9;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    /* Header Styling */
+    h1, h2, h3 {
+        color: #f8fafc;
+        font-weight: 600;
+    }
+    
+    /* Custom Card Containers */
+    .metric-container {
+        background-color: #18181b;
+        border: 1px solid #27272a;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+    }
+    
+    /* Input Box Styling */
+    .stTextInput input {
+        background-color: #18181b;
+        color: #f8fafc;
+        border: 1px solid #3f3f46;
+        border-radius: 6px;
+    }
+    
+    /* Button Styling */
+    .stButton button {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        font-weight: 600;
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+    }
+    .stButton button:hover {
+        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        border: none;
+        color: white;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # --- SECURE KEY RETRIEVAL ---
 try:
@@ -228,7 +282,7 @@ def generate_interactive_chart(ticker, events):
         hist = yf.Ticker(ticker).history(period="6mo")
         if hist.empty: return None
         
-        fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'], increasing_line_color='#4ade80', decreasing_line_color='#f87171', name='Price')])
+        fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'], increasing_line_color='#22c55e', decreasing_line_color='#ef4444', name='Price')])
         
         if events:
             e_dates, e_labels, y_vals = [], [], []
@@ -241,9 +295,9 @@ def generate_interactive_chart(ticker, events):
                 except: pass
             
             if e_dates:
-                fig.add_trace(go.Scatter(x=e_dates, y=y_vals, mode='markers+text', marker=dict(symbol='triangle-down', size=12, color='#60a5fa'), text=e_labels, textposition='top center', textfont=dict(color='#60a5fa', size=11, family="monospace"), name='SEC Event'))
+                fig.add_trace(go.Scatter(x=e_dates, y=y_vals, mode='markers+text', marker=dict(symbol='triangle-down', size=12, color='#3b82f6'), text=e_labels, textposition='top center', textfont=dict(color='#3b82f6', size=11, family="monospace"), name='SEC Event'))
                 
-        fig.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=10, b=0), height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", xaxis_rangeslider_visible=False, showlegend=False, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#27272a'))
+        fig.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=10, b=0), height=320, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", xaxis_rangeslider_visible=False, showlegend=False, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#27272a'))
         return fig
     except Exception: return None
 
@@ -274,16 +328,18 @@ def generate_excel(profiles):
     wb.save(buf)
     return buf.getvalue()
 
-# --- STREAMLIT UI ---
-st.title("Institutional Research Terminal V5.0")
-st.markdown("Event-Driven Interactive Charting + Form 4 Insider Tracking + CapEx/Supply Chain Engine", unsafe_allow_html=True)
+# --- STREAMLIT UI (TERMINAL V6.0 GLOW-UP) ---
+st.markdown("<h1 style='margin-bottom: 0px;'>Institutional Research Terminal</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color: #94a3b8; font-size: 1.1rem; margin-top: 2px;'>SEC EDGAR Disclosure Extraction • Form 4 Insider Velocity • CapEx & Risk Engine</p>", unsafe_allow_html=True)
+st.divider()
 
-tickers_input = st.text_input("Target Equities (comma separated):", value="FAST, STRL")
+# Input supporting 1 stock or comma-separated list
+tickers_input = st.text_input("Target Equities (Enter single ticker or comma-separated peers):", value="AAPL")
 
-if st.button("Generate Tear Sheet"):
+if st.button("Generate Institutional Tear Sheet"):
     raw_list = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     if raw_list:
-        with st.spinner("Compiling institutional SEC disclosures and mapping event logic..."):
+        with st.spinner("Parsing SEC filings, running YoY risk deltas, and compiling institutional data..."):
             profiles = []
             for t in raw_list:
                 sec_data = fetch_firm_data(t)
@@ -292,51 +348,53 @@ if st.button("Generate Tear Sheet"):
                     if prof: profiles.append(prof)
             
             if profiles:
-                st.success("Analysis Complete.")
+                st.success(f"Successfully compiled analysis for: {', '.join([p['ticker'] for p in profiles])}")
+                st.divider()
                 
-                # Render UI
+                # Render UI Cards
                 for p in profiles:
                     f = p['financials']
                     ins_vel = p['insider_velocity']
-                    ins_col = "red" if ins_vel > 5 else ("orange" if ins_vel > 0 else "gray")
                     
-                    with st.container():
-                        st.markdown(f"### {p['ticker']} - {p['company_name']}")
-                        cols = st.columns(6)
-                        cols[0].metric("Insider 90D", str(ins_vel))
-                        cols[1].metric("Price", f['price'])
-                        cols[2].metric("Fwd P/E", f['fpe'])
-                        cols[3].metric("Gross Mgn", f['gross_margin'])
-                        cols[4].metric("FCF", f['fcf'])
-                        cols[5].metric("Source", p['form_type'])
-                        
-                        chart_fig = generate_interactive_chart(p['ticker'], p['event_markers'])
-                        if chart_fig: st.plotly_chart(chart_fig, use_container_width=True)
-                        
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.subheader("CapEx & Growth Catalysts")
-                            for item in p['bull']:
-                                st.info(f"**{item['target']}** ({item['impact']})\n\n{item['description']}\n\n*{item['quote']}*")
-                        with col2:
-                            st.subheader("Supply Chain & Vulnerabilities")
-                            for item in p['bear']:
-                                st.warning(f"**{item['target']}** ({item['impact']} | {item.get('trend', 'STABLE')})\n\n{item['description']}\n\n*{item['quote']}*")
-                        
-                        st.subheader("SEC Form 8-K Material Events")
-                        if not p['eight_k']:
-                            st.write("No recent material events found.")
-                        else:
-                            e_cols = st.columns(min(3, len(p['eight_k'])))
-                            for idx, event in enumerate(p['eight_k']):
-                                with e_cols[idx % 3]:
-                                    st.success(f"**{event['event_date']}** | {event['category']}\n\n{event['takeaway']}")
-                        
-                        st.subheader("Executive Q&A / Meeting Prep")
-                        for q in p['questions']: st.markdown(f"- {q}")
-                        
-                        st.divider()
+                    st.markdown(f"### 📈 {p['ticker']} — {p['company_name']}")
+                    st.caption(f"Industry: {p['industry']} | Primary Filing: {p['form_type']}")
+                    
+                    cols = st.columns(6)
+                    cols[0].metric("Insider 90D", str(ins_vel))
+                    cols[1].metric("Price", f['price'])
+                    cols[2].metric("Fwd P/E", f['fpe'])
+                    cols[3].metric("Gross Mgn", f['gross_margin'])
+                    cols[4].metric("FCF", f['fcf'])
+                    cols[5].metric("Market Cap", f['mcap'])
+                    
+                    chart_fig = generate_interactive_chart(p['ticker'], p['event_markers'])
+                    if chart_fig: st.plotly_chart(chart_fig, use_container_width=True)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.subheader("💡 CapEx & Growth Catalysts")
+                        for item in p['bull']:
+                            st.info(f"**{item['target']}** ({item['impact']})\n\n{item['description']}\n\n*{item['quote']}*")
+                    with col2:
+                        st.subheader("⚠️ Supply Chain & Vulnerabilities")
+                        for item in p['bear']:
+                            st.warning(f"**{item['target']}** ({item['impact']} | {item.get('trend', 'STABLE')})\n\n{item['description']}\n\n*{item['quote']}*")
+                    
+                    st.subheader("🏛️ SEC Form 8-K Material Events")
+                    if not p['eight_k']:
+                        st.write("No recent material events found.")
+                    else:
+                        e_cols = st.columns(min(3, len(p['eight_k'])))
+                        for idx, event in enumerate(p['eight_k']):
+                            with e_cols[idx % 3]:
+                                st.success(f"**{event['event_date']}** | {event['category']}\n\n{event['takeaway']}")
+                    
+                    st.subheader("🎙️ Executive Q&A / Meeting Prep")
+                    for q in p['questions']: st.markdown(f"- {q}")
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.divider()
 
                 # Generate Excel
                 excel_data = generate_excel(profiles)
-                st.download_button(label="📊 Download Quant Workbook (.xlsx)", data=excel_data, file_name="Institutional_Model.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                st.download_button(label="📊 Download Consolidated Quant Workbook (.xlsx)", data=excel_data, file_name="Institutional_Model.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
