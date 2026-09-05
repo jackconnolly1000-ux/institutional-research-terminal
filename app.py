@@ -19,7 +19,7 @@ from st_keyup import st_keyup
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v8.1",
+    page_title="Institutional Research Terminal v8.2",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -60,7 +60,7 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
     
-    /* Universal Dark Input Box Styling (Fixes st_keyup white box) */
+    /* Universal Dark Input Box & Component Iframe Styling */
     input, textarea, div[data-baseweb="input"] > div, div[data-baseweb="base-input"] {
         background-color: #131722 !important;
         color: #ffffff !important;
@@ -70,6 +70,13 @@ st.markdown("""
         color: #ffffff !important;
         font-family: monospace !important;
         font-size: 0.95rem !important;
+    }
+    
+    /* Force Custom Component Iframes (st_keyup) into Dark Theme */
+    iframe {
+        background-color: #131722 !important;
+        color-scheme: dark;
+        border-radius: 4px;
     }
     
     /* Professional Action Button */
@@ -403,7 +410,7 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR WITH REAL-TIME KEYUP SEARCH (CLEAN DARK INPUT) ---
+# --- COMMAND TOOLBAR WITH REAL-TIME KEYUP SEARCH (DARK THEME FIXED) ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
