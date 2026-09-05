@@ -19,7 +19,7 @@ from st_keyup import st_keyup
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v9.6",
+    page_title="Institutional Research Terminal v9.7",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -410,7 +410,7 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR WITH INSTANT KEYUP SEARCH ---
+# --- COMMAND TOOLBAR WITH SYNCHRONIZED KEYUP SEARCH ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
@@ -432,7 +432,7 @@ with col_bar4:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- REAL-TIME SMART MATCHING DROPDOWN (PREFIX & NAME PRIORITIZED) ---
+# --- REAL-TIME SMART MATCHING DROPDOWN (FULLY SYNCHRONIZED SELECTION) ---
 sec_directory = load_sec_directory()
 current_query = tickers_input.split(',')[-1].strip().upper()
 
@@ -461,7 +461,9 @@ if current_query and not sec_directory.empty:
                         parts[-1] = row['ticker']
                     else:
                         parts = [row['ticker']]
-                    st.session_state.tickers_input = ", ".join(parts)
+                    new_val = ", ".join(parts)
+                    st.session_state.tickers_input = new_val
+                    st.session_state.ticker_keyup_input = new_val
                     st.rerun()
             if idx < len(matches) - 1:
                 st.markdown("<hr style='margin: 4px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
@@ -499,7 +501,7 @@ if run_btn:
                     cols[4].metric("FCF", f['fcf'])
                     cols[5].metric("Market Cap", f['mcap'])
                     
-                    chart_fig = z = generate_interactive_chart(p['ticker'], p['event_markers'])
+                    chart_fig = generate_interactive_chart(p['ticker'], p['event_markers'])
                     if chart_fig: st.plotly_chart(chart_fig, use_container_width=True)
                     
                     col1, col2 = st.columns(2)
