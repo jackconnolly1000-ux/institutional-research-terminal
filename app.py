@@ -18,7 +18,7 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v7.1",
+    page_title="Institutional Research Terminal v7.2",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -45,16 +45,16 @@ st.markdown("""
         border: 1px solid #2a2e39;
         padding: 12px 16px;
         border-radius: 6px;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
     }
     
-    /* Live Search Suggestion Box */
-    .suggestion-box {
+    /* Vertical Autocomplete Dropdown Box */
+    .autocomplete-dropdown {
         background-color: #181c25;
         border: 1px solid #2a2e39;
         border-top: none;
         border-radius: 0 0 6px 6px;
-        padding: 8px 12px;
+        padding: 10px;
         margin-bottom: 16px;
     }
     
@@ -394,7 +394,7 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR & LIVE SEARCH AUTOCOMPLETE ---
+# --- COMMAND TOOLBAR & VERTICAL AUTOCOMPLETE DROPDOWN ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
@@ -416,7 +416,7 @@ with col_bar4:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- LIVE GOOGLE-STYLE SUGGESTION BAR BELOW SEARCH ---
+# --- VERTICAL AUTOCOMPLETE DROPDOWN LIST (LIKE BROWSER SEARCH) ---
 sec_directory = load_sec_directory()
 current_query = tickers_input.split(',')[-1].strip().upper()
 
@@ -427,20 +427,18 @@ if current_query and not sec_directory.empty:
     ].head(5)
     
     if not matches.empty:
-        st.markdown("<div class='suggestion-box'>", unsafe_allow_html=True)
-        st.caption("🔍 Relevant Ticker Matches (Click or type):")
-        s_cols = st.columns(min(5, len(matches)))
+        st.markdown("<div class='autocomplete-dropdown'>", unsafe_allow_html=True)
+        st.caption("🔍 Matching Ticker & Company Suggestions:")
         for idx, (_, row) in enumerate(matches.iterrows()):
-            with s_cols[idx]:
-                if st.button(f"**{row['ticker']}**\n{row['name'][:18]}...", key=f"sugg_{row['ticker']}_{idx}", use_container_width=True):
-                    # Replace or append
-                    parts = [t.strip() for t in tickers_input.split(',') if t.strip()]
-                    if parts:
-                        parts[-1] = row['ticker']
-                    else:
-                        parts = [row['ticker']]
-                    st.session_state.tickers_input = ", ".join(parts)
-                    st.rerun()
+            # Vertical row layout mimicking browser search dropdown (Ticker + Full Company Name stacked/side-by-side cleanly)
+            if st.button(f"📌  {row['ticker']}  —  {row['name']}", key=f"vert_sugg_{row['ticker']}_{idx}", use_container_width=True):
+                parts = [t.strip() for t in tickers_input.split(',') if t.strip()]
+                if parts:
+                    parts[-1] = row['ticker']
+                else:
+                    parts = [row['ticker']]
+                st.session_state.tickers_input = ", ".join(parts)
+                st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
 # --- EXECUTION & HIGH-DENSITY DISPLAY ---
@@ -508,6 +506,6 @@ else:
     st.markdown("""
         <div style='background-color: #1e222d; border: 1px solid #2a2e39; padding: 20px; border-radius: 6px; text-align: center;'>
             <h3 style='color: #ffffff; margin-bottom: 8px;'>Terminal Ready</h3>
-            <p style='color: #787b86; margin: 0;'>Select a preset basket above or type in the search bar to preview live SEC ticker suggestions, then click <b>Run Terminal</b>.</p>
+            <p style='color: #787b86; margin: 0;'>Select a preset basket above or type a ticker in the search bar to preview the vertical autocomplete dropdown matching tickers and full company names, then click <b>Run Terminal</b>.</p>
         </div>
     """, unsafe_allow_html=True)
