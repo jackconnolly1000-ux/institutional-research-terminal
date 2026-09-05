@@ -18,7 +18,7 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v7.0",
+    page_title="Institutional Research Terminal v7.1",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -45,6 +45,16 @@ st.markdown("""
         border: 1px solid #2a2e39;
         padding: 12px 16px;
         border-radius: 6px;
+        margin-bottom: 8px;
+    }
+    
+    /* Live Search Suggestion Box */
+    .suggestion-box {
+        background-color: #181c25;
+        border: 1px solid #2a2e39;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        padding: 8px 12px;
         margin-bottom: 16px;
     }
     
@@ -121,6 +131,19 @@ except Exception as e:
     st.stop()
 
 # --- BACKEND FUNCTIONS ---
+@st.cache_data(ttl=86400)
+def load_sec_directory() -> pd.DataFrame:
+    headers = {'User-Agent': 'InstitutionalResearchDirectory admin@research-terminal.com'}
+    try:
+        resp = requests.get("https://www.sec.gov/files/company_tickers.json", headers=headers, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            rows = [{"ticker": v['ticker'].upper(), "name": v['title'].title()} for v in data.values()]
+            return pd.DataFrame(rows)
+    except Exception:
+        pass
+    return pd.DataFrame(columns=["ticker", "name"])
+
 @st.cache_data(ttl=3600)
 def get_comprehensive_financials(ticker: str) -> dict:
     try:
@@ -371,7 +394,7 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- PROFESSIONAL COMPACT COMMAND TOOLBAR ---
+# --- COMMAND TOOLBAR & LIVE SEARCH AUTOCOMPLETE ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
@@ -379,7 +402,7 @@ st.markdown("<div class='command-bar'>", unsafe_allow_html=True)
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
 with col_bar1:
-    tickers_input = st.text_input("Target Tickers (Comma-separated)", value=st.session_state.tickers_input, label_visibility="collapsed")
+    tickers_input = st.text_input("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, label_visibility="collapsed", placeholder="Search ticker or company name...")
 with col_bar2:
     if st.button("Load Tech (AAPL)", use_container_width=True):
         st.session_state.tickers_input = "AAPL"
@@ -392,6 +415,33 @@ with col_bar4:
     run_btn = st.button("⚡ Run Terminal", use_container_width=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
+
+# --- LIVE GOOGLE-STYLE SUGGESTION BAR BELOW SEARCH ---
+sec_directory = load_sec_directory()
+current_query = tickers_input.split(',')[-1].strip().upper()
+
+if current_query and not sec_directory.empty:
+    matches = sec_directory[
+        sec_directory['ticker'].str.contains(current_query, case=False, na=False) |
+        sec_directory['name'].str.contains(current_query, case=False, na=False)
+    ].head(5)
+    
+    if not matches.empty:
+        st.markdown("<div class='suggestion-box'>", unsafe_allow_html=True)
+        st.caption("🔍 Relevant Ticker Matches (Click or type):")
+        s_cols = st.columns(min(5, len(matches)))
+        for idx, (_, row) in enumerate(matches.iterrows()):
+            with s_cols[idx]:
+                if st.button(f"**{row['ticker']}**\n{row['name'][:18]}...", key=f"sugg_{row['ticker']}_{idx}", use_container_width=True):
+                    # Replace or append
+                    parts = [t.strip() for t in tickers_input.split(',') if t.strip()]
+                    if parts:
+                        parts[-1] = row['ticker']
+                    else:
+                        parts = [row['ticker']]
+                    st.session_state.tickers_input = ", ".join(parts)
+                    st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # --- EXECUTION & HIGH-DENSITY DISPLAY ---
 if run_btn:
@@ -458,6 +508,6 @@ else:
     st.markdown("""
         <div style='background-color: #1e222d; border: 1px solid #2a2e39; padding: 20px; border-radius: 6px; text-align: center;'>
             <h3 style='color: #ffffff; margin-bottom: 8px;'>Terminal Ready</h3>
-            <p style='color: #787b86; margin: 0;'>Select a preset basket above or enter custom tickers in the command bar, then click <b>Run Terminal</b> to initialize live SEC data ingestion and AI analytics.</p>
+            <p style='color: #787b86; margin: 0;'>Select a preset basket above or type in the search bar to preview live SEC ticker suggestions, then click <b>Run Terminal</b>.</p>
         </div>
     """, unsafe_allow_html=True)
