@@ -18,19 +18,13 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & HIGH-CONTRAST CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v6.2",
+    page_title="Institutional Research Terminal v6.3",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 st.markdown("""
     <style>
-    /* Kill native header and toolbar */
-    header {visibility: hidden !important;}
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
-    .stAppToTop {margin-top: -40px;}
-    
     /* Global High-Contrast Text Fix */
     .stApp, .stMarkdown, p, span, label, div {
         color: #f1f5f9 !important;
@@ -341,7 +335,7 @@ def generate_excel(profiles):
     wb.save(buf)
     return buf.getvalue()
 
-# --- SIDEBAR CONTROLS & HIGH-CONTRAST LABELS ---
+# --- SIDEBAR CONTROLS ---
 with st.sidebar:
     st.markdown("### 🎛️ Terminal Controls")
     st.markdown("---")
