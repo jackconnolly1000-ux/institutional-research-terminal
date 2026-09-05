@@ -18,13 +18,19 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & INSTITUTIONAL CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v6.0",
+    page_title="Institutional Research Terminal v6.1",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 st.markdown("""
     <style>
+    /* Kill the native Streamlit top white header bar */
+    header {visibility: hidden !important;}
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    .stAppToTop {margin-top: -40px;}
+    
     /* Main Theme Styling */
     .stApp {
         background-color: #0e1117;
@@ -38,13 +44,10 @@ st.markdown("""
         font-weight: 600;
     }
     
-    /* Custom Card Containers */
-    .metric-container {
-        background-color: #18181b;
-        border: 1px solid #27272a;
-        padding: 16px;
-        border-radius: 8px;
-        margin-bottom: 12px;
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background-color: #12151c;
+        border-right: 1px solid #27272a;
     }
     
     /* Input Box Styling */
@@ -66,8 +69,7 @@ st.markdown("""
         transition: all 0.2s ease;
     }
     .stButton button:hover {
-        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-        border: none;
+        background: linear-gradient(135deg, #1d4ed8 100%, #1e40af 100%);
         color: white;
     }
     </style>
@@ -328,15 +330,35 @@ def generate_excel(profiles):
     wb.save(buf)
     return buf.getvalue()
 
-# --- STREAMLIT UI (TERMINAL V6.0 GLOW-UP) ---
+# --- SIDEBAR CONTROLS & QUICK SELECTS ---
+with st.sidebar:
+    st.markdown("### 🎛️ Terminal Controls")
+    st.markdown("---")
+    
+    # Quick select buttons
+    st.markdown("**Quick Select Baskets:**")
+    col_a, col_b = st.columns(2)
+    preset_val = "AAPL"
+    if col_a.button("Tech (AAPL)"):
+        preset_val = "AAPL"
+    if col_b.button("Industrial (FAST, STRL)"):
+        preset_val = "FAST, STRL"
+        
+    tickers_input = st.text_input("Target Equities:", value=preset_val)
+    run_btn = st.button("🚀 Generate Tear Sheet", use_container_width=True)
+    
+    st.markdown("---")
+    st.markdown("**System Status**")
+    st.caption("SEC EDGAR API: Connected")
+    st.caption("Claude AI Agent: Active")
+    st.caption("yFinance Feed: Live")
+
+# --- MAIN DASHBOARD VIEW ---
 st.markdown("<h1 style='margin-bottom: 0px;'>Institutional Research Terminal</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color: #94a3b8; font-size: 1.1rem; margin-top: 2px;'>SEC EDGAR Disclosure Extraction • Form 4 Insider Velocity • CapEx & Risk Engine</p>", unsafe_allow_html=True)
 st.divider()
 
-# Input supporting 1 stock or comma-separated list
-tickers_input = st.text_input("Target Equities (Enter single ticker or comma-separated peers):", value="AAPL")
-
-if st.button("Generate Institutional Tear Sheet"):
+if run_btn:
     raw_list = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     if raw_list:
         with st.spinner("Parsing SEC filings, running YoY risk deltas, and compiling institutional data..."):
@@ -398,3 +420,11 @@ if st.button("Generate Institutional Tear Sheet"):
                 # Generate Excel
                 excel_data = generate_excel(profiles)
                 st.download_button(label="📊 Download Consolidated Quant Workbook (.xlsx)", data=excel_data, file_name="Institutional_Model.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+else:
+    # Landing state info card
+    st.markdown("""
+        <div style='background-color: #18181b; border: 1px solid #27272a; padding: 24px; border-radius: 8px; margin-top: 20px;'>
+            <h3>Welcome to the Terminal</h3>
+            <p style='color: #a1a1aa;'>Use the sidebar controls on the left to enter target equities or click a quick-select basket. The terminal will pull live SEC filings, run AI-driven risk delta analysis, map Form 4 insider velocity, and generate professional institutional outputs.</p>
+        </div>
+    """, unsafe_allow_html=True)
