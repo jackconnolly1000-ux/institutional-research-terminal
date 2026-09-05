@@ -16,61 +16,72 @@ from bs4 import BeautifulSoup
 from anthropic import Anthropic
 import streamlit as st
 
-# --- STREAMLIT PAGE CONFIG & INSTITUTIONAL CSS ---
+# --- STREAMLIT PAGE CONFIG & HIGH-CONTRAST CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v6.1",
+    page_title="Institutional Research Terminal v6.2",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 st.markdown("""
     <style>
-    /* Kill the native Streamlit top white header bar */
+    /* Kill native header and toolbar */
     header {visibility: hidden !important;}
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
     .stAppToTop {margin-top: -40px;}
     
-    /* Main Theme Styling */
+    /* Global High-Contrast Text Fix */
+    .stApp, .stMarkdown, p, span, label, div {
+        color: #f1f5f9 !important;
+    }
+    
+    /* Main Background */
     .stApp {
         background-color: #0e1117;
-        color: #f1f5f9;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     
-    /* Header Styling */
-    h1, h2, h3 {
-        color: #f8fafc;
+    /* Headers */
+    h1, h2, h3, h4 {
+        color: #ffffff !important;
         font-weight: 600;
     }
     
-    /* Sidebar Styling */
+    /* Sidebar Styling & Contrast */
     [data-testid="stSidebar"] {
         background-color: #12151c;
         border-right: 1px solid #27272a;
     }
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div {
+        color: #f1f5f9 !important;
+    }
+    
+    /* Captions */
+    .stCaption, small {
+        color: #94a3b8 !important;
+    }
     
     /* Input Box Styling */
     .stTextInput input {
-        background-color: #18181b;
-        color: #f8fafc;
-        border: 1px solid #3f3f46;
+        background-color: #18181b !important;
+        color: #f8fafc !important;
+        border: 1px solid #3f3f46 !important;
         border-radius: 6px;
     }
     
     /* Button Styling */
     .stButton button {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        color: white;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+        color: white !important;
         font-weight: 600;
         border: none;
         border-radius: 6px;
         padding: 0.5rem 1rem;
-        transition: all 0.2s ease;
     }
     .stButton button:hover {
-        background: linear-gradient(135deg, #1d4ed8 100%, #1e40af 100%);
-        color: white;
+        background: linear-gradient(135deg, #1d4ed8 100%, #1e40af 100%) !important;
+        color: white !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -330,12 +341,11 @@ def generate_excel(profiles):
     wb.save(buf)
     return buf.getvalue()
 
-# --- SIDEBAR CONTROLS & QUICK SELECTS ---
+# --- SIDEBAR CONTROLS & HIGH-CONTRAST LABELS ---
 with st.sidebar:
     st.markdown("### 🎛️ Terminal Controls")
     st.markdown("---")
     
-    # Quick select buttons
     st.markdown("**Quick Select Baskets:**")
     col_a, col_b = st.columns(2)
     preset_val = "AAPL"
@@ -373,7 +383,6 @@ if run_btn:
                 st.success(f"Successfully compiled analysis for: {', '.join([p['ticker'] for p in profiles])}")
                 st.divider()
                 
-                # Render UI Cards
                 for p in profiles:
                     f = p['financials']
                     ins_vel = p['insider_velocity']
@@ -417,14 +426,12 @@ if run_btn:
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.divider()
 
-                # Generate Excel
                 excel_data = generate_excel(profiles)
                 st.download_button(label="📊 Download Consolidated Quant Workbook (.xlsx)", data=excel_data, file_name="Institutional_Model.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 else:
-    # Landing state info card
     st.markdown("""
         <div style='background-color: #18181b; border: 1px solid #27272a; padding: 24px; border-radius: 8px; margin-top: 20px;'>
             <h3>Welcome to the Terminal</h3>
-            <p style='color: #a1a1aa;'>Use the sidebar controls on the left to enter target equities or click a quick-select basket. The terminal will pull live SEC filings, run AI-driven risk delta analysis, map Form 4 insider velocity, and generate professional institutional outputs.</p>
+            <p style='color: #cbd5e1;'>Use the sidebar controls on the left to enter target equities or click a quick-select basket. The terminal will pull live SEC filings, run AI-driven risk delta analysis, map Form 4 insider velocity, and generate professional institutional outputs.</p>
         </div>
     """, unsafe_allow_html=True)
