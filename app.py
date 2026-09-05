@@ -15,10 +15,11 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from anthropic import Anthropic
 import streamlit as st
+from st_keyup import st_keyup
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v7.8",
+    page_title="Institutional Research Terminal v7.9",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -48,7 +49,7 @@ st.markdown("""
         margin-bottom: 0px;
     }
     
-    /* Left-to-Right Autocomplete Dropdown Container */
+    /* Left-to-Right Full-Width Autocomplete Dropdown Container */
     .autocomplete-dropdown {
         background-color: #181c25;
         border: 1px solid #2a2e39;
@@ -405,7 +406,7 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR & SEARCH BAR ---
+# --- COMMAND TOOLBAR WITH REAL-TIME KEYUP SEARCH ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
@@ -413,7 +414,7 @@ st.markdown("<div class='command-bar'>", unsafe_allow_html=True)
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
 with col_bar1:
-    tickers_input = st.text_input("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, label_visibility="collapsed", placeholder="Search ticker or company name...")
+    tickers_input = st_keyup("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, placeholder="Search ticker or company name...", key="ticker_keyup_input", debounce=150)
 with col_bar2:
     if st.button("Load Tech (AAPL)", use_container_width=True):
         st.session_state.tickers_input = "AAPL"
@@ -427,29 +428,27 @@ with col_bar4:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- LEFT-TO-RIGHT DROPDOWN SECTION (SEARCHES TICKER & COMPANY NAME, SHOWS 5+ MATCHES) ---
+# --- REAL-TIME LEFT-TO-RIGHT DROPDOWN (5+ MATCHES, SEARCHING BOTH TICKER & COMPANY NAME) ---
 sec_directory = load_sec_directory()
 current_query = tickers_input.split(',')[-1].strip().upper()
 
 if current_query and not sec_directory.empty:
-    # Searches both ticker symbol and company name across the directory
     matches = sec_directory[
         sec_directory['ticker'].str.contains(current_query, case=False, na=False) |
         sec_directory['name'].str.contains(current_query, case=False, na=False)
-    ].head(5) # Guarantees at least 5 similarly spelled/matched stocks
+    ].head(5)
     
     if not matches.empty:
         st.markdown("<div class='autocomplete-dropdown'>", unsafe_allow_html=True)
-        st.caption("🔍 Matching Ticker & Company Suggestions:")
+        st.caption("🔍 Matching Ticker & Company Suggestions (Real-Time):")
         
         for idx, (_, row) in enumerate(matches.iterrows()):
-            # Using precise layout columns for each suggestion row so Ticker is bold/bigger on top and Company Name is underneath
             s_col1, s_col2 = st.columns([4, 1])
             with s_col1:
                 st.markdown(f"""
-                    <div style='padding: 4px 0;'>
-                        <div style='font-size: 1.1rem; font-weight: 700; color: #ffffff; font-family: monospace;'>{row['ticker']}</div>
-                        <div style='font-size: 0.85rem; color: #94a3b8;'>{row['name']}</div>
+                    <div style='padding: 6px 0;'>
+                        <div style='font-size: 1.15rem; font-weight: 800; color: #ffffff; font-family: monospace;'>{row['ticker']}</div>
+                        <div style='font-size: 0.88rem; color: #94a3b8;'>{row['name']}</div>
                     </div>
                 """, unsafe_allow_html=True)
             with s_col2:
