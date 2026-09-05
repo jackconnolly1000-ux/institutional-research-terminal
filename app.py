@@ -18,7 +18,7 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v7.7",
+    page_title="Institutional Research Terminal v7.8",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -48,15 +48,15 @@ st.markdown("""
         margin-bottom: 0px;
     }
     
-    /* Vertical Autocomplete Dropdown Panel aligned left-to-right */
+    /* Left-to-Right Autocomplete Dropdown Container */
     .autocomplete-dropdown {
         background-color: #181c25;
         border: 1px solid #2a2e39;
         border-top: none;
         border-radius: 0 0 6px 6px;
-        padding: 10px 14px;
+        padding: 12px 16px;
         margin-bottom: 20px;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
     
     /* Input Box Styling */
@@ -87,22 +87,6 @@ st.markdown("""
     }
     .stButton button:hover {
         background: #1e53e5 !important;
-    }
-    
-    /* Suggestion Row Styling (Ticker Bolder/Bigger, Company Name Under) */
-    div.stButton > button[key^="sugg_"] {
-        background-color: #1e222d !important;
-        border: 1px solid #2a2e39 !important;
-        text-align: left !important;
-        color: #f8fafc !important;
-        font-size: 0.95rem !important;
-        font-weight: 700 !important;
-        padding: 8px 12px !important;
-        margin-bottom: 4px !important;
-    }
-    div.stButton > button[key^="sugg_"]:hover {
-        background-color: #2962ff !important;
-        border-color: #2962ff !important;
     }
     
     /* Metric Cards */
@@ -421,7 +405,7 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR & VERTICAL AUTOCOMPLETE PANEL ---
+# --- COMMAND TOOLBAR & SEARCH BAR ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
@@ -443,31 +427,43 @@ with col_bar4:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- VERTICAL AUTOCOMPLETE DROPDOWN (SEARCHES TICKER & NAME, SHOWS AT LEAST 5) ---
+# --- LEFT-TO-RIGHT DROPDOWN SECTION (SEARCHES TICKER & COMPANY NAME, SHOWS 5+ MATCHES) ---
 sec_directory = load_sec_directory()
 current_query = tickers_input.split(',')[-1].strip().upper()
 
 if current_query and not sec_directory.empty:
-    # Match both ticker symbol and company name
+    # Searches both ticker symbol and company name across the directory
     matches = sec_directory[
         sec_directory['ticker'].str.contains(current_query, case=False, na=False) |
         sec_directory['name'].str.contains(current_query, case=False, na=False)
-    ].head(5) # At least 5 similarly spelled/matched stocks
+    ].head(5) # Guarantees at least 5 similarly spelled/matched stocks
     
     if not matches.empty:
         st.markdown("<div class='autocomplete-dropdown'>", unsafe_allow_html=True)
         st.caption("🔍 Matching Ticker & Company Suggestions:")
+        
         for idx, (_, row) in enumerate(matches.iterrows()):
-            # Ticker larger/bolder on top, company name underneath inside button layout
-            btn_label = f"{row['ticker']} \n {row['name']}"
-            if st.button(btn_label, key=f"sugg_{row['ticker']}_{idx}", use_container_width=True):
-                parts = [t.strip() for t in tickers_input.split(',') if t.strip()]
-                if parts:
-                    parts[-1] = row['ticker']
-                else:
-                    parts = [row['ticker']]
-                st.session_state.tickers_input = ", ".join(parts)
-                st.rerun()
+            # Using precise layout columns for each suggestion row so Ticker is bold/bigger on top and Company Name is underneath
+            s_col1, s_col2 = st.columns([4, 1])
+            with s_col1:
+                st.markdown(f"""
+                    <div style='padding: 4px 0;'>
+                        <div style='font-size: 1.1rem; font-weight: 700; color: #ffffff; font-family: monospace;'>{row['ticker']}</div>
+                        <div style='font-size: 0.85rem; color: #94a3b8;'>{row['name']}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            with s_col2:
+                if st.button("Select", key=f"sugg_btn_{row['ticker']}_{idx}", use_container_width=True):
+                    parts = [t.strip() for t in tickers_input.split(',') if t.strip()]
+                    if parts:
+                        parts[-1] = row['ticker']
+                    else:
+                        parts = [row['ticker']]
+                    st.session_state.tickers_input = ", ".join(parts)
+                    st.rerun()
+            if idx < len(matches) - 1:
+                st.markdown("<hr style='margin: 4px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
+                
         st.markdown("</div>", unsafe_allow_html=True)
 
 # --- EXECUTION & HIGH-DENSITY DISPLAY ---
