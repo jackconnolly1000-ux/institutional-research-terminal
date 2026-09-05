@@ -18,7 +18,7 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v7.3",
+    page_title="Institutional Research Terminal v7.4",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -235,7 +235,7 @@ def fetch_firm_data(ticker: str) -> dict:
     idx_prior = next((i for i in range(idx_curr + 1, len(form_list)) if form_list[i] in ['10-K', '10-Q']), -1)
     
     risk_regex = r'(?:item\s+1a\b[\.\:\s\-\—\xa0]*(?:risk\s+factors)?)(.*?)(?:item\s+(?:1b|2)\b[\.\:\s\-\—\xa0]|$)'
-    mda_regex = r'(?:item\s+7\b[\.\:\s\-\—\xa0]*(?:management[\'\’]?s\s+discussion)?)(.*?)(?:item\s+(?:7a|8)\b[\.\:\s\-\—\xa0]|$)' if form_type == '10-K' else r'(?:item\s+2\b[\.\:\s\-\—\xa0]*(?:management[\'\’]?s\s+discussion)?)(.*?)(?:item\s+(?:3\vert{}4)\b[\.\:\s\-\—\xa0]\vert{}$)'
+    mda_regex = r'(?:item\s+7\b[\.\:\s\-\—\xa0]*(?:management[\'\’]?s\s+discussion)?)(.*?)(?:item\s+(?:7a|8)\b[\.\:\s\-\—\xa0]|$)' if form_type == '10-K' else r'(?:item\s+2\b[\.\:\s\-\—\xa0]*(?:management[\'\’]?s\s+discussion)?)(.*?)(?:item\s+(?:3|4)\b[\.\:\s\-\—\xa0]|$)'
     
     url_curr = f"https://www.sec.gov/Archives/edgar/data/{cik_no_zeros}/{acc_curr}/{doc_curr}"
     time.sleep(0.15)
@@ -380,9 +380,148 @@ def generate_excel(profiles):
     ws_quant = wb.active
     ws_quant.title = "Financial Model Feed"
     ws_quant.append(['Ticker', 'Company Name', 'Gross Margin', 'Operating Margin', 'Net Margin', 'ROE', 'Debt to Equity', 'Free Cash Flow', 'EBITDA'])
-    for p in profiles: ws_quant.append([p['ticker'], p['company_name'], p['financials']['gross_margin'], p['financials']['op_margin'], p['financials']['profit_margin'], p['financials']['roe'], p['financials']['debt_to_equity'], p['financials']['fcf'], p['financials']['ebitda']])
+    for p in profiles:
+        ws_quant.append([p['ticker'], p['company_name'], p['financials']['gross_margin'], p['financials']['op_margin'], p['financials']['profit_margin'], p['financials']['roe'], p['financials']['debt_to_equity'], p['financials']['fcf'], p['financials']['ebitda']])
 
     ws_bull = wb.create_sheet(title="CapEx & Catalysts")
     ws_bull.append(['Ticker', 'Category', 'Target Initiative', 'Impact', 'Strategic Thesis', 'Filing Excerpt'])
     for p in profiles:
         for b in p['bull']:
+            ws_bull.append([p['ticker'], b.get('category',''), b.get('target',''), b.get('impact',''), b.get('description',''), b.get('quote','')])
+
+    ws_bear = wb.create_sheet(title="Supply Chain & Risks")
+    ws_bear.append(['Ticker', 'Category', 'Target Risk', 'Impact', 'YoY Trend', 'Vulnerability', 'Filing Excerpt'])
+    for p in profiles:
+        for b in p['bear']:
+            ws_bear.append([p['ticker'], b.get('category',''), b.get('target',''), b.get('impact',''), b.get('trend','STABLE'), b.get('description',''), b.get('quote','')])
+
+    for ws in wb.worksheets:
+        for cell in ws[1]: cell.fill, cell.font = header_fill, header_font
+        for col in ws.columns: ws.column_dimensions[col[0].column_letter].width = 25
+    
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+# --- SLEEK COMPACT HEADER ---
+c_head1, c_head2 = st.columns([3, 1])
+c_head1.markdown("<h1>INSTITUTIONAL RESEARCH TERMINAL</h1>", unsafe_allow_html=True)
+c_head1.markdown("<p style='color: #787b86; margin-top: -10px; font-size: 0.95rem;'>SEC EDGAR Ingestion • Form 4 Insider Velocity • Quant & Risk Analytics</p>", unsafe_allow_html=True)
+c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style='background: #1e222d; border: 1px solid #2a2e39; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #089981;'>● LIVE FEED</span></div>", unsafe_allow_html=True)
+
+st.divider()
+
+# --- COMMAND TOOLBAR & TIGHT AUTOCOMPLETE PANEL ---
+if "tickers_input" not in st.session_state:
+    st.session_state.tickers_input = "AAPL"
+
+st.markdown("<div class='command-bar'>", unsafe_allow_html=True)
+col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
+
+with col_bar1:
+    tickers_input = st.text_input("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, label_visibility="collapsed", placeholder="Search ticker or company name...")
+with col_bar2:
+    if st.button("Load Tech (AAPL)", use_container_width=True):
+        st.session_state.tickers_input = "AAPL"
+        st.rerun()
+with col_bar3:
+    if st.button("Load Industrials", use_container_width=True):
+        st.session_state.tickers_input = "FAST, STRL"
+        st.rerun()
+with col_bar4:
+    run_btn = st.button("⚡ Run Terminal", use_container_width=True)
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+# --- SLEEK MATCHING SUGGESTIONS PANEL ---
+sec_directory = load_sec_directory()
+current_query = tickers_input.split(',')[-1].strip().upper()
+
+if current_query and not sec_directory.empty:
+    matches = sec_directory[
+        sec_directory['ticker'].str.contains(current_query, case=False, na=False) |
+        sec_directory['name'].str.contains(current_query, case=False, na=False)
+    ].head(5)
+    
+    if not matches.empty:
+        st.markdown("<div class='autocomplete-container'>", unsafe_allow_html=True)
+        st.caption("🔍 Matching Ticker Suggestions:")
+        for idx, (_, row) in enumerate(matches.iterrows()):
+            if st.button(f"📌  {row['ticker']}  —  {row['name']}", key=f"sugg_{row['ticker']}_{idx}", use_container_width=True):
+                parts = [t.strip() for t in tickers_input.split(',') if t.strip()]
+                if parts:
+                    parts[-1] = row['ticker']
+                else:
+                    parts = [row['ticker']]
+                st.session_state.tickers_input = ", ".join(parts)
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# --- EXECUTION & HIGH-DENSITY DISPLAY ---
+if run_btn:
+    raw_list = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
+    if raw_list:
+        with st.spinner("Executing SEC EDGAR parsing, YoY risk delta, and quantitative modeling..."):
+            profiles = []
+            for t in raw_list:
+                sec_data = fetch_firm_data(t)
+                if sec_data:
+                    prof = extract_unified_profile(sec_data)
+                    if prof: profiles.append(prof)
+            
+            if profiles:
+                st.success(f"Analysis successfully compiled for: {', '.join([p['ticker'] for p in profiles])}")
+                st.divider()
+                
+                for p in profiles:
+                    f = p['financials']
+                    ins_vel = p['insider_velocity']
+                    
+                    st.markdown(f"### {p['ticker']} — {p['company_name']}")
+                    st.caption(f"Industry: {p['industry']} | Filing: {p['form_type']}")
+                    
+                    cols = st.columns(6)
+                    cols[0].metric("Insider 90D", str(ins_vel))
+                    cols[1].metric("Price", f['price'])
+                    cols[2].metric("Fwd P/E", f['fpe'])
+                    cols[3].metric("Gross Mgn", f['gross_margin'])
+                    cols[4].metric("FCF", f['fcf'])
+                    cols[5].metric("Market Cap", f['mcap'])
+                    
+                    chart_fig = generate_interactive_chart(p['ticker'], p['event_markers'])
+                    if chart_fig: st.plotly_chart(chart_fig, use_container_width=True)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.subheader("💡 CapEx & Growth Catalysts")
+                        for item in p['bull']:
+                            st.info(f"**{item['target']}** ({item['impact']})\n\n{item['description']}\n\n*{item['quote']}*")
+                    with col2:
+                        st.subheader("⚠️ Supply Chain & Risks")
+                        for item in p['bear']:
+                            st.warning(f"**{item['target']}** ({item['impact']} | {item.get('trend', 'STABLE')})\n\n{item['description']}\n\n*{item['quote']}*")
+                    
+                    st.subheader("🏛️ SEC Form 8-K Events")
+                    if not p['eight_k']:
+                        st.write("No recent material events found.")
+                    else:
+                        e_cols = st.columns(min(3, len(p['eight_k'])))
+                        for idx, event in enumerate(p['eight_k']):
+                            with e_cols[idx % 3]:
+                                st.success(f"**{event['event_date']}** | {event['category']}\n\n{event['takeaway']}")
+                    
+                    st.subheader("🎙️ Executive Q&A / Meeting Prep")
+                    for q in p['questions']: st.markdown(f"- {q}")
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.divider()
+
+                excel_data = generate_excel(profiles)
+                st.download_button(label="📊 Download Institutional Model (.xlsx)", data=excel_data, file_name="Institutional_Model.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+else:
+    st.markdown("""
+        <div style='background-color: #1e222d; border: 1px solid #2a2e39; padding: 20px; border-radius: 6px; text-align: center;'>
+            <h3 style='color: #ffffff; margin-bottom: 8px;'>Terminal Ready</h3>
+            <p style='color: #787b86; margin: 0;'>Select a preset basket above or type in the search bar to preview live ticker suggestions, then click <b>Run Terminal</b>.</p>
+        </div>
+    """, unsafe_allow_html=True)
