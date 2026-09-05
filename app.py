@@ -15,11 +15,10 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from anthropic import Anthropic
 import streamlit as st
-from st_keyup import st_keyup
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v8.3",
+    page_title="Institutional Research Terminal v8.4",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -60,23 +59,19 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
     
-    /* Force Custom Component Iframes (st_keyup) into Dark Theme */
-    iframe {
+    /* Native Input Box Dark Styling */
+    .stTextInput input {
         background-color: #131722 !important;
-        color-scheme: dark;
+        color: #ffffff !important;
+        border: 1px solid #363c4e !important;
         border-radius: 4px;
+        padding: 6px 10px;
+        font-family: monospace;
+        font-size: 0.95rem;
     }
-    
-    /* Universal Dark Input Box Styling */
-    input, textarea, div[data-baseweb="input"] > div, div[data-baseweb="base-input"] {
-        background-color: #131722 !important;
-        color: #ffffff !important;
-        border-color: #363c4e !important;
-    }
-    input {
-        color: #ffffff !important;
-        font-family: monospace !important;
-        font-size: 0.95rem !important;
+    .stTextInput input:focus {
+        border-color: #2962ff !important;
+        box-shadow: 0 0 0 1px #2962ff !important;
     }
     
     /* Professional Action Button */
@@ -410,17 +405,15 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR WITH REAL-TIME KEYUP SEARCH (DARK THEME CLEAN) ---
+# --- COMMAND TOOLBAR WITH NATIVE REAL-TIME SEARCH ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
 st.markdown("<div class='command-bar'>", unsafe_allow_html=True)
-st.markdown("<div style='font-size: 0.75rem; color: #787b86; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;'>Target Tickers (Comma-separated or Search)</div>", unsafe_allow_html=True)
-
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
 with col_bar1:
-    tickers_input = st_keyup("", value=st.session_state.tickers_input, placeholder="Search ticker or company name...", key="ticker_keyup_input", debounce=150)
+    tickers_input = st.text_input("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, label_visibility="visible", placeholder="Search ticker or company name...")
 with col_bar2:
     if st.button("Load Tech (AAPL)", use_container_width=True):
         st.session_state.tickers_input = "AAPL"
