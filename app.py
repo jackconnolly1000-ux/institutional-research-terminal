@@ -19,7 +19,7 @@ from st_keyup import st_keyup
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v7.9",
+    page_title="Institutional Research Terminal v8.0",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -61,7 +61,7 @@ st.markdown("""
     }
     
     /* Input Box Styling */
-    .stTextInput input {
+    .stTextInput input, div[data-baseweb="input"] input {
         background-color: #131722 !important;
         color: #ffffff !important;
         border: 1px solid #363c4e !important;
@@ -69,10 +69,6 @@ st.markdown("""
         padding: 6px 10px;
         font-family: monospace;
         font-size: 0.95rem;
-    }
-    .stTextInput input:focus {
-        border-color: #2962ff !important;
-        box-shadow: 0 0 0 1px #2962ff !important;
     }
     
     /* Professional Action Button */
@@ -406,15 +402,16 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR WITH REAL-TIME KEYUP SEARCH ---
+# --- COMMAND TOOLBAR WITH REAL-TIME KEYUP SEARCH (CLEAN LABELLESS INPUT) ---
 if "tickers_input" not in st.session_state:
     st.session_state.tickers_input = "AAPL"
 
 st.markdown("<div class='command-bar'>", unsafe_allow_html=True)
+st.caption("Target Tickers (Comma-separated or Search)")
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
 
 with col_bar1:
-    tickers_input = st_keyup("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, placeholder="Search ticker or company name...", key="ticker_keyup_input", debounce=150)
+    tickers_input = st_keyup("", value=st.session_state.tickers_input, placeholder="Search ticker or company name...", key="ticker_keyup_input", debounce=150)
 with col_bar2:
     if st.button("Load Tech (AAPL)", use_container_width=True):
         st.session_state.tickers_input = "AAPL"
@@ -428,15 +425,15 @@ with col_bar4:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- REAL-TIME LEFT-TO-RIGHT DROPDOWN (5+ MATCHES, SEARCHING BOTH TICKER & COMPANY NAME) ---
+# --- REAL-TIME SMART MATCHING DROPDOWN (PREFIX & NAME PRIORITIZED) ---
 sec_directory = load_sec_directory()
 current_query = tickers_input.split(',')[-1].strip().upper()
 
 if current_query and not sec_directory.empty:
-    matches = sec_directory[
-        sec_directory['ticker'].str.contains(current_query, case=False, na=False) |
-        sec_directory['name'].str.contains(current_query, case=False, na=False)
-    ].head(5)
+    # Prioritize prefix matches (starts with query) so relevant tickers appear first
+    exact_ticker = sec_directory[sec_directory['ticker'].str.startswith(current_query, na=False)]
+    exact_name = sec_directory[sec_directory['name'].str.contains(current_query, case=False, na=False) & ~sec_directory['ticker'].str.startswith(current_query, na=False)]
+    matches = pd.concat([exact_ticker, exact_name]).head(5)
     
     if not matches.empty:
         st.markdown("<div class='autocomplete-dropdown'>", unsafe_allow_html=True)
