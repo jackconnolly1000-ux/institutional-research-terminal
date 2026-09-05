@@ -18,9 +18,9 @@ import streamlit as st
 
 # --- STREAMLIT PAGE CONFIG & HIGH-CONTRAST CSS ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v6.3",
+    page_title="Institutional Research Terminal v6.4",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 st.markdown("""
@@ -40,15 +40,6 @@ st.markdown("""
     h1, h2, h3, h4 {
         color: #ffffff !important;
         font-weight: 600;
-    }
-    
-    /* Sidebar Styling & Contrast */
-    [data-testid="stSidebar"] {
-        background-color: #12151c;
-        border-right: 1px solid #27272a;
-    }
-    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div {
-        color: #f1f5f9 !important;
     }
     
     /* Captions */
@@ -335,33 +326,33 @@ def generate_excel(profiles):
     wb.save(buf)
     return buf.getvalue()
 
-# --- SIDEBAR CONTROLS ---
-with st.sidebar:
-    st.markdown("### 🎛️ Terminal Controls")
-    st.markdown("---")
-    
-    st.markdown("**Quick Select Baskets:**")
-    col_a, col_b = st.columns(2)
-    preset_val = "AAPL"
-    if col_a.button("Tech (AAPL)"):
-        preset_val = "AAPL"
-    if col_b.button("Industrial (FAST, STRL)"):
-        preset_val = "FAST, STRL"
-        
-    tickers_input = st.text_input("Target Equities:", value=preset_val)
-    run_btn = st.button("🚀 Generate Tear Sheet", use_container_width=True)
-    
-    st.markdown("---")
-    st.markdown("**System Status**")
-    st.caption("SEC EDGAR API: Connected")
-    st.caption("Claude AI Agent: Active")
-    st.caption("yFinance Feed: Live")
-
-# --- MAIN DASHBOARD VIEW ---
+# --- MAIN WORKSPACE HEADER ---
 st.markdown("<h1 style='margin-bottom: 0px;'>Institutional Research Terminal</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color: #94a3b8; font-size: 1.1rem; margin-top: 2px;'>SEC EDGAR Disclosure Extraction • Form 4 Insider Velocity • CapEx & Risk Engine</p>", unsafe_allow_html=True)
 st.divider()
 
+# --- PERMANENT MAIN CONTROL PANEL CARD ---
+st.markdown("""
+    <div style='background-color: #18181b; border: 1px solid #27272a; padding: 20px; border-radius: 8px; margin-bottom: 24px;'>
+        <h3 style='margin-top: 0px; color: #ffffff;'>🎛️ Terminal Control Panel</h3>
+    </div>
+""", unsafe_allow_html=True)
+
+# Session state initialization for presets
+if "tickers_input" not in st.session_state:
+    st.session_state.tickers_input = "AAPL"
+
+col_p1, col_p2, col_p3 = st.columns([1, 1, 2])
+if col_p1.button("📌 Load Tech (AAPL)"):
+    st.session_state.tickers_input = "AAPL"
+if col_p2.button("📌 Load Industrials (FAST, STRL)"):
+    st.session_state.tickers_input = "FAST, STRL"
+
+tickers_input = st.text_input("Target Equities (Single ticker or comma-separated peers):", value=st.session_state.tickers_input)
+run_btn = st.button("🚀 Generate Institutional Tear Sheet", use_container_width=True)
+st.divider()
+
+# --- EXECUTION & DISPLAY ---
 if run_btn:
     raw_list = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
     if raw_list:
@@ -424,8 +415,8 @@ if run_btn:
                 st.download_button(label="📊 Download Consolidated Quant Workbook (.xlsx)", data=excel_data, file_name="Institutional_Model.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 else:
     st.markdown("""
-        <div style='background-color: #18181b; border: 1px solid #27272a; padding: 24px; border-radius: 8px; margin-top: 20px;'>
-            <h3>Welcome to the Terminal</h3>
-            <p style='color: #cbd5e1;'>Use the sidebar controls on the left to enter target equities or click a quick-select basket. The terminal will pull live SEC filings, run AI-driven risk delta analysis, map Form 4 insider velocity, and generate professional institutional outputs.</p>
+        <div style='background-color: #18181b; border: 1px solid #27272a; padding: 24px; border-radius: 8px;'>
+            <h3>Terminal Ready</h3>
+            <p style='color: #cbd5e1;'>Select a preset basket above or type any ticker into the control panel, then click <b>Generate Institutional Tear Sheet</b> to load live SEC filings, AI risk delta insights, and quant metrics.</p>
         </div>
     """, unsafe_allow_html=True)
