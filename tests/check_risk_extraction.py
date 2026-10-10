@@ -8,6 +8,7 @@ Never calls the Anthropic API.
 Usage (from app/):
     .venv/bin/python tests/check_risk_extraction.py              # parts A and B
     .venv/bin/python tests/check_risk_extraction.py --excerpts   # also part C (needs an .xlsx in data/exports)
+    .venv/bin/python tests/check_risk_extraction.py --excerpts --tickers AAPL   # limit to some tickers
 """
 import re
 import sys
@@ -235,8 +236,9 @@ def fmt(r):
 
 def main():
     want_excerpts = "--excerpts" in sys.argv
-    print(f"Risk extraction check, run {datetime.now():%Y-%m-%d %H:%M}. No Anthropic calls.")
-    results = [run_ticker(t, want_excerpts) for t in TICKERS]
+    tickers = sys.argv[sys.argv.index("--tickers") + 1].upper().split(",") if "--tickers" in sys.argv else TICKERS
+    print(f"Risk extraction check, run {datetime.now():%Y-%m-%d %H:%M}, tickers {tickers}. No Anthropic calls.")
+    results = [run_ticker(t, want_excerpts) for t in tickers]
 
     print(f"\n{'=' * 90}\nSUMMARY  (len -> chars that survive the cut)")
     for r in results:
