@@ -4,6 +4,7 @@ import requests
 import re
 import base64
 import time
+import traceback
 import concurrent.futures
 import openpyxl
 import yfinance as yf
@@ -13,9 +14,8 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
 from datetime import datetime
 from bs4 import BeautifulSoup
-from anthropic import Anthropic
+from anthropic import Anthropic, APIError
 import streamlit as st
-from st_keyup import st_keyup
 
 # --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
 st.set_page_config(
@@ -49,33 +49,6 @@ st.markdown("""
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
-    }
-    
-    /* Target st_keyup Component Iframe to Match Dark Theme */
-    iframe[title="st_keyup.st_keyup"] {
-        background-color: #1e222d !important;
-        border-radius: 4px !important;
-        border: 1px solid #363c4e !important;
-    }
-    
-    /* Flush Command Toolbar Container */
-    .terminal-toolbar {
-        background-color: #1e222d;
-        border: 1px solid #2a2e39;
-        padding: 16px;
-        border-radius: 6px;
-        margin-bottom: 10px;
-    }
-    
-    /* Autocomplete Dropdown Container */
-    .autocomplete-dropdown {
-        background-color: #181c25;
-        border: 1px solid #2a2e39;
-        border-top: none;
-        border-radius: 0 0 6px 6px;
-        padding: 12px 16px;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
     
     /* Professional Action Button */
@@ -137,25 +110,35 @@ except Exception as e:
     st.stop()
 
 # --- BACKEND FUNCTIONS ---
+# Cached functions RAISE on failure instead of returning None or a fallback:
+# st.cache_data stores return values, not exceptions, so a failure is retried on the next run
+# instead of being served from cache.
+class TickerFailure(Exception):
+    """A per-ticker failure whose message is safe to show the user."""
+
+FALLBACK_DIRECTORY = pd.DataFrame([
+    {"ticker": "AAPL", "name": "Apple Inc."},
+    {"ticker": "MSFT", "name": "Microsoft Corp."},
+    {"ticker": "NVDA", "name": "Nvidia Corp."},
+    {"ticker": "FAST", "name": "Fastenal Co."},
+    {"ticker": "STRL", "name": "Sterling Infrastructure Inc."},
+    {"ticker": "AAP", "name": "Advance Auto Parts Inc."}
+], columns=["ticker", "name"])
+
 @st.cache_data(ttl=86400)
-def load_sec_directory() -> pd.DataFrame:
+def _fetch_sec_directory() -> pd.DataFrame:
     headers = {'User-Agent': 'InstitutionalResearchDirectory admin@research-terminal.com'}
+    resp = requests.get("https://www.sec.gov/files/company_tickers.json", headers=headers, timeout=5)
+    resp.raise_for_status()
+    rows = [{"ticker": v['ticker'].upper(), "name": v['title'].title()} for v in resp.json().values()]
+    return pd.DataFrame(rows).drop_duplicates("ticker")
+
+def load_sec_directory() -> tuple[pd.DataFrame, bool]:
+    """Returns (directory, used_fallback). Not cached itself, so the fallback is never cached."""
     try:
-        resp = requests.get("https://www.sec.gov/files/company_tickers.json", headers=headers, timeout=5)
-        if resp.status_code == 200:
-            data = resp.json()
-            rows = [{"ticker": v['ticker'].upper(), "name": v['title'].title()} for v in data.values()]
-            return pd.DataFrame(rows)
+        return _fetch_sec_directory(), False
     except Exception:
-        pass
-    return pd.DataFrame([
-        {"ticker": "AAPL", "name": "Apple Inc."},
-        {"ticker": "MSFT", "name": "Microsoft Corp."},
-        {"ticker": "NVDA", "name": "Nvidia Corp."},
-        {"ticker": "FAST", "name": "Fastenal Co."},
-        {"ticker": "STRL", "name": "Sterling Infrastructure Inc."},
-        {"ticker": "AAP", "name": "Advance Auto Parts Inc."}
-    ], columns=["ticker", "name"])
+        return FALLBACK_DIRECTORY, True
 
 @st.cache_data(ttl=3600)
 def get_comprehensive_financials(ticker: str) -> dict:
@@ -198,19 +181,19 @@ def fetch_firm_data(ticker: str) -> dict:
     tickers_url = "https://www.sec.gov/files/company_tickers.json"
     
     resp = sec_get_request(tickers_url, headers)
-    if not resp: return None
+    if not resp: raise TickerFailure("SEC EDGAR didn't respond, try again")
     try:
         data = resp.json()
     except json.JSONDecodeError:
-        return None
-        
+        raise TickerFailure("SEC EDGAR sent an unreadable ticker list, try again")
+
     cik_padded = next((str(v['cik_str']).zfill(10) for v in data.values() if v['ticker'].upper() == ticker.upper()), None)
-    if not cik_padded: return None
-        
+    if not cik_padded: raise TickerFailure("not found in the SEC ticker list")
+
     subs_url = f"https://data.sec.gov/submissions/CIK{cik_padded}.json"
     time.sleep(0.15)
     subs_resp = sec_get_request(subs_url, headers)
-    if not subs_resp: return None
+    if not subs_resp: raise TickerFailure("SEC EDGAR didn't return the filing history, try again")
     subs_data = subs_resp.json()
     filings = subs_data['filings']['recent']
     
@@ -223,7 +206,7 @@ def fetch_firm_data(ticker: str) -> dict:
     insider_velocity = len(recent_4s)
     
     idx_curr = next((i for i, f in enumerate(form_list) if f in ['10-K', '10-Q']), -1)
-    if idx_curr == -1: return None
+    if idx_curr == -1: raise TickerFailure("no 10-K or 10-Q in recent SEC filings (foreign issuers file 20-F instead)")
         
     form_type = form_list[idx_curr]
     acc_curr = filings['accessionNumber'][idx_curr].replace('-', '')
@@ -239,7 +222,8 @@ def fetch_firm_data(ticker: str) -> dict:
     url_curr = f"https://www.sec.gov/Archives/edgar/data/{cik_no_zeros}/{acc_curr}/{doc_curr}"
     time.sleep(0.15)
     resp_curr = sec_get_request(url_curr, headers)
-    html_curr = resp_curr.content if resp_curr else b""
+    if not resp_curr: raise TickerFailure(f"couldn't download the {form_type} filed {date_curr}, try again")
+    html_curr = resp_curr.content
     text_clean_curr = re.sub(r'\s+', ' ', BeautifulSoup(html_curr, 'html.parser').get_text(separator=' ', strip=True))
     
     risk_raw_curr = max([m.group(1) for m in re.compile(risk_regex, re.I | re.S).finditer(text_clean_curr) if len(m.group(1).strip()) > 4000], key=len, default=text_clean_curr[5000:35000])
@@ -308,7 +292,6 @@ UNIFIED_EXTRACTION_TOOL = {
 
 @st.cache_data(ttl=3600)
 def extract_unified_profile(sec_payload: dict) -> dict:
-    if not sec_payload: return None
     ticker, f_type = sec_payload["ticker"], sec_payload["form_type"]
     prompt = f"""
     You are an elite equity research portfolio manager evaluating SEC disclosures ({f_type}) for {ticker}.
@@ -332,21 +315,22 @@ def extract_unified_profile(sec_payload: dict) -> dict:
             tools=[UNIFIED_EXTRACTION_TOOL], tool_choice={"type": "tool", "name": "record_comprehensive_firm_analysis"},
             messages=[{"role": "user", "content": prompt}]
         )
-        
-        for block in response.content:
-            if block.type == "tool_use":
-                raw_data = block.input
-                bear_sorted = sorted(raw_data.get("bear_items", []), key=lambda x: {"HIGH": 0, "MEDIUM": 1}.get(x.get("impact", "MEDIUM").upper(), 2))
-                bull_sorted = sorted(raw_data.get("bull_items", []), key=lambda x: {"HIGH": 0, "MEDIUM": 1}.get(x.get("impact", "MEDIUM").upper(), 2))
-                high_threats = sum(1 for e in bear_sorted if e.get("impact") == "HIGH")
-                return {
-                    "ticker": ticker, "company_name": sec_payload["company_name"], "industry": sec_payload["industry"], "form_type": f_type,
-                    "bear": bear_sorted, "bull": bull_sorted, "eight_k": raw_data.get("eight_k_insights", []),
-                    "questions": raw_data.get("strategic_questions", []), "risk_score": min(10.0, round((high_threats * 1.5) + ((len(bear_sorted) - high_threats) * 0.5), 1)),
-                    "financials": sec_payload["financials"], "insider_velocity": sec_payload["insider_velocity"], "event_markers": sec_payload["event_markers"]
-                }
-        return None
-    except Exception as e: return None
+    except APIError as e:
+        raise TickerFailure(f"Anthropic API error ({type(e).__name__}), try again") from e
+
+    for block in response.content:
+        if block.type == "tool_use":
+            raw_data = block.input
+            bear_sorted = sorted(raw_data.get("bear_items", []), key=lambda x: {"HIGH": 0, "MEDIUM": 1}.get(x.get("impact", "MEDIUM").upper(), 2))
+            bull_sorted = sorted(raw_data.get("bull_items", []), key=lambda x: {"HIGH": 0, "MEDIUM": 1}.get(x.get("impact", "MEDIUM").upper(), 2))
+            high_threats = sum(1 for e in bear_sorted if e.get("impact") == "HIGH")
+            return {
+                "ticker": ticker, "company_name": sec_payload["company_name"], "industry": sec_payload["industry"], "form_type": f_type,
+                "bear": bear_sorted, "bull": bull_sorted, "eight_k": raw_data.get("eight_k_insights", []),
+                "questions": raw_data.get("strategic_questions", []), "risk_score": min(10.0, round((high_threats * 1.5) + ((len(bear_sorted) - high_threats) * 0.5), 1)),
+                "financials": sec_payload["financials"], "insider_velocity": sec_payload["insider_velocity"], "event_markers": sec_payload["event_markers"]
+            }
+    raise TickerFailure("Anthropic returned no analysis, try again")
 
 def generate_interactive_chart(ticker, events):
     try:
@@ -410,78 +394,54 @@ c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style
 
 st.divider()
 
-# --- COMMAND TOOLBAR WITH SYNCHRONIZED KEYUP SEARCH ---
-if "tickers_input" not in st.session_state:
-    st.session_state.tickers_input = "AAPL"
+# --- COMMAND TOOLBAR: TICKER PICKER + PRESETS ---
+sec_directory, used_fallback = load_sec_directory()
+ticker_names = dict(zip(sec_directory["ticker"], sec_directory["name"]))
 
-st.markdown("<div class='terminal-toolbar'>", unsafe_allow_html=True)
+def apply_preset(tickers):
+    # on_click callbacks run before the rerun, so the multiselect hasn't been drawn yet: setting its key is allowed
+    st.session_state.ticker_select = [t for t in tickers if t in ticker_names]
+
+# Drop any saved ticker that isn't in today's options (e.g. after a fallback), or the multiselect raises
+st.session_state.ticker_select = [t for t in st.session_state.get("ticker_select", ["AAPL"]) if t in ticker_names]
+
 col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
-
 with col_bar1:
-    tickers_input = st_keyup("Target Tickers (Comma-separated or Search)", value=st.session_state.tickers_input, placeholder="Search ticker or company name...", key="ticker_keyup_input", debounce=150)
+    st.multiselect(
+        "Target Tickers",
+        options=list(ticker_names),
+        format_func=lambda t: f"{t} — {ticker_names[t]}",
+        key="ticker_select",
+        placeholder="Search ticker or company name...",
+        max_selections=5,
+    )
 with col_bar2:
-    if st.button("Load Tech (AAPL)", use_container_width=True):
-        st.session_state.tickers_input = "AAPL"
-        st.rerun()
+    st.button("Load Tech (AAPL)", on_click=apply_preset, args=(["AAPL"],), use_container_width=True)
 with col_bar3:
-    if st.button("Load Industrials", use_container_width=True):
-        st.session_state.tickers_input = "FAST, STRL"
-        st.rerun()
+    st.button("Load Industrials", on_click=apply_preset, args=(["FAST", "STRL"],), use_container_width=True)
 with col_bar4:
     run_btn = st.button("⚡ Run Terminal", use_container_width=True)
 
-st.markdown("</div>", unsafe_allow_html=True)
-
-# --- REAL-TIME SMART MATCHING DROPDOWN (FULLY SYNCHRONIZED SELECTION) ---
-sec_directory = load_sec_directory()
-current_query = tickers_input.split(',')[-1].strip().upper()
-
-if current_query and not sec_directory.empty:
-    exact_ticker = sec_directory[sec_directory['ticker'].str.startswith(current_query, na=False)]
-    exact_name = sec_directory[sec_directory['name'].str.contains(current_query, case=False, na=False) & ~sec_directory['ticker'].str.startswith(current_query, na=False)]
-    matches = pd.concat([exact_ticker, exact_name]).head(5)
-    
-    if not matches.empty:
-        st.markdown("<div class='autocomplete-dropdown'>", unsafe_allow_html=True)
-        st.caption("🔍 Matching Ticker & Company Suggestions (Real-Time):")
-        
-        for idx, (_, row) in enumerate(matches.iterrows()):
-            s_col1, s_col2 = st.columns([4, 1])
-            with s_col1:
-                st.markdown(f"""
-                    <div style='padding: 6px 0;'>
-                        <div style='font-size: 1.15rem; font-weight: 800; color: #ffffff; font-family: monospace;'>{row['ticker']}</div>
-                        <div style='font-size: 0.88rem; color: #94a3b8;'>{row['name']}</div>
-                    </div>
-                """, unsafe_allow_html=True)
-            with s_col2:
-                if st.button("Select", key=f"sugg_btn_{row['ticker']}_{idx}", use_container_width=True):
-                    parts = [t.strip() for t in tickers_input.split(',') if t.strip()]
-                    if parts:
-                        parts[-1] = row['ticker']
-                    else:
-                        parts = [row['ticker']]
-                    new_val = ", ".join(parts)
-                    st.session_state.tickers_input = new_val
-                    st.session_state.ticker_keyup_input = new_val
-                    st.rerun()
-            if idx < len(matches) - 1:
-                st.markdown("<hr style='margin: 4px 0; border-color: #2a2e39;'>", unsafe_allow_html=True)
-                
-        st.markdown("</div>", unsafe_allow_html=True)
+if used_fallback:
+    st.warning("Couldn't reach the SEC ticker list, so only 6 tickers are available. Reload the page to retry.")
 
 # --- EXECUTION & HIGH-DENSITY DISPLAY ---
 if run_btn:
-    raw_list = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
+    raw_list = st.session_state.ticker_select
     if raw_list:
         with st.spinner("Executing SEC EDGAR parsing, YoY risk delta, and quantitative modeling..."):
-            profiles = []
+            profiles, failures = [], []
             for t in raw_list:
-                sec_data = fetch_firm_data(t)
-                if sec_data:
-                    prof = extract_unified_profile(sec_data)
-                    if prof: profiles.append(prof)
-            
+                try:
+                    profiles.append(extract_unified_profile(fetch_firm_data(t)))
+                except TickerFailure as e:
+                    failures.append(f"{t}: {e}")
+                except Exception as e:
+                    traceback.print_exc()  # full stack trace to the server log; the user sees only the short message
+                    failures.append(f"{t}: unexpected error ({type(e).__name__}), try again")
+            for msg in failures:
+                st.error(msg)
+
             if profiles:
                 st.success(f"Analysis successfully compiled for: {', '.join([p['ticker'] for p in profiles])}")
                 st.divider()
@@ -531,6 +491,8 @@ if run_btn:
 
                 excel_data = generate_excel(profiles)
                 st.download_button(label="📊 Download Institutional Model (.xlsx)", data=excel_data, file_name="Institutional_Model.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    else:
+        st.warning("Pick at least one ticker, then click Run Terminal.")
 else:
     st.markdown("""
         <div style='background-color: #1e222d; border: 1px solid #2a2e39; padding: 20px; border-radius: 6px; text-align: center;'>

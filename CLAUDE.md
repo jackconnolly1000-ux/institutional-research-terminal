@@ -24,6 +24,8 @@ Stock Project/
 │   ├── app.py
 │   ├── requirements.txt
 │   ├── CLAUDE.md    these instructions, for Claude Code
+│   ├── .streamlit/config.toml   widget theme (matches the CSS colors)
+│   ├── .venv/       local Python environment (gitignored)
 │   └── .gitignore
 ├── docs/            instructions and plans (private)
 ├── course/          VSB 2008 notes (private, never goes in app/)
@@ -46,27 +48,27 @@ Repo: https://github.com/jackconnolly1000-ux/institutional-research-terminal
 
 Tested in a browser on October 9, 2026:
 
-- Home screen: ticker input, two preset buttons (Load Tech, Load Industrials), Run Terminal, and a suggestion list with a Select button
+- Home screen: ticker input, two preset buttons (Load Tech, Load Industrials), Run Terminal, and a suggestion list with a Select button. **Changed Oct 9 (tested locally with Playwright and a dummy API key, not yet on the live site):** the input and suggestion list are now one `st.multiselect` (search by ticker or company name, up to 5 tickers), presets update it, and a failed ticker shows a message naming the ticker and the reason
 - Results for each ticker: metric cards (insider count over 90 days, price, forward P/E, gross margin, FCF, market cap), a candlestick chart with 8-K and 10-Q markers, AI-written catalysts and risks with filing excerpts, 8-K events, executive Q&A prep, and an Excel download
 - Run Terminal took about 75 seconds for two tickers
 
 These features render. That does not mean they're correct. The numbers and AI-written facts have not been verified. Treat every feature as unverified until it's checked against the code or tested. Label claims as verified or unverified.
 
-`course_analytics.py` does not exist. The repo has only `app.py` (540 lines) and `requirements.txt`. Course features have to be built from scratch, starting with the benchmark tests.
+`course_analytics.py` does not exist. The repo has only `app.py` (500 lines), `requirements.txt`, and `.streamlit/config.toml`. Course features have to be built from scratch, starting with the benchmark tests.
 
 ## Known problems (as of October 9, 2026)
 
 In priority order. Delete a line once it's fixed.
 
-1. **The input box is out of sync with what runs.** Clicking Load Industrials changes the suggestion to STRL, and Run Terminal then analyzes FAST and STRL, but the input box still shows AAPL. The user sees one ticker and gets results for others. Likely cause (from reading `app.py` around line 421, not yet confirmed by running): the presets update `st.session_state.tickers_input`, but the `st_keyup` component (from `streamlit-keyup`) doesn't redraw its box when its `value` changes after the first render.
-2. **Select does nothing visible.** Clicking it leaves the input box unchanged. Probably the same cause as problem 1, since Select also writes to session state. In my test the suggestion already matched, so this needs a retest with a different ticker.
-3. **Garbled dollar amounts.** Streamlit markdown reads text between two `$` signs as a math formula, so AI text with dollar figures renders as broken monospace. Seen in both the AAPL and FAST results. Escape `$` before rendering.
-4. **Numbers conflict with no labels.** For AAPL the gross margin card says 48.65% and the AI text says 50.1%. Every number must show its period (TTM, quarter, fiscal year) and source.
-5. **Slow.** About 75 seconds for two tickers, with only a status line while it runs. Add caching (`st.cache_data`) and real progress feedback.
-6. **The Excel export is a raw data dump.** See the standard below.
-7. **Layout:** empty bars above and below the ticker input (cause found: lines 417 and 433 open and close a `<div>` in separate `st.markdown` calls, so the styled div renders empty; same pattern at lines 445 and 471); a white input box that clashes with the dark theme; four identical blue buttons with no visual hierarchy; Select sits far from its suggestion; clicking a preset wipes the current results without warning.
-8. **Content:** "Load Tech (AAPL)" loads one stock and "Load Industrials" loads two (FAST, STRL), so neither is a basket. The "LIVE FEED" badge probably overclaims, since yfinance data is usually delayed (verify). The subtitle promises "Form 4 Insider Velocity" but the app shows a count. "CapEx & Growth Catalysts" mostly holds items that aren't capex. One 8-K date shows as "2026-04-17/2026-04-20."
-9. **Minor:** the ticker input doesn't show up in the page's accessibility tree, so screen readers may not find it. Check.
+1. **Garbled dollar amounts.** Streamlit markdown reads text between two `$` signs as a math formula, so AI text with dollar figures renders as broken monospace. Seen in both the AAPL and FAST results. Escape `$` before rendering.
+2. **Numbers conflict with no labels.** For AAPL the gross margin card says 48.65% and the AI text says 50.1%. Every number must show its period (TTM, quarter, fiscal year) and source.
+3. **Slow.** About 75 seconds for two tickers, with only a status line while it runs. Add caching (`st.cache_data`) and real progress feedback.
+4. **The Excel export is a raw data dump.** See the standard below.
+5. **Layout:** four identical blue buttons with no visual hierarchy; clicking a preset or changing the ticker selection wipes the current results without warning (results aren't kept in session state); ticker chips cut off long company names ("FAST — Fasten…").
+6. **Content:** "Load Tech (AAPL)" loads one stock and "Load Industrials" loads two (FAST, STRL), so neither is a basket. The "LIVE FEED" badge probably overclaims, since yfinance data is usually delayed (verify). The subtitle promises "Form 4 Insider Velocity" but the app shows a count. "CapEx & Growth Catalysts" mostly holds items that aren't capex. One 8-K date shows as "2026-04-17/2026-04-20."
+7. **Unpinned dependencies in `requirements.txt`:** `anthropic>=0.30.0` (1.13.0 installs today), `yfinance>=0.2.40` (1.7.0 today), and `streamlit-keyup` (no version at all, and no longer imported; remove it once the new ticker input is checked on the live site). An unpinned package can change under a fresh deploy and break the app: unpinned PyArrow resolved to 26.0.0, which needs NumPy 2 and crashed Streamlit 1.32 (now pinned to 16.1.0).
+8. **Failures cached as results in `get_comprehensive_financials`:** any yfinance error returns all "N/A" and `st.cache_data` keeps it for an hour. It's called inside `fetch_firm_data`, so the N/A cards are also baked into that cache. Failed 8-K downloads are also skipped silently. Fix like `extract_unified_profile`: raise instead, and fetch the financials outside the cached SEC function.
+9. **The YoY risk comparison can silently run without prior-year text.** In `fetch_firm_data` (around lines 232-242), the prior-year filing fetch is wrapped in `except Exception: pass`, and a failed download leaves `prior_risk` as "PRIOR YEAR FILING NOT AVAILABLE". Either way Claude does the "YoY Delta" with nothing to compare against, the NEW/ESCALATED/STABLE trend labels mean nothing, the user isn't told, and the result is cached for an hour. Related (from reading the code, not tested): the "prior" filing is just the next 10-K or 10-Q back, so when the latest filing is a 10-Q the "YoY" comparison is really quarter over quarter.
 
 ## Excel export standard
 
@@ -123,10 +125,9 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 
 ## Order of work
 
-1. Fix the input sync, presets, and Select (problems 1 and 2)
-2. Fix the dollar sign rendering (problem 3)
-3. Label every number with period and source (problem 4)
-4. Speed: caching and progress (problem 5)
-5. Rebuild the Excel export as a research record (problem 6)
-6. Layout and content cleanup (problems 7 to 9)
-7. Course features: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes
+1. Fix the dollar sign rendering (problem 1)
+2. Label every number with period and source (problem 2)
+3. Speed: caching and progress (problem 3)
+4. Rebuild the Excel export as a research record (problem 4)
+5. Layout and content cleanup (problems 5 and 6)
+6. Course features: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes
