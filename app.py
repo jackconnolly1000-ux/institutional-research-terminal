@@ -332,6 +332,11 @@ def extract_unified_profile(sec_payload: dict) -> dict:
             }
     raise TickerFailure("Anthropic returned no analysis, try again")
 
+def escape_md(text) -> str:
+    """Escape $ so Streamlit markdown shows dollar amounts as text, not LaTeX math.
+    Applied only at display time, so stored data and the Excel export keep real $ signs."""
+    return str(text).replace("$", r"\$")
+
 def generate_interactive_chart(ticker, events):
     try:
         hist = yf.Ticker(ticker).history(period="6mo")
@@ -468,11 +473,11 @@ if run_btn:
                     with col1:
                         st.subheader("💡 CapEx & Growth Catalysts")
                         for item in p['bull']:
-                            st.info(f"**{item['target']}** ({item['impact']})\n\n{item['description']}\n\n*{item['quote']}*")
+                            st.info(escape_md(f"**{item['target']}** ({item['impact']})\n\n{item['description']}\n\n*{item['quote']}*"))
                     with col2:
                         st.subheader("⚠️ Supply Chain & Risks")
                         for item in p['bear']:
-                            st.warning(f"**{item['target']}** ({item['impact']} | {item.get('trend', 'STABLE')})\n\n{item['description']}\n\n*{item['quote']}*")
+                            st.warning(escape_md(f"**{item['target']}** ({item['impact']} | {item.get('trend', 'STABLE')})\n\n{item['description']}\n\n*{item['quote']}*"))
                     
                     st.subheader("🏛️ SEC Form 8-K Events")
                     if not p['eight_k']:
@@ -481,10 +486,10 @@ if run_btn:
                         e_cols = st.columns(min(3, len(p['eight_k'])))
                         for idx, event in enumerate(p['eight_k']):
                             with e_cols[idx % 3]:
-                                st.success(f"**{event['event_date']}** | {event['category']}\n\n{event['takeaway']}")
+                                st.success(escape_md(f"**{event['event_date']}** | {event['category']}\n\n{event['takeaway']}"))
                     
                     st.subheader("🎙️ Executive Q&A / Meeting Prep")
-                    for q in p['questions']: st.markdown(f"- {q}")
+                    for q in p['questions']: st.markdown(escape_md(f"- {q}"))
                     
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.divider()

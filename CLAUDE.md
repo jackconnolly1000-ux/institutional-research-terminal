@@ -57,23 +57,23 @@ These features render. That does not mean they're correct. The numbers and AI-wr
 
 `course_analytics.py` does not exist. The repo has only `app.py` (500 lines), `requirements.txt`, and `.streamlit/config.toml`. Course features have to be built from scratch, starting with the benchmark tests.
 
-## Known problems (as of October 9, 2026)
+## Known problems (as of October 10, 2026)
 
 In priority order. Delete a line once it's fixed.
 
-1. **Garbled dollar amounts.** Streamlit markdown reads text between two `$` signs as a math formula, so AI text with dollar figures renders as broken monospace. Seen in both the AAPL and FAST results. Escape `$` before rendering.
-2. **Numbers conflict with no labels.** For AAPL the gross margin card says 48.65% and the AI text says 50.1%. Every number must show its period (TTM, quarter, fiscal year) and source.
-3. **Slow.** About 75 seconds for two tickers, with only a status line while it runs. Add caching (`st.cache_data`) and real progress feedback.
-4. **The Excel export is a raw data dump.** See the standard below.
-5. **Layout:** four identical blue buttons with no visual hierarchy; clicking a preset or changing the ticker selection wipes the current results without warning (results aren't kept in session state); ticker chips cut off long company names ("FAST — Fasten…").
-6. **Content:** "Load Tech (AAPL)" loads one stock and "Load Industrials" loads two (FAST, STRL), so neither is a basket. The "LIVE FEED" badge probably overclaims, since yfinance data is usually delayed (verify). The subtitle promises "Form 4 Insider Velocity" but the app shows a count. "CapEx & Growth Catalysts" mostly holds items that aren't capex. One 8-K date shows as "2026-04-17/2026-04-20."
-7. **Failures cached as results in `get_comprehensive_financials`:** any yfinance error returns all "N/A" and `st.cache_data` keeps it for an hour. It's called inside `fetch_firm_data`, so the N/A cards are also baked into that cache. Failed 8-K downloads are also skipped silently. Fix like `extract_unified_profile`: raise instead, and fetch the financials outside the cached SEC function.
-8. **The YoY risk comparison can silently run without prior-year text.** In `fetch_firm_data` (around lines 232-242), the prior-year filing fetch is wrapped in `except Exception: pass`, and a failed download leaves `prior_risk` as "PRIOR YEAR FILING NOT AVAILABLE". Either way Claude does the "YoY Delta" with nothing to compare against, the NEW/ESCALATED/STABLE trend labels mean nothing, the user isn't told, and the result is cached for an hour. **Verified Oct 9 by `tests/check_risk_extraction.py` (AAPL, FAST, STRL), and worse than that:**
+1. **Numbers conflict with no labels.** For AAPL the gross margin card says 48.65% and the AI text says 50.1%. Every number must show its period (TTM, quarter, fiscal year) and source.
+2. **Slow.** About 75 seconds for two tickers, with only a status line while it runs. Add caching (`st.cache_data`) and real progress feedback.
+3. **The Excel export is a raw data dump.** See the standard below.
+4. **Layout:** four identical blue buttons with no visual hierarchy; clicking a preset or changing the ticker selection wipes the current results without warning (results aren't kept in session state); ticker chips cut off long company names ("FAST — Fasten…").
+5. **Content:** "Load Tech (AAPL)" loads one stock and "Load Industrials" loads two (FAST, STRL), so neither is a basket. The "LIVE FEED" badge probably overclaims, since yfinance data is usually delayed (verify). The subtitle promises "Form 4 Insider Velocity" but the app shows a count. "CapEx & Growth Catalysts" mostly holds items that aren't capex. One 8-K date shows as "2026-04-17/2026-04-20."
+6. **Failures cached as results in `get_comprehensive_financials`:** any yfinance error returns all "N/A" and `st.cache_data` keeps it for an hour. It's called inside `fetch_firm_data`, so the N/A cards are also baked into that cache. Failed 8-K downloads are also skipped silently. Fix like `extract_unified_profile`: raise instead, and fetch the financials outside the cached SEC function.
+7. **The YoY risk comparison can silently run without prior-year text.** In `fetch_firm_data` (around lines 232-242), the prior-year filing fetch is wrapped in `except Exception: pass`, and a failed download leaves `prior_risk` as "PRIOR YEAR FILING NOT AVAILABLE". Either way Claude does the "YoY Delta" with nothing to compare against, the NEW/ESCALATED/STABLE trend labels mean nothing, the user isn't told, and the result is cached for an hour. **Verified Oct 9 by `tests/check_risk_extraction.py` (AAPL, FAST, STRL), and worse than that:**
    - All three compare 10-Q vs 10-Q (quarter over quarter), never 10-K vs 10-K.
    - The text sent as "risk factors" isn't the Risk Factors section for any of them. AAPL: a cross-reference in MD&A, so mostly MD&A text. FAST: its 10-Q risk section is one "no material changes" sentence (155 chars, under the 4,000 filter), so the fallback slice sends inline XBRL tags (`us-gaap:...Member 2026-04-01`). STRL: a quoted cross-reference, then MD&A.
    - The "MD&A" text starts at the table of contents and runs through the financial statements for FAST and STRL (AAPL's MD&A is correct).
    - Even a 10-K vs 10-K comparison would get the wrong text: `max(key=len)` picks a cross-reference match that runs to the end of the document (signatures included), not the real section. For FAST the real section exists as a smaller match ("ITEM 1A. RISK FACTORS", ending at Item 1B).
    - Real 10-K Risk Factors sections are about 50,000-85,000 chars, so the 20,000 / 18,000 cuts drop most of each section.
+   - Excerpt check (Oct 10, AAPL export, `--excerpts`): 10 of 11 "Filing Excerpt" quotes appear word for word in the text sent to Claude. The 11th is a sentence from the prior quarter's 10-Q (sent in the "prior risk factors" slot, which holds MD&A text) with the word "also" added, shown as a current catalyst.
 
 ## Excel export standard
 
@@ -131,9 +131,8 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 
 ## Order of work
 
-1. Fix the dollar sign rendering (problem 1)
-2. Label every number with period and source (problem 2)
-3. Speed: caching and progress (problem 3)
-4. Rebuild the Excel export as a research record (problem 4)
-5. Layout and content cleanup (problems 5 and 6)
-6. Course features: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes
+1. Label every number with period and source (problem 1)
+2. Speed: caching and progress (problem 2)
+3. Rebuild the Excel export as a research record (problem 3)
+4. Layout and content cleanup (problems 4 and 5)
+5. Course features: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes
