@@ -29,7 +29,13 @@ For up to five tickers:
 - Section extraction has been checked on seven filers (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM). Other filing layouts may not be recognized.
 - Each request is capped at 80,000 tokens (64,000 of input). When the evidence is larger, the rest is omitted and the omission is shown.
 - The figures check is a text match. It normalizes formats ($14.7M, 14.7 million, $14,700 thousand) and ignores dates and form names, but a figure written very differently from the filing (for example "2.00 to 1.00" vs "2.00x") is flagged even when it's right, and a fair calculation such as a percent change is always flagged.
-- A first run takes about a minute per ticker.
+- Claude doesn't always follow the prompt's rules, so the code flags what it can instead of trusting the text. In the Oct 10, 2026 test run (AAPL and STRL) it:
+  - did not list a second source for figures taken from one (a $35.3 million buyback figure, flagged as not in the cited source);
+  - wrote "new risk factors" for paragraphs the code only found to have no close match in the prior 10-K (flagged as wording);
+  - named internal source IDs such as "QU3" or "R_CMP" in its summaries (not flagged).
+- The figures check also flags fair sums, such as $86.3 billion of purchase obligations reported as $57.0 billion and $29.3 billion. The card says some flags are calculations.
+- The wording check can flag financial uses it doesn't recognize, such as "subject to a leverage test".
+- A first run takes about a minute per ticker (131 seconds for AAPL and STRL on Oct 10, 2026).
 
 ## Running it
 

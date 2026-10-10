@@ -59,7 +59,7 @@ Repo: https://github.com/jackconnolly1000-ux/institutional-research-terminal
 
 ## What the app does today
 
-Layout from Oct 10, 2026 on `main` and the live site. **Branch `phase-1-evidence`** (not merged or deployed) changes what the analysis is built on. Tested with 57 unit tests, offline browser scenarios, live EDGAR checks on seven companies, and one real-key run of AAPL + STRL before the code comparison (108 s, $0.27, both answers complete).
+Layout from Oct 10, 2026 on `main` and the live site. **Branch `phase-1-evidence`** (not merged or deployed) changes what the analysis is built on. Tested with 57 unit tests, offline browser scenarios, live EDGAR checks on seven companies, and real-key runs of AAPL + STRL; the latest, Oct 10 at 1:50 PM ET with the code comparison and the 80,000-token budget, took 131 s, cost $0.30, sent all input, and both answers were complete. Limits found in testing are listed in README.md under "Known limits".
 
 - Home screen: title "SEC Filing Research Terminal", subtitle ("A research tool, not investment advice"), one ticker picker (`st.multiselect`, up to 5), one primary **Run analysis** button, two outlined example buttons
 - While it runs: a progress strip (queued, working, done, partial, failed) and a tab per ticker with a skeleton loader and step label

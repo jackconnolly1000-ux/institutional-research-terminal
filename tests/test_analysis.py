@@ -245,6 +245,16 @@ class ResponseChecks(unittest.TestCase):
         self.assertEqual(items[1]["unsupported_figures"], ["$14.7 million", "7.3%"])   # flagged, not rejected
         self.assertEqual(r["sections"]["catalysts"]["status"], "complete")
 
+    def test_figures_from_a_second_cited_source(self):
+        two = finding(source_id="MDA", paragraph_id="", quote="Net sales increased 8% to $5.2 billion",
+                      summary="Net sales rose 8% to $5.2 billion; a new CFO starts October 1.", other_source_ids=["K8_1"],
+                      detail="Sales of $5.2 billion; the 8-K names 2026 as the start year.")
+        item = check_response("tool_use", answer(catalysts=[two]), sources())["sections"]["catalysts"]["items"][0]
+        self.assertEqual(item["unsupported_figures"], [])
+        self.assertEqual([o["id"] for o in item["other_sources"]], ["K8_1"])
+        bad = check_response("tool_use", answer(catalysts=[finding(source_id="MDA", other_source_ids=["X1"])]), sources())
+        self.assertIn("other_source_ids", bad["sections"]["catalysts"]["dropped"][0]["reason"])
+
     def test_refusal_and_no_output(self):
         self.assertEqual(check_response("refusal", None, sources())["response_status"], "refused")
         self.assertEqual(check_response("end_turn", None, sources())["response_status"], "no_output")

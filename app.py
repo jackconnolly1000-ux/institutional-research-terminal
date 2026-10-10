@@ -271,7 +271,7 @@ def generate_excel(profiles):
     ws = wb.create_sheet("Findings")
     ws.append(["Ticker", "Type", "Headline", "Summary", "Potential implication", "Detail", "Impact (AI assessment)",
                "Impact basis", "Change vs prior 10-K (code)", "Category", "Source", "Form", "Filed", "Period", "Quote",
-               "Excerpt check", "Figures not in cited source", "Wording flags", "Filing URL"])
+               "Excerpt check", "Figures not in cited source", "Wording flags", "Filing URL", "Other sources for figures"])
     for p in profiles:
         for kind in ("catalysts", "risks", "other_risks"):
             for i in p["analysis"]["sections"][kind]["items"]:
@@ -280,7 +280,8 @@ def generate_excel(profiles):
                                          "other_risks": "Other risk (management's discussion)"}[kind], i["headline"], i["summary"], i["implication"], i["detail"],
                            i["impact"], i["impact_basis"], ui.trend_text(i) if kind == "risks" else "", i["category"],
                            s["role"], s["form"], s["filed"], s["period"], i["quote"], i["excerpt"]["status"],
-                           "; ".join(i.get("unsupported_figures", [])), "; ".join(i.get("wording_flags", [])), s["url"]])
+                           "; ".join(i.get("unsupported_figures", [])), "; ".join(i.get("wording_flags", [])), s["url"],
+                           "; ".join(f"{o['label']} {o['url']}" for o in i.get("other_sources", []))])
 
     ws = wb.create_sheet("8-K events")
     ws.append(["Ticker", "Filed", "Event date", "8-K items", "Category", "Headline", "Summary", "Quote", "Excerpt check", "Filing URL"])

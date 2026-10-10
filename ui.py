@@ -305,8 +305,11 @@ def _excerpt(item: dict) -> str:
     elsewhere = (f' Found instead in {", ".join(ex["found_in"])}.' if ex.get("found_in") else "")
     link = (f'<a href="{esc(src["url"])}" target="_blank" rel="noopener">{esc(src.get("label", "filing"))}</a>'
             if src.get("url") else esc(src.get("label", "")))
+    others = "".join(f'<p class="irt-note" style="margin:2px 0 0 0">Figures also from {esc(o.get("role", ""))}: '
+                     f'<a href="{esc(o["url"])}" target="_blank" rel="noopener">{esc(o.get("label", ""))}</a></p>'
+                     for o in item.get("other_sources", []) if o.get("url"))
     return (f'<details><summary>Source and excerpt</summary>'
-            f'<p class="irt-card-body">{esc(src.get("role", ""))}: {link}</p>'
+            f'<p class="irt-card-body">{esc(src.get("role", ""))}: {link}</p>{others}'
             f'<blockquote>{esc(item.get("quote", ""))}</blockquote>'
             f'<div class="irt-chips">{chip(label[0], label[1])}</div>'
             f'<p class="irt-note" style="margin:6px 0 0 0">A match means these words appear in the filing; it does not '

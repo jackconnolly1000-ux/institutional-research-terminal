@@ -160,6 +160,9 @@ def tool_schema(sources: list[Source]) -> dict:
         "quote": text("Words copied exactly from that source, at most 40 words. '...' between non-adjacent fragments, in order."),
     }
     finding_req = list(finding)
+    # Optional: every other source a figure in the finding comes from (Jack's rule, Oct 10)
+    finding["other_source_ids"] = {"type": "array", "items": {"type": "string", "enum": ids},
+                                   "description": "Other sources that figures in this finding come from. Empty if all come from source_id."}
     risk = dict(finding, source_id={"type": "string", "enum": risk_source_ids(sources) or ["NONE"]},
                 paragraph_id=text("For a finding from R_CMP: the [P#] or [R#] ID of the paragraph it is based on. Otherwise empty."))
     return {
@@ -223,7 +226,8 @@ Use only the sources below. Each finding is based on one source: set source_id t
 quote word for word from that source. Up to {MAX_FINDINGS} catalysts and {MAX_FINDINGS} risks, the most significant first.
 "risks" come only from risk-factor sources (R_CMP, R_CUR, QU). A risk that appears only in management's discussion
 goes in "other_risks" (up to {MAX_OTHER_RISKS}, source_id MDA). Never cite a source that reports no material changes
-as evidence for a finding. Figures in a finding must come from the source it cites.
+as evidence for a finding. When a finding uses a figure, cite the source where that figure appears: source_id for the
+main source, and other_source_ids for every other source a figure comes from.
 
 {comp}
 
@@ -483,6 +487,11 @@ def _check_finding(item, kind, sources_by_id, all_by_id) -> tuple[dict | None, s
         return None, f"unknown source {item.get('source_id')!r}"
     if src.status == "no_material_changes":
         return None, f"cites {src.id}, which reports no material changes and so can't support a finding"
+    others = item.get("other_source_ids") or []
+    if not isinstance(others, list) or any(o not in sources_by_id for o in others):
+        return None, f"unknown source in other_source_ids {others!r}"
+    if any(sources_by_id[o].status == "no_material_changes" for o in others):
+        return None, "other_source_ids include a source that reports no material changes"
     if kind == "other_risks" and src.id != "MDA":
         return None, f"other risk cites {src.id}; this group is for management's discussion (MDA) only"
     out = dict(item)
@@ -505,7 +514,9 @@ def _check_finding(item, kind, sources_by_id, all_by_id) -> tuple[dict | None, s
                      and match_excerpt(item["quote"], s.sent_text)["status"] == "matched"]
         out["excerpt"]["found_in"] = elsewhere
     out["wording_flags"] = wording_flags(out)
-    seen = [src.sent_text] + ([all_by_id["R_CUR"].text, all_by_id["R_PRIOR"].text] if src.id == "R_CMP" else [])
+    seen = ([src.sent_text] + ([all_by_id["R_CUR"].text, all_by_id["R_PRIOR"].text] if src.id == "R_CMP" else [])
+            + [sources_by_id[o].sent_text for o in others])
+    out["other_sources"] = [sources_by_id[o].filing | {"id": o, "role": sources_by_id[o].role} for o in others if o != src.id]
     out["unsupported_figures"] = unsupported_figures(out, seen)
     return out, ""
 
