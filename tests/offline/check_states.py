@@ -26,10 +26,10 @@ TAB_JS = """panel => ({
   evidence: (panel.querySelector('.irt-evidence summary') || {}).textContent || null,
   failed_sources: [...panel.querySelectorAll('.irt-evidence li')].filter(li => /Download failed|Section not found/.test(li.textContent)).map(li => li.textContent.slice(0, 90)),
   trend_note: [...panel.querySelectorAll('.irt-note')].map(e => e.textContent).find(t => /compared paragraph by paragraph|No annual comparison/.test(t)) || null,
-  findings: panel.querySelectorAll('.irt-card .irt-card-title').length,
+  findings: panel.querySelectorAll('.irt-row').length,
   excerpt_labels: [...new Set([...panel.querySelectorAll('.irt-chip')].map(c => c.textContent).filter(t => t.startsWith('Excerpt')))],
   tile_sources: [...panel.querySelectorAll('.irt-tile .src')].map(e => e.textContent),
-  clipped: [...panel.querySelectorAll('.irt-tile .src, .irt-chip, .irt-card-title')].filter(e => e.scrollWidth > e.clientWidth + 1).length,
+  clipped: [...panel.querySelectorAll('.irt-tile .src, .irt-chip, .irt-card-title, .row-head')].filter(e => e.scrollWidth > e.clientWidth + 1).length,
 })"""
 
 
@@ -37,7 +37,7 @@ def run_once(page, n):
     page.get_by_role("button", name="Run analysis").click()
     page.locator('[data-testid="stDownloadButton"]').wait_for(timeout=180000)
     page.wait_for_timeout(2500)
-    report = {"summary": page.locator("p.irt-subtitle").nth(1).inner_text()}
+    report = {"summary": page.locator("p.irt-subtitle", has_text="Results for").first.inner_text()}
     tabs = page.locator('[data-baseweb="tab"]')
     for i in range(tabs.count()):
         name = tabs.nth(i).inner_text().strip()

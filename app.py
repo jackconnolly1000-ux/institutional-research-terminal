@@ -310,9 +310,9 @@ def generate_excel(profiles):
 
 # --- HEADER ---
 st.markdown(
-    "<h1 class='irt-title'>SEC Filing Research Terminal</h1>"
-    "<p class='irt-subtitle'>SEC filings, market data and AI summaries for up to five stocks. "
-    "A research tool, not investment advice.</p>",
+    "<div class='irt-header'><h1 class='irt-title'>SEC Filing Research Terminal</h1>"
+    "<span class='irt-sub'>SEC filings, market data and AI summaries for up to five stocks. "
+    "A research tool, not investment advice.</span></div>",
     unsafe_allow_html=True,
 )
 
@@ -342,7 +342,7 @@ with col_pick:
 with col_run:
     run_btn = st.button("Run analysis", type="primary", use_container_width=True)
 
-col_ex1, col_ex2, _ = st.columns([1.3, 1.6, 5])
+col_ex1, col_ex2, _ = st.columns([1.2, 1.5, 5.3])
 col_ex1.button("Example: AAPL", on_click=apply_preset, args=(["AAPL"],), use_container_width=True)
 col_ex2.button("Example: FAST + STRL", on_click=apply_preset, args=(["FAST", "STRL"],), use_container_width=True)
 
@@ -350,7 +350,7 @@ if used_fallback:
     st.warning("Couldn't reach the SEC ticker list, so only 6 tickers are available. Reload the page to retry.")
 
 
-# --- RESULTS RENDERING (Phase 1: same layout, new data; the layout itself changes in Phase 2) ---
+# --- RESULTS RENDERING ---
 def metric_groups(p: dict) -> list:
     f = p["financials"]
     insider = ("Insider filings", [("Form 4, last 90 days", str(p["form4_count"]), "SEC EDGAR · count of filings, not transactions")])
@@ -364,8 +364,11 @@ def metric_groups(p: dict) -> list:
             insider]
 
 
+SHOW = ["All", "Catalysts", "Risk factor changes", "Other risks"]
+
+
 def render_profile(p: dict) -> None:
-    a = p["analysis"]
+    a, secs = p["analysis"], p["analysis"]["sections"]
     st.markdown(ui.company_header(p["ticker"], p["company_name"], p["industry"])
                 + ui.metric_tiles(metric_groups(p))
                 + (ui.notice("Market data unavailable", f"{p['financials']['reason']}. It is retried on the next run.", "caution")
@@ -384,28 +387,28 @@ def render_profile(p: dict) -> None:
 
     st.markdown(ui.analysis_banner(a) + ui.evidence_list(p["evidence"], a["comparison"], a.get("budget")), unsafe_allow_html=True)
 
-    secs = a["sections"]
-    col_bull, col_bear = st.columns(2, gap="large")
-    with col_bull:
-        st.markdown(ui.section_header("Catalysts", len(secs["catalysts"]["items"]), ui.IMPACT_NOTE)
-                    + ui.section_state(secs["catalysts"], "catalysts")
-                    + "".join(ui.finding_card(i, "catalyst") for i in secs["catalysts"]["items"]), unsafe_allow_html=True)
-    with col_bear:
-        st.markdown(ui.section_header("What changed in the risk factors", len(secs["risks"]["items"]), ui.trend_note(a["comparison"]))
-                    + ui.section_state(secs["risks"], "risks")
-                    + "".join(ui.finding_card(i, "risk") for i in secs["risks"]["items"])
-                    + ui.unchanged_list(a["comparison"])
-                    + ui.section_header("Other risks from management's discussion (not compared to last year)",
-                                        len(secs["other_risks"]["items"]))
-                    + ui.section_state(secs["other_risks"], "other_risks")
-                    + "".join(ui.finding_card(i, "other_risk") for i in secs["other_risks"]["items"]), unsafe_allow_html=True)
-
-    questions = "".join(f"<li>{ui.esc(q['question'])}</li>" for q in secs["questions"]["items"])
-    st.markdown(ui.section_header("8-K events", len(secs["events"]["items"])) + ui.section_state(secs["events"], "events")
-                + (ui.event_rows(secs["events"]["items"]) if secs["events"]["items"] else "")
-                + ui.section_header("Questions for management", len(secs["questions"]["items"]))
-                + ui.section_state(secs["questions"], "questions")
-                + (f"<ol class='irt-questions'>{questions}</ol>" if questions else ""), unsafe_allow_html=True)
+    counts = {"Catalysts": len(secs["catalysts"]["items"]), "Risk factor changes": len(secs["risks"]["items"]),
+              "Other risks": len(secs["other_risks"]["items"])}
+    counts["All"] = sum(counts.values())
+    show = st.radio("Show", SHOW, horizontal=True, key=f"show_{p['ticker']}", label_visibility="collapsed",
+                    format_func=lambda o: f"{o} {counts[o]}")
+    html = ui.impact_criteria()
+    if show in ("All", "Catalysts"):
+        html += (ui.section_header("Catalysts", counts["Catalysts"]) + ui.section_state(secs["catalysts"], "catalysts")
+                 + ui.findings_list(secs["catalysts"]["items"], "catalyst"))
+    if show in ("All", "Risk factor changes"):
+        html += (ui.section_header("What changed in the risk factors", counts["Risk factor changes"], ui.trend_note(a["comparison"]))
+                 + ui.section_state(secs["risks"], "risks") + ui.findings_list(secs["risks"]["items"], "risk")
+                 + ui.unchanged_list(a["comparison"]))
+    if show in ("All", "Other risks"):
+        html += (ui.section_header("Other risks from management's discussion (not compared to last year)", counts["Other risks"])
+                 + ui.section_state(secs["other_risks"], "other_risks")
+                 + ui.findings_list(secs["other_risks"]["items"], "other_risk"))
+    html += (ui.section_header("8-K events", len(secs["events"]["items"]), f"Last {sec_data.EIGHT_K_WINDOW_DAYS} days · dates from EDGAR")
+             + ui.section_state(secs["events"], "events") + ui.event_list(secs["events"]["items"])
+             + ui.section_header("Questions for management", len(secs["questions"]["items"]))
+             + ui.section_state(secs["questions"], "questions") + ui.question_list(secs["questions"]["items"]))
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def render_failure(ticker: str, reason: str) -> None:

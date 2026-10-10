@@ -60,8 +60,12 @@ def inject_css() -> None:
 .stApp h5, .stApp label, .stApp input, .stApp button, .stApp summary {{ font-family: var(--font); }}
 .stApp code, .stApp pre {{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }}
 .stApp {{ background: var(--bg); }}
-h1.irt-title {{ font-size: 1.5rem; font-weight: 650; color: var(--text-strong); margin: 0; padding: 0; letter-spacing: -0.01em; }}
-p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 18px 0; font-size: 0.9rem; }}
+/* Streamlit's default top padding is about 6rem; the toolbar should sit near the top */
+.main .block-container {{ padding-top: 2.2rem; padding-bottom: 3rem; }}
+.irt-header {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 0 0 10px 0; }}
+h1.irt-title {{ font-size: 1.3rem; font-weight: 650; color: var(--text-strong); margin: 0; padding: 0; letter-spacing: -0.01em; }}
+.irt-header .irt-sub {{ color: var(--text-muted); font-size: 0.85rem; }}
+p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 10px 0; font-size: 0.85rem; }}
 
 /* Buttons: one filled primary action (Run). Everything else is outlined. */
 .stButton button[kind="secondary"] {{ background: transparent; border: 1px solid var(--border); color: var(--text);
@@ -80,7 +84,7 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 18px 0; font-size: 0.9
 .irt-card-body {{ color: var(--text); font-size: 0.9rem; line-height: 1.5; margin: 6px 0 0 0; }}
 .irt-chips {{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }}
 .irt-chip {{ display: inline-block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; line-height: 1.6;
-  padding: 0 8px; border-radius: 999px; color: var(--tone-text); background: var(--tone-bg); white-space: nowrap; }}
+  padding: 0 8px; border-radius: 999px; color: var(--tone-text); background: var(--tone-bg); max-width: 100%; }}
 .irt-card details {{ margin-top: 8px; }}
 .irt-card summary {{ color: var(--text-muted); font-size: 0.8rem; cursor: pointer; }}
 .irt-card summary:hover {{ color: var(--text); }}
@@ -115,8 +119,42 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 18px 0; font-size: 0.9
 .irt-event .date {{ color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 0.85rem; padding-top: 2px; }}
 .irt-event details {{ margin-top: 2px; }}
 
+/* Finding rows: one compact row per finding; expanding needs no rerun (HTML details) */
+.irt-list {{ border: 1px solid var(--border); border-radius: 6px; background: var(--surface); margin-bottom: 8px; }}
+.irt-row {{ border-top: 1px solid var(--border); }}
+.irt-row:first-child {{ border-top: 0; }}
+.irt-row > summary {{ display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 10px 14px; cursor: pointer; list-style: none; }}
+.irt-row > summary::-webkit-details-marker {{ display: none; }}
+.irt-row > summary:hover {{ background: var(--surface-hover); }}
+.irt-row .badges {{ display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }}
+.irt-row .row-head {{ color: var(--text-strong); font-weight: 600; font-size: 0.95rem; line-height: 1.35; }}
+.irt-row .row-text {{ color: var(--text); font-size: 0.86rem; line-height: 1.45; margin-top: 3px; }}
+.irt-row .impl-label {{ color: var(--text-muted); font-weight: 600; }}
+.irt-row .row-src {{ color: var(--text-muted); font-size: 0.75rem; text-align: right; white-space: nowrap; }}
+.irt-row .chev {{ display: inline-block; margin-left: 8px; transition: transform .15s; }}
+.irt-row[open] .chev {{ transform: rotate(90deg); }}
+.irt-row .row-body {{ padding: 0 14px 14px; font-size: 0.86rem; line-height: 1.5; color: var(--text); }}
+.irt-row .row-body p {{ margin: 6px 0 0 0; }}
+.irt-row blockquote {{ margin: 8px 0 0 0; padding: 6px 10px; border-left: 2px solid var(--border); color: var(--text-muted); }}
+.irt-row a {{ color: {T.INFO_TEXT}; }}
+.irt-row .phone-only {{ display: none; }}
+.irt-criteria {{ font-size: 0.8rem; color: var(--text-muted); margin: 0 0 8px 0; }}
+.irt-criteria summary {{ cursor: pointer; }}
+.irt-criteria ul {{ margin: 6px 0 0 0; padding-left: 1.1rem; line-height: 1.5; }}
+@media (prefers-reduced-motion: reduce) {{ .irt-row .chev {{ transition: none; }} }}
+/* Phones: a collapsed row is badges and headline; summary and implication move into the expanded row */
+@media (max-width: 640px) {{
+  .main .block-container {{ padding-top: 1.2rem; }}
+  .irt-row > summary {{ grid-template-columns: 1fr; }}
+  .irt-row .row-src {{ text-align: left; white-space: normal; order: -1; }}
+  .irt-row .desk-only {{ display: none; }}
+  .irt-row .phone-only {{ display: block; }}
+  .irt-tiles {{ grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+}}
+
 /* Evidence list */
-.irt-evidence {{ margin: 6px 0 4px 0; }}
+.irt-evidence {{ margin: 10px 0; }}
+.irt-evidence.panel {{ background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }}
 .irt-evidence summary {{ color: var(--text-muted); font-size: 0.85rem; cursor: pointer; }}
 .irt-evidence ul {{ list-style: none; padding: 0; margin: 8px 0; }}
 .irt-evidence li {{ padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; color: var(--text); }}
@@ -274,7 +312,7 @@ def evidence_list(coverage: list, comparison: dict, budget: dict | None) -> str:
                     f'<ol class="irt-questions">{removed}</ol></li>')
     tokens = (f'<p class="irt-note">Request: {budget["input_tokens"]:,} input tokens ({budget["count"]}) plus up to '
               f'{budget["output_reserve"]:,} output tokens, within a {budget["limit"]:,}-token budget.</p>' if budget else "")
-    return (f'<details class="irt-evidence"><summary>Evidence: {esc(" · ".join(summary))}</summary>'
+    return (f'<details class="irt-evidence panel"><summary>Evidence: {esc(" · ".join(summary))}</summary>'
             f'<ul>{"".join(rows)}</ul>{tokens}</details>')
 
 
@@ -295,25 +333,24 @@ def section_state(sec: dict, name: str) -> str:
     return f'<p class="irt-note irt-state tone-{tone}">{esc(msg)}</p>' if msg else ""
 
 
-def _excerpt(item: dict) -> str:
-    """Source filing, link, quote and whether the quote's words appear in that filing."""
+def _excerpt_block(item: dict) -> str:
+    """Quote, its check, the caveat, and the source links, shown inside an expanded row."""
     src, ex = item.get("source", {}), item.get("excerpt", {})
     label = {"matched": ("Excerpt matched", "positive"),
              "not_matched": ("Excerpt not matched in the cited source", "caution"),
              "too_short": ("Excerpt too short to check", "neutral"),
              "no_quote": ("No excerpt given", "neutral")}.get(ex.get("status"), ("Excerpt not checked", "neutral"))
-    elsewhere = (f' Found instead in {", ".join(ex["found_in"])}.' if ex.get("found_in") else "")
+    elsewhere = f' Found instead in {", ".join(ex["found_in"])}.' if ex.get("found_in") else ""
     link = (f'<a href="{esc(src["url"])}" target="_blank" rel="noopener">{esc(src.get("label", "filing"))}</a>'
             if src.get("url") else esc(src.get("label", "")))
     others = "".join(f'<p class="irt-note" style="margin:2px 0 0 0">Figures also from {esc(o.get("role", ""))}: '
                      f'<a href="{esc(o["url"])}" target="_blank" rel="noopener">{esc(o.get("label", ""))}</a></p>'
                      for o in item.get("other_sources", []) if o.get("url"))
-    return (f'<details><summary>Source and excerpt</summary>'
-            f'<p class="irt-card-body">{esc(src.get("role", ""))}: {link}</p>{others}'
-            f'<blockquote>{esc(item.get("quote", ""))}</blockquote>'
+    return (f'<blockquote>{esc(item.get("quote", ""))}</blockquote>'
             f'<div class="irt-chips">{chip(label[0], label[1])}</div>'
-            f'<p class="irt-note" style="margin:6px 0 0 0">A match means these words appear in the filing; it does not '
-            f'check the interpretation above.{esc(elsewhere)}</p></details>')
+            f'<p class="irt-note" style="margin:6px 0 0 0">The quoted words appear in this filing. That does not confirm the '
+            f'interpretation above.{esc(elsewhere)}</p>'
+            f'<p class="irt-note" style="margin:4px 0 0 0">{esc(src.get("role", ""))}: {link}</p>{others}')
 
 
 CATEGORY_LABELS = {"DEMAND": "Demand", "PRICING_MARGINS": "Pricing and margins", "COSTS_SUPPLY_CHAIN": "Costs and supply chain",
@@ -341,32 +378,76 @@ def _figures_flag(item: dict) -> str:
             '<p class="irt-note" style="margin:4px 0 0 0">Some may be calculations from the source, such as a percent change. Check them against the filing.</p>')
 
 
-def finding_card(item: dict, kind: str) -> str:
-    impact = item["impact"]
+def source_short(src: dict) -> str:
+    """'10-Q · quarter ended Jun 27, 2026' for the right-hand side of a row."""
+    from datetime import date
+    fmt = lambda d: date.fromisoformat(d).strftime("%b %-d, %Y") if d else ""
+    form = src.get("form", "")
+    if form == "10-K":
+        return f"10-K · year ended {fmt(src.get('period'))}"
+    if form == "10-Q":
+        return f"10-Q · quarter ended {fmt(src.get('period'))}"
+    return f"{form} · filed {fmt(src.get('filed'))}" if form else ""
+
+
+def _impact_chip(item: dict, kind: str) -> str:
     tones = T.CATALYST_IMPACT_TONE if kind == "catalyst" else T.IMPACT_TONE
-    tone = tones.get(impact, "neutral")
-    impact_text = "Not assessed" if impact == "NOT_ASSESSED" else f"{impact.title()} impact"
-    kind = "risk" if kind == "other_risk" else kind   # same colors; other risks just have no change label
-    chips = chip(f"{impact_text} · AI assessment", tone)
+    label = "Not assessed" if item["impact"] == "NOT_ASSESSED" else f"{item['impact'].title()} impact"
+    return chip(f"{label} · AI assessment", tones.get(item["impact"], "neutral"))
+
+
+def _row(badges: str, headline: str, text_html: str, src: dict, body: str, kind: str) -> str:
+    return (f'<details class="irt-row" data-kind="{kind}"><summary><div><div class="badges">{badges}</div>'
+            f'<div class="row-head">{esc(headline)}</div><div class="desk-only">{text_html}</div></div>'
+            f'<div class="row-src">{esc(source_short(src))}<span class="chev" aria-hidden="true">›</span></div></summary>'
+            f'<div class="row-body"><div class="phone-only">{text_html}</div>{body}</div></details>')
+
+
+def finding_row(item: dict, kind: str) -> str:
+    """kind: catalyst, risk (risk-factor change) or other_risk. Collapsed: badges, headline, summary and
+    potential implication (desktop). Expanded: detail, impact basis, checks, quote and source links."""
+    badges = _impact_chip(item, kind)
     if "trend" in item:
-        chips += chip(trend_text(item), T.TREND_CHIP[item["trend"]][0])
-    chips += chip(CATEGORY_LABELS.get(item["category"], item["category"]), "neutral")
-    detail = (f'<details><summary>Detail and impact basis</summary><p class="irt-card-body">{esc(item["detail"])}</p>'
-              f'<p class="irt-note" style="margin:6px 0 0 0">Impact basis (AI): {esc(item["impact_basis"])}</p>{_wording(item)}</details>')
-    return (f'<div class="irt-card tone-{tone}"><div class="irt-card-title">{esc(item["headline"])}</div>'
-            f'<div class="irt-chips">{chips}</div><p class="irt-card-body">{esc(item["summary"])}</p>'
-            f'<p class="irt-card-body"><strong>Potential implication:</strong> {esc(item["implication"])}</p>'
-            f'{_figures_flag(item)}{detail}{_excerpt(item)}</div>')
+        badges += chip(trend_text(item), T.TREND_CHIP[item["trend"]][0])
+    if item.get("unsupported_figures"):
+        badges += chip("Figures to check", "caution")
+    text = (f'<div class="row-text">{esc(item["summary"])}</div>'
+            f'<div class="row-text"><span class="impl-label">Potential implication:</span> {esc(item["implication"])}</div>')
+    body = (f'<p>{esc(item["detail"])}</p>'
+            f'<p class="irt-note" style="margin:6px 0 0 0">{esc(CATEGORY_LABELS.get(item["category"], item["category"]))} · '
+            f'Impact basis (AI assessment): {esc(item["impact_basis"])}</p>'
+            f'{_figures_flag(item)}{_wording(item)}{_excerpt_block(item)}')
+    return _row(badges, item["headline"], text, item.get("source", {}), body, kind)
 
 
-def event_rows(events: list) -> str:
-    """8-K events as a newest-first list, dated by the 8-K's filing date from EDGAR."""
+def findings_list(items: list, kind: str) -> str:
+    return f'<div class="irt-list">{"".join(finding_row(i, kind) for i in items)}</div>' if items else ""
+
+
+def impact_criteria() -> str:
+    return ('<details class="irt-criteria"><summary>How impact is rated (AI assessment)</summary><ul>'
+            '<li>High: likely to change company-level revenue, margins, cash flow or liquidity materially within about two years, '
+            'and described as committed, under way or highly likely.</li>'
+            '<li>Medium: a plausible company-level effect that is smaller, later or less certain. Low: limited or contained.</li>'
+            '<li>Not assessed: the source doesn\'t give enough to judge. A dollar figure alone doesn\'t make an item High.</li></ul></details>')
+
+
+def event_list(events: list) -> str:
+    """8-K events, newest first, dated by EDGAR's filing date."""
     rows = []
     for e in sorted(events, key=lambda e: e["source"].get("filed", ""), reverse=True):
-        rows.append(f'<div class="irt-event"><div class="date">{esc(e["source"].get("filed", ""))}</div><div>'
-                    f'<p class="irt-card-body" style="margin:0">{chip(CATEGORY_LABELS.get(e["category"], e["category"]), "info")}&nbsp; <strong>{esc(e["headline"])}</strong> '
-                    f'{esc(e["summary"])}</p>{_figures_flag(e)}{_excerpt(e)}</div></div>')
-    return f'<div class="irt-card">{"".join(rows)}</div>'
+        badges = chip(CATEGORY_LABELS.get(e["category"], e["category"]), "info")
+        if e.get("unsupported_figures"):
+            badges += chip("Figures to check", "caution")
+        text = f'<div class="row-text">{esc(e["summary"])}</div>'
+        rows.append(_row(badges, e["headline"], text, e["source"], f'{_figures_flag(e)}{_wording(e)}{_excerpt_block(e)}', "event"))
+    return f'<div class="irt-list">{"".join(rows)}</div>' if rows else ""
+
+
+def question_list(questions: list) -> str:
+    items = "".join(f'<li>{esc(q["question"])} <span class="irt-note">{esc(source_short(q.get("source", {})))}</span></li>'
+                    for q in questions)
+    return f"<ol class='irt-questions'>{items}</ol>" if items else ""
 
 
 def progress_strip(statuses: dict) -> str:
@@ -379,16 +460,14 @@ def progress_strip(statuses: dict) -> str:
 
 
 def skeleton(ticker: str, status: str) -> str:
-    """Placeholder shaped like one ticker's results: header, metric tiles, chart, two card columns.
+    """Placeholder shaped like one ticker's results: header, metric tiles, chart, evidence bar, finding rows.
     The status line is real text (screen readers announce it); the gray blocks are aria-hidden."""
     def block(h, w="100%", mt=0):
         return f'<div class="sk" style="height:{h}px;width:{w};margin-top:{mt}px"></div>'
     tiles = '<div class="sk-row" style="grid-template-columns:2fr 3fr 1fr;gap:12px">' + "".join(
         block(78) for _ in range(3)) + "</div>"
-    cards = "".join(block(118, mt=10) for _ in range(3))
-    cols = (f'<div class="sk-row" style="grid-template-columns:1fr 1fr;gap:16px;margin-top:22px">'
-            f'<div>{block(20, "40%")}{cards}</div><div>{block(20, "40%")}{cards}</div></div>')
+    rows = "".join(block(64, mt=6) for _ in range(6))
     return (f'<div role="status" aria-live="polite" aria-busy="true">'
             f'<p class="sk-status">{esc(ticker)} · {esc(status)}</p>'
             f'<div aria-hidden="true">{block(26, "38%")}{block(14, "24%", 8)}<div style="height:14px"></div>'
-            f'{tiles}{block(480, mt=16)}{cols}</div></div>')
+            f'{tiles}{block(420, mt=16)}{block(38, mt=16)}{block(20, "30%", 22)}{rows}</div></div>')
