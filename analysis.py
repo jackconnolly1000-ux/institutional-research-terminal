@@ -13,6 +13,7 @@ import json
 import re
 from dataclasses import dataclass, field
 
+import compare
 import sec_data
 
 MODEL = "claude-sonnet-5"
@@ -21,7 +22,8 @@ REQUEST_TOKEN_BUDGET = 60_000  # whole request: prompt + tool schema + evidence 
 TOOL_NAME = "record_filing_findings"
 
 IMPACTS = ["HIGH", "MEDIUM", "LOW", "NOT_ASSESSED"]
-TRENDS = ["NEW", "ESCALATED", "UNCHANGED", "NOT_COMPARED"]
+# Trend is set by code from the paragraph a risk cites (compare.py), never by the model
+TRENDS = ["NEW", "CHANGED", "REMOVED", "QUARTERLY_UPDATE", "NOT_COMPARED"]
 CATEGORIES = ["DEMAND", "PRICING_MARGINS", "COSTS_SUPPLY_CHAIN", "CAPEX_CAPACITY", "CAPITAL_ALLOCATION",
               "COMPETITION", "REGULATORY_LEGAL", "FINANCING_LIQUIDITY", "OPERATIONS", "LEADERSHIP_GOVERNANCE", "OTHER"]
 EVENT_CATEGORIES = ["LEADERSHIP", "M&A / CONTRACT", "FINANCIAL", "COMPLIANCE", "OPERATIONAL"]
@@ -40,13 +42,15 @@ class Source:
     text: str = ""          # full extracted text
     sent_text: str = ""     # what was sent after the token budget
     note: str = ""
+    compared: bool = False  # annual risk factors compared in code: sent as R_CMP, not directly
+    extra: dict = field(default_factory=dict)    # R_CMP: paragraph labels, counts, unchanged and removed lists
 
     @property
     def sendable(self) -> bool:
-        return bool(self.id) and self.status in ("found", "no_material_changes") and bool(self.text)
+        return bool(self.id) and self.status in ("found", "no_material_changes") and bool(self.text) and not self.compared
 
     def coverage(self) -> dict:
-        return {"id": self.id, "role": self.role, "status": self.status, "note": self.note, **self.filing,
+        return {"id": self.id, "role": self.role, "status": self.status, "note": self.note, "compared": self.compared, **self.filing,
                 "chars": len(self.text), "sent_chars": len(self.sent_text),
                 "omitted_chars": len(self.text) - len(self.sent_text) if self.sendable else 0}
 
@@ -78,6 +82,19 @@ def build_sources(selection: sec_data.Selection, texts: dict) -> list[Source]:
                or Source("", "Risk factors, latest annual report", "missing", note=" ".join(selection.notes)))
     out.append(section_source("R_PRIOR", "Risk factors, prior annual report", selection.annual_prior, "1a")
                or Source("", "Risk factors, prior annual report", "missing", note=" ".join(selection.notes)))
+    r_cur, r_prior = out[0], out[1]
+    if r_cur.status == "found" and r_prior.status == "found":
+        comp = compare.compare_sections(sec_data.split_paragraphs(r_cur.text), sec_data.split_paragraphs(r_prior.text))
+        for s in (r_cur, r_prior):
+            s.compared = True
+            s.note = (s.note + " Compared paragraph by paragraph in code; only new, changed and removed "
+                      "paragraphs are sent (R_CMP).").strip()
+        out.append(Source("R_CMP", "Risk factors: changes since the prior 10-K", "found", dict(r_cur.filing),
+                          text=compare.render_for_prompt(comp), extra={
+                              "labels": compare.paragraph_labels(comp), "counts": comp.counts(),
+                              "unchanged": [compare.first_sentence(p.text) for p in comp.paragraphs if p.label == "UNCHANGED"],
+                              "removed": [compare.first_sentence(p.text) for p in comp.removed],
+                              "prior_label": r_prior.filing.get("label"), "prior_url": r_prior.filing.get("url")}))
     if selection.quarterly_updates:
         for i, q in enumerate(selection.quarterly_updates, 1):
             out.append(section_source(f"QU{i}", "Risk factor updates, quarterly report", q, "1a"))
@@ -102,15 +119,14 @@ def build_sources(selection: sec_data.Selection, texts: dict) -> list[Source]:
 
 
 def comparison_status(sources: list[Source]) -> dict:
-    """Whether annual trend labels can be assigned, with both reporting periods."""
+    """Whether the annual comparison ran, with both reporting periods and the code's paragraph counts."""
     by_id = {s.id: s for s in sources if s.id}
-    cur, prior = by_id.get("R_CUR"), by_id.get("R_PRIOR")
+    cur, prior, cmp_ = by_id.get("R_CUR"), by_id.get("R_PRIOR"), by_id.get("R_CMP")
     labels = {"current": cur.filing.get("label") if cur else None, "prior": prior.filing.get("label") if prior else None}
-    if cur and prior and cur.status == "found" and prior.status == "found":
-        # "New" means absent from the prior 10-K, which can only be checked if all of it was sent
-        partial = 0 < len(prior.sent_text) < len(prior.text)
-        share = f"{len(prior.sent_text) / len(prior.text):.0%}" if partial else "100%"
-        return {"status": "available", **labels, "reason": "", "prior_partial": partial, "prior_share_sent": share}
+    if cmp_:
+        x = cmp_.extra
+        return {"status": "available", **labels, "reason": "", "counts": x["counts"], "unchanged": x["unchanged"],
+                "removed": x["removed"], "prior_url": x["prior_url"]}
     missing = [s for s in sources if s.role.startswith("Risk factors") and s.status != "found"]
     status = "failed" if any(s.status == "failed" for s in missing) else "missing"
     reason = " ".join(f"{s.role}: {s.status.replace('_', ' ')}. {s.note}".strip() for s in missing)
@@ -118,6 +134,12 @@ def comparison_status(sources: list[Source]) -> dict:
 
 
 # --- Request -----------------------------------------------------------------------------------
+
+def risk_source_ids(sources: list[Source]) -> list[str]:
+    """Risks come only from risk-factor sources: the code comparison (or the current 10-K section when no
+    comparison ran) and the 10-Q updates."""
+    return [s.id for s in sources if s.sendable and (s.id in ("R_CMP", "R_CUR") or s.id.startswith("QU"))]
+
 
 def tool_schema(sources: list[Source]) -> dict:
     ids = [s.id for s in sources if s.sendable]
@@ -135,7 +157,8 @@ def tool_schema(sources: list[Source]) -> dict:
         "quote": text("Words copied exactly from that source, at most 40 words. '...' between non-adjacent fragments, in order."),
     }
     finding_req = list(finding)
-    risk = dict(finding, trend={"type": "string", "enum": TRENDS})
+    risk = dict(finding, source_id={"type": "string", "enum": risk_source_ids(sources) or ["NONE"]},
+                paragraph_id=text("For a finding from R_CMP: the [P#] or [R#] ID of the paragraph it is based on. Otherwise empty."))
     return {
         "name": TOOL_NAME,
         "description": "Record findings from the SEC filing sources provided.",
@@ -145,7 +168,7 @@ def tool_schema(sources: list[Source]) -> dict:
                 "catalysts": {"type": "array", "maxItems": MAX_FINDINGS,
                               "items": {"type": "object", "properties": finding, "required": finding_req}},
                 "risks": {"type": "array", "maxItems": MAX_FINDINGS,
-                          "items": {"type": "object", "properties": risk, "required": finding_req + ["trend"]}},
+                          "items": {"type": "object", "properties": risk, "required": finding_req}},
                 "events": {"type": "array", "maxItems": max(1, len(k8_ids)), "items": {"type": "object", "properties": {
                     "source_id": {"type": "string", "enum": k8_ids},
                     "category": {"type": "string", "enum": EVENT_CATEGORIES},
@@ -161,27 +184,37 @@ def tool_schema(sources: list[Source]) -> dict:
     }
 
 
+BANNED_WORDS = ["powerful", "robust", "seamless", "cutting-edge", "next-gen", "leverage (as a verb)", "unlock", "elevate",
+                "comprehensive", "insights", "intelligent", "AI-powered", "institutional-grade", "game-changing",
+                "surged", "plunged", "skyrocketed", "soared", "crashed", "buy", "undervalued", "target price"]
+
+
 def build_prompt(ticker: str, company: str, sources: list[Source], comparison: dict) -> str:
     blocks = []
     for s in sources:
         if not s.sendable:
             continue
-        cut = (f" Only the first {len(s.sent_text):,} of {len(s.text):,} characters are included; the rest was "
-               "omitted to fit the request budget." if len(s.sent_text) < len(s.text) else "")
+        cut = (f" Only part of this block fits the request budget ({len(s.sent_text):,} of {len(s.text):,} characters); "
+               "the rest was omitted." if len(s.sent_text) < len(s.text) else "")
         status = " The filing states there were no material changes." if s.status == "no_material_changes" else ""
-        blocks.append(f"[{s.id}] {s.role}: {s.filing.get('label', '')}.{status}{cut}\n{s.sent_text}")
+        label = s.filing.get("label", "")
+        if s.id == "R_CMP":
+            label = f"{comparison['current']}, compared with the {comparison['prior']}"
+        blocks.append(f"[{s.id}] {s.role}: {label}.{status}{cut}\n{s.sent_text}")
     if comparison["status"] == "available":
-        comp = (f"Annual comparison: R_CUR ({comparison['current']}) against R_PRIOR ({comparison['prior']}). "
-                "Set trend only for risks whose source_id is R_CUR: NEW = no corresponding risk in R_PRIOR; "
-                "ESCALATED = in R_PRIOR, but the current text describes a larger, nearer or more certain effect; "
-                "UNCHANGED = substantively the same. Use NOT_COMPARED for risks from any other source.")
+        comp = ("R_CMP lists only the risk-factor paragraphs that code found to be new, changed or removed since the prior "
+                "10-K; unchanged paragraphs are not sent. The labels are set by code. For a risk from R_CMP, set "
+                "paragraph_id to the [P#] or [R#] it is based on and describe what changed. Quote only current text, "
+                "never the removed words; for a removed paragraph, quote its opening sentence.")
     else:
-        comp = "No annual comparison is available. Set trend to NOT_COMPARED for every risk."
+        comp = "No annual comparison is available, so describe risks without saying whether they are new or changed."
     return f"""You are summarizing SEC filings for {company} ({ticker}) for an equity research record.
-Write plainly and precisely. No promotional or dramatic adjectives, no investment recommendations.
+Write plainly and precisely. Give every figure with its period. Do not use these words: {", ".join(BANNED_WORDS)}.
+Do not describe movements as surging, plunging, soaring or crashing; state the numbers instead. No investment recommendations.
 
 Use only the sources below. Each finding is based on one source: set source_id to its ID, and copy
 quote word for word from that source. Up to {MAX_FINDINGS} catalysts and {MAX_FINDINGS} risks, the most significant first.
+Risks come only from risk-factor sources (R_CMP, R_CUR, QU).
 
 {comp}
 
@@ -206,9 +239,16 @@ SOURCES
 """
 
 
-def _trim(text: str, limit: int) -> str:
+CMP_SHARE = 0.6   # the comparison may use up to 60% of the evidence allowance before other sources are trimmed
+
+
+def _trim(text: str, limit: int, at_entries: bool = False) -> str:
+    """Cut to `limit` characters at a sentence end, or for R_CMP at a paragraph entry, never mid-entry."""
     if len(text) <= limit:
         return text
+    if at_entries:
+        stop = text.rfind("\n[", 0, limit)
+        return text[:stop] if stop > 0 else ""
     cut = text[:limit]
     stop = cut.rfind(". ")
     return cut[:stop + 1] if stop > limit * 0.8 else cut
@@ -254,8 +294,13 @@ def fit_to_budget(ticker: str, company: str, sources: list[Source], count_tokens
     chars_per_token = evidence_chars / max(1, tokens - base)
     allowance = int((input_budget - base) * chars_per_token)
     for _ in range(4):
-        shares = water_fill({s.id: len(s.text) for s in sendable}, allowance)
+        rest, left = [s for s in sendable if s.id != "R_CMP"], allowance
         for s in sendable:
+            if s.id == "R_CMP":
+                s.sent_text = _trim(s.text, min(len(s.text), int(allowance * CMP_SHARE) if rest else allowance), at_entries=True)
+                left -= len(s.sent_text)
+        shares = water_fill({s.id: len(s.text) for s in rest}, left)
+        for s in rest:
             s.sent_text = _trim(s.text, shares[s.id])
         prompt = build_prompt(ticker, company, sources, comparison)
         tokens = count_tokens(prompt, tool)
@@ -322,7 +367,36 @@ def response_status(stop_reason: str | None, tool_input) -> str:
     return "no_output"
 
 
-def _check_finding(item, kind, sources_by_id, comparison) -> tuple[dict | None, str]:
+# Section 1 words of the quality standard. "leverage" is flagged only outside its financial senses.
+_BANNED_RE = re.compile(r"\b(powerful|robust|seamless|cutting-edge|next-gen|unlock\w*|elevat\w*|comprehensive|insights?|"
+                        r"intelligent|ai-powered|institutional-grade|game-changing|surg(?:e|ed|ing)|plung\w*|skyrocket\w*|"
+                        r"soar\w*|crash\w*|undervalued|target price|leverag(?:e|es|ed|ing))\b", re.I)
+_FINANCIAL_LEVERAGE = re.compile(r"leverage (ratio|covenant|level)|(operating|financial|net|gross|debt) leverage|"
+                                 r"leverage (of|at|to) \d|\d(\.\d+)?x leverage", re.I)
+
+
+def wording_flags(item: dict) -> list[str]:
+    """Banned words in an AI-written finding. Marked for the reader, not deleted: the text stays as Claude wrote it."""
+    flags = []
+    for key in ("headline", "summary", "implication", "detail", "impact_basis", "question"):
+        text = item.get(key) or ""
+        for m in _BANNED_RE.finditer(text):
+            if m.group(0).lower().startswith("leverag") and _FINANCIAL_LEVERAGE.search(text[max(0, m.start() - 25):m.end() + 25]):
+                continue
+            flags.append(f"{key}: {m.group(0)}")
+    return flags
+
+
+def _excerpt_haystack(src: Source, item: dict, all_by_id: dict) -> str:
+    """Where a quote must appear. R_CMP findings quote the 10-K itself: the current section, or the prior
+    one for a removed paragraph."""
+    if src.id != "R_CMP":
+        return src.sent_text
+    label = src.extra["labels"].get(item.get("paragraph_id", ""), ("", ""))[0]
+    return all_by_id["R_PRIOR" if label == "REMOVED" else "R_CUR"].text
+
+
+def _check_finding(item, kind, sources_by_id, all_by_id) -> tuple[dict | None, str]:
     if not isinstance(item, dict):
         return None, "not an object"
     needed = ["headline", "summary", "implication", "detail", "impact_basis", "quote"]
@@ -338,22 +412,24 @@ def _check_finding(item, kind, sources_by_id, comparison) -> tuple[dict | None, 
         return None, f"unknown source {item.get('source_id')!r}"
     out = dict(item)
     if kind == "risks":
-        allowed = comparison["status"] == "available" and src.id == "R_CUR"
-        if item.get("trend") not in TRENDS or (not allowed and item["trend"] != "NOT_COMPARED"):
-            out["trend_note"] = f"Model returned {item.get('trend')!r}; set to NOT_COMPARED (no annual comparison for this source)."
-            out["trend"] = "NOT_COMPARED"
-        elif item["trend"] == "NEW" and comparison.get("prior_partial"):
-            out["trend_note"] = (f"Model returned 'NEW', but only {comparison['prior_share_sent']} of the prior 10-K's "
-                                 "risk factors were sent, so absence can't be confirmed; set to NOT_COMPARED.")
-            out["trend"] = "NOT_COMPARED"
-        elif item["trend"] != "NOT_COMPARED" and comparison.get("prior_partial"):
-            out["trend_partial"] = True
+        if not (src.id in ("R_CMP", "R_CUR") or src.id.startswith("QU")):
+            return None, f"risk cites {src.id}, which is not a risk-factor source"
+        if src.id == "R_CMP":
+            pid = item.get("paragraph_id") or ""
+            if pid not in src.extra["labels"]:
+                return None, f"unknown paragraph {pid!r} in R_CMP"
+            out["trend"], out["trend_reason"] = src.extra["labels"][pid]
+        else:
+            out["trend"], out["trend_reason"] = ("QUARTERLY_UPDATE" if src.id.startswith("QU") else "NOT_COMPARED"), ""
     out["source"] = src.filing | {"id": src.id, "role": src.role}
-    out["excerpt"] = match_excerpt(item["quote"], src.sent_text)
+    if src.id == "R_CMP" and out.get("trend") == "REMOVED":
+        out["source"] = out["source"] | {"label": src.extra["prior_label"], "url": src.extra["prior_url"]}
+    out["excerpt"] = match_excerpt(item["quote"], _excerpt_haystack(src, item, all_by_id))
     if out["excerpt"]["status"] == "not_matched":
         elsewhere = [s.id for s in sources_by_id.values() if s.id != src.id
                      and match_excerpt(item["quote"], s.sent_text)["status"] == "matched"]
         out["excerpt"]["found_in"] = elsewhere
+    out["wording_flags"] = wording_flags(out)
     return out, ""
 
 
@@ -369,14 +445,15 @@ def _check_event(item, sources_by_id) -> tuple[dict | None, str]:
     if src is None or not src.id.startswith("K8_"):
         return None, f"unknown 8-K source {item.get('source_id')!r}"
     return dict(item, source=src.filing | {"id": src.id, "role": src.role},
-                excerpt=match_excerpt(item["quote"], src.sent_text)), ""
+                excerpt=match_excerpt(item["quote"], src.sent_text), wording_flags=wording_flags(item)), ""
 
 
 def _check_question(item, sources_by_id) -> tuple[dict | None, str]:
     if not isinstance(item, dict) or not isinstance(item.get("question"), str) or not item["question"].strip():
         return None, "missing question"
     src = sources_by_id.get(item.get("source_id"))
-    return dict(item, source=(src.filing | {"id": src.id, "role": src.role}) if src else {}), ""
+    return dict(item, source=(src.filing | {"id": src.id, "role": src.role}) if src else {},
+                wording_flags=wording_flags(item)), ""
 
 
 def check_response(stop_reason: str | None, tool_input, sources: list[Source]) -> dict:
@@ -386,12 +463,13 @@ def check_response(stop_reason: str | None, tool_input, sources: list[Source]) -
     no_input (nothing was sent that this section could use, e.g. no 8-Ks)."""
     status = response_status(stop_reason, tool_input)
     by_id = {s.id: s for s in sources if s.sendable}
+    all_by_id = {s.id: s for s in sources if s.id}
     comparison = comparison_status(sources)
     data = tool_input if isinstance(tool_input, dict) else {}
     sections = {}
     for name in ("catalysts", "risks", "events", "questions"):
         raw = data.get(name)
-        if name == "events" and not any(i.startswith("K8_") for i in by_id):
+        if (name == "events" and not any(i.startswith("K8_") for i in by_id)) or (name == "risks" and not risk_source_ids(sources)):
             sections[name] = {"status": "no_input", "items": [], "dropped": []}
             continue
         if raw is None:
@@ -403,7 +481,7 @@ def check_response(stop_reason: str | None, tool_input, sources: list[Source]) -
         items, dropped = [], []
         for i, it in enumerate(raw):
             if name in ("catalysts", "risks"):
-                ok, why = _check_finding(it, name, by_id, comparison)
+                ok, why = _check_finding(it, name, by_id, all_by_id)
             elif name == "events":
                 ok, why = _check_event(it, by_id)
             else:

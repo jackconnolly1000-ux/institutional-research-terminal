@@ -1,10 +1,10 @@
-# Institutional Research Terminal: project instructions
+# SEC Filing Research Terminal: project instructions
 
 ## What this is
 
-I'm Jack, a sophomore finance student at Villanova School of Business. I'm building the Institutional Research Terminal, a Streamlit web app that speeds up stock research by putting market data, SEC filings, and AI summaries in one dashboard. It's live at https://jack-research-terminal.streamlit.app/.
+I'm Jack, a sophomore finance student at Villanova School of Business. I'm building the SEC Filing Research Terminal, a Streamlit web app that speeds up stock research by putting market data, SEC filings, and AI summaries in one dashboard. It's live at https://jack-research-terminal.streamlit.app/.
 
-Stack: Python, Streamlit, Plotly, yfinance, CrewAI, and LLMs. I work in VS Code with Claude Code, and in Google Colab.
+Stack: Python, Streamlit, Plotly, yfinance, BeautifulSoup, and the Anthropic API (Claude). I work in VS Code with Claude Code, and in Google Colab.
 
 My role is product manager and system architect. I decide what the product does, write the business logic and prompts, integrate AI-generated code, fix API connections, and refine the interface.
 
@@ -22,13 +22,15 @@ Stock Project/
 ├── README.md        map of the folder
 ├── app/             the code (GitHub repo, PUBLIC, deploys to Streamlit)
 │   ├── app.py       downloads, caching, the Claude call, page layout (runs Streamlit on import)
-│   ├── sec_data.py  which SEC filings to use, and finding real section boundaries (no Streamlit, tested)
+│   ├── sec_data.py  which SEC filings to use, section boundaries, paragraphs (no Streamlit, tested)
+│   ├── compare.py   paragraph-level comparison of the current and prior 10-K risk factors (tested)
 │   ├── analysis.py  evidence blocks, token budget, prompt and schema, response checks, excerpt matching (tested)
 │   ├── market_data.py  Yahoo values as numbers with unit, period, source, retrieval time (tested)
 │   ├── theme.py     color tokens, named by meaning (the one place colors are defined)
 │   ├── ui.py        CSS built from theme.py, cards, chips, metric tiles, skeleton loaders, progress strip
 │   ├── charts.py    price chart (drawing only, no network)
 │   ├── requirements.txt
+│   ├── README.md    public description: what it does, what it doesn't, known limits
 │   ├── CLAUDE.md    these instructions, for Claude Code
 │   ├── .streamlit/config.toml   widget theme (repeats the base colors in theme.py)
 │   ├── tests/       tests and diagnostics (no Anthropic calls)
@@ -57,16 +59,17 @@ Repo: https://github.com/jackconnolly1000-ux/institutional-research-terminal
 
 ## What the app does today
 
-Layout from Oct 10, 2026 (on `main` and the live site). **Branch `phase-1-evidence`** (Oct 10, not merged or deployed) changes what the analysis is built on. Tested with 40 unit tests, offline browser scenarios, live EDGAR checks on AAPL, FAST, STRL and MSFT, and one real-key run of AAPL + STRL (108 s, $0.27, both answers complete).
+Layout from Oct 10, 2026 on `main` and the live site. **Branch `phase-1-evidence`** (not merged or deployed) changes what the analysis is built on. Tested with 57 unit tests, offline browser scenarios, live EDGAR checks on seven companies, and one real-key run of AAPL + STRL before the code comparison (108 s, $0.27, both answers complete).
 
-- Home screen: title and subtitle ("A research tool, not investment advice"), one ticker picker (`st.multiselect`, up to 5), one primary **Run analysis** button, two outlined example buttons
-- While it runs: a progress strip (queued, working, done, partial, failed) and a tab per ticker with a skeleton loader and step label (SEC filings, market data, Claude)
+- Home screen: title "SEC Filing Research Terminal", subtitle ("A research tool, not investment advice"), one ticker picker (`st.multiselect`, up to 5), one primary **Run analysis** button, two outlined example buttons
+- While it runs: a progress strip (queued, working, done, partial, failed) and a tab per ticker with a skeleton loader and step label
 - Results are saved in `st.session_state`; a summary line and the Excel download sit at the top
-- **Evidence (branch):** annual trend labels compare Item 1A of the latest 10-K with the prior 10-K, both periods shown. Every 10-Q since that 10-K is read for risk-factor updates (a 10-Q that incorporates an earlier one is flagged). MD&A comes from the latest 10-K or 10-Q; up to four 8-Ks from the last 180 days. Sections are found by their real headings (not tables of contents or cross-references); missing, failed, not applicable and "no material changes" are reported, never replaced with other text. An evidence list shows every source, its status, and how much was sent
-- **Request budget (branch):** the whole request is measured with Anthropic's free token-counting endpoint and kept within 60,000 tokens (44,000 input + 16,000 output reserve). Sources share the input space; omitted characters are reported
-- **Checks (branch):** Claude's `stop_reason` and every required field are checked. Sections are complete, empty, partial, missing, invalid, no input, or failed, each with its own message; only complete answers are cached. Each excerpt is matched, fragments in order, in the one source it cites ("Excerpt matched" means the words are there, not that the interpretation is right). Impact (High, Medium, Low, Not assessed) and trend are labeled AI assessments; "New" is withheld unless the whole prior section was sent
+- **Evidence (branch):** latest 10-K vs prior 10-K Item 1A (EDGAR's older filing pages are read when the prior 10-K isn't in the recent list), every 10-Q since that 10-K for risk-factor updates, MD&A from the latest periodic report, up to four 8-Ks from the last 180 days. Sections are found by their real headings; missing, failed, not applicable, "no material changes" and "incorporated by reference" are reported, never replaced with other text
+- **Risk-factor comparison in code (branch):** `compare.py` splits both 10-K sections into paragraphs and labels each one NEW (no close match), CHANGED (edited, figures changed, rewritten, text removed, minor edit), UNCHANGED or REMOVED, using word-level similarity (thresholds 0.97 / 0.50 / 0.30, checked on AAPL, FAST, STRL, MSFT, then WMT and JNJ held out). Claude gets only new, changed and removed paragraphs, with code-assigned IDs; minor edits go as one-line diffs. A risk's change label comes from the paragraph it cites, never from the model. Unchanged paragraphs are listed by code under "Unchanged since the prior 10-K"
+- **Request budget (branch):** the whole request is measured with Anthropic's free token-counting endpoint and kept within 60,000 tokens (44,000 input + 16,000 output reserve). The comparison is sent first and cut only between paragraphs; omitted characters are reported
+- **Checks (branch):** `stop_reason` and every required field are checked; sections are complete, empty, partial, missing, invalid, no input, or failed, each with its own message; only complete answers are cached. Excerpts are matched, fragments in order, in the cited source (for comparison findings, the 10-K itself). Impact (High, Medium, Low, Not assessed) is a labeled AI assessment. Banned words from the quality standard are flagged on each finding, not deleted
 - **Market data (branch):** numbers with unit, source field and retrieval time; "Period unavailable" where Yahoo doesn't document one. Failures are shown and retried, never cached
-- Each tab: company header, metric tiles, 5-year price chart, catalyst and risk cards (headline, summary, potential implication, detail, source and excerpt), 8-K events dated from EDGAR, questions for management. Excel: market data, findings, 8-K events and evidence sheets, numbers stored as numbers
+- Each tab: company header, metric tiles, 5-year price chart, catalyst cards, "What changed in the risk factors", 8-K events dated from EDGAR, questions for management. Excel: market data, findings, 8-K events and evidence sheets, numbers stored as numbers (the research-record layout is a later step)
 
 These features render. That does not mean they're correct. AI-written findings and Yahoo numbers have not been verified; an excerpt match verifies only the quoted words. Label claims as verified or unverified.
 
@@ -79,9 +82,10 @@ In priority order. Delete a line once it's fixed.
 1. **Numbers conflict with no labels.** For AAPL the gross margin card says 48.65% and the AI text says 50.1%. Every number must show its period (TTM, quarter, fiscal year) and source. Partly done on the branch: Yahoo values now name their source field and say "Period unavailable"; the conflict itself remains (a filing-based source such as SEC XBRL would give periods).
 2. **Slow.** 108 seconds for AAPL + STRL on the branch (84.7 before; inputs and answers are now larger). Progress feedback is done; speed isn't. Filings are now cached per document for a day, so repeat runs are faster; first runs are not.
 3. **The Excel export isn't a research record yet.** See the standard below. On the branch, numbers are stored as numbers with period and source columns, findings carry their filing, and an Evidence sheet lists sources. Still missing: the name, a cover sheet, units in headers, wrapped text and set widths.
-4. **Annual comparison runs on partial sections.** In the Oct 10 real run, the 44,000-token input budget sent 35% of AAPL's prior 10-K Risk Factors and 59% of STRL's. Claude labeled a STRL tariff risk "New", but the prior 10-K mentions tariffs after the cut-off. "New" is now withheld when the prior section is partial, and Escalated/Unchanged say "partial prior text", but the comparison itself is still incomplete. Decide: a larger budget, sending the two 10-K sections first, or comparing them in a separate call.
-5. **8-K exhibits aren't read.** Only each 8-K's primary document is sent; press releases usually sit in exhibit EX-99.1.
-6. **Section extraction is tested on four filers** (AAPL, FAST, STRL, MSFT) plus synthetic cases. Other formats may fail; they show "Section not found", not wrong text.
+4. **Risk factors incorporated by reference aren't read.** Some filers (JPM) put Item 1A in an annual-report exhibit; the 10-K section is a pointer, so it shows as missing and there is no comparison. Reading the exhibit would fix it.
+5. **"No close match" is a text test.** A heavily rewritten paragraph can land there (MSFT's FY2026 "We may experience outages…" rewrites last year's "We may have excessive outages…"). The closest prior paragraph is sent as context when word overlap is at least 0.20, and the label says "no close match", not "new risk".
+6. **8-K exhibits aren't read.** Only each 8-K's primary document is sent; press releases usually sit in exhibit EX-99.1.
+7. **Section extraction is tested on seven filers** (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM) plus synthetic cases. Other formats may fail; they show "Section not found", not wrong text.
 
 ## Excel export standard
 
@@ -94,6 +98,15 @@ In priority order. Delete a line once it's fixed.
 - Clean data layout, following the course rule: one row per record, one header per column, one data type per field, no merged cells
 - Catalysts and risks sheets: wrapped text, set column widths, styled and frozen headers, and the filing type and date next to each excerpt
 - Units in every column header
+
+## Quality standard
+
+Full rules: `~/Stock Project/docs/Quality_Standard.md`. Check every change against it before calling it done.
+1. Plain words: no hype words, no dramatic verbs without the number, no emoji, exclamation marks or ALL CAPS, sentence case, no investment language.
+2. Every number shows its period and source. Unknowns are stated ("Period not stated", "Not verified"), never guessed.
+3. Color and badges only when they mean something; one primary action; designed loading, empty and error states; checked at 390 px.
+4. AI findings cite their filing and show the excerpt check; impact follows the written definition; code enforces what it can.
+5. Excel: Arial 10, $ millions, formulas not pasted values, no merged cells (use Center Across Selection), sources on a Data sheet, an About sheet. Code: comments explain why, no dead code, a README that states limits; commit messages have a short first line (under about 60 characters) saying what changed, with a body only when the reason isn't obvious.
 
 ## Chat or Claude Code: tell me which
 
@@ -142,5 +155,5 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 1. Label every number with period and source (problem 1)
 2. Speed: caching and progress (problem 2)
 3. Rebuild the Excel export as a research record (problem 3)
-4. Phase 2 interface (findings rows, filter, phone layout check); then the comparison budget (problem 4)
+4. Phase 2 interface (findings rows, filter, phone layout check), then the Excel research record (problem 3)
 5. Course features: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes

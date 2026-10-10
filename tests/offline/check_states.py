@@ -25,7 +25,7 @@ TAB_JS = """panel => ({
   section_states: [...panel.querySelectorAll('.irt-state')].map(e => e.textContent),
   evidence: (panel.querySelector('.irt-evidence summary') || {}).textContent || null,
   failed_sources: [...panel.querySelectorAll('.irt-evidence li')].filter(li => /Download failed|Section not found/.test(li.textContent)).map(li => li.textContent.slice(0, 90)),
-  trend_note: [...panel.querySelectorAll('.irt-note')].map(e => e.textContent).find(t => /Annual trend|Comparison unavailable/.test(t)) || null,
+  trend_note: [...panel.querySelectorAll('.irt-note')].map(e => e.textContent).find(t => /compared paragraph by paragraph|No annual comparison/.test(t)) || null,
   findings: panel.querySelectorAll('.irt-card .irt-card-title').length,
   excerpt_labels: [...new Set([...panel.querySelectorAll('.irt-chip')].map(c => c.textContent).filter(t => t.startsWith('Excerpt')))],
   tile_sources: [...panel.querySelectorAll('.irt-tile .src')].map(e => e.textContent),

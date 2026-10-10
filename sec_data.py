@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 ARCHIVES = "https://www.sec.gov/Archives/edgar/data"
 EIGHT_K_WINDOW_DAYS = 180   # 8-Ks older than this aren't "recent events"
@@ -57,7 +57,17 @@ class Filing:
 
 def filings_from_submissions(submissions: dict, cik: str) -> list[Filing]:
     """EDGAR's submissions JSON (data.sec.gov/submissions/CIK##########.json) as Filing objects, newest first."""
-    r = submissions["filings"]["recent"]
+    return filings_from_columns(submissions["filings"]["recent"], cik)
+
+
+def older_pages(submissions: dict) -> list[dict]:
+    """EDGAR's older filing pages: [{"name", "filingFrom", "filingTo", ...}]. Frequent filers (banks) can have
+    last year's 10-K only there; JPM fills a page about every month."""
+    return list(submissions["filings"].get("files", []))
+
+
+def filings_from_columns(r: dict, cik: str) -> list[Filing]:
+    """One page of EDGAR filings (column lists: form, filingDate, ...) as Filing objects."""
     n = len(r["form"])
     get = lambda key, i: (r.get(key) or [""] * n)[i] or ""
     return [Filing(form=r["form"][i], filed=r["filingDate"][i], period=get("reportDate", i),
@@ -105,11 +115,40 @@ def select_filings(filings: list[Filing], today: date) -> Selection:
                      form4_count=form4, notes=notes)
 
 
+def select_with_older_pages(submissions: dict, cik: str, today: date, fetch_json, max_pages: int = 4) -> Selection:
+    """select_filings, reading EDGAR's older filing pages when the prior 10-K isn't in the recent list.
+    Only pages dated 9 to 15 months before the current 10-K are fetched (10-Ks come about a year apart),
+    newest first. fetch_json(url) -> dict is passed in, so this stays network-free in tests."""
+    filings = filings_from_submissions(submissions, cik)
+    selection = select_filings(filings, today)
+    if selection.annual_prior is not None or selection.annual_current is None:
+        return selection
+    filed = datetime.strptime(selection.annual_current.filed, "%Y-%m-%d").date()
+    lo, hi = filed.replace(year=filed.year - 1) - timedelta(days=92), filed - timedelta(days=270)
+    pages = [p for p in older_pages(submissions) if p.get("filingFrom", "") <= hi.isoformat() and p.get("filingTo", "9") >= lo.isoformat()]
+    for page in sorted(pages, key=lambda p: p.get("filingTo", ""), reverse=True)[:max_pages]:
+        filings += filings_from_columns(fetch_json(f"https://data.sec.gov/submissions/{page['name']}"), cik)
+        selection = select_filings(filings, today)
+        if selection.annual_prior is not None:
+            selection.notes = [n for n in selection.notes if "Only one 10-K" not in n]
+            break
+    return selection
+
+
 # --- Text --------------------------------------------------------------------------------------
 
+BLOCK_TAGS = ["p", "div", "li", "tr", "td", "th", "table", "br", "h1", "h2", "h3", "h4", "h5", "h6"]
+
+
 def html_to_text(html: bytes) -> str:
-    """Visible text of a filing, whitespace collapsed to single spaces."""
-    return re.sub(r"\s+", " ", BeautifulSoup(html, "html.parser").get_text(separator=" ", strip=True))
+    """Visible text of a filing: a line break between block elements (so paragraphs survive), and
+    nothing between inline pieces (so a heading styled letter by letter reads "Item", not "I tem")."""
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup.find_all(BLOCK_TAGS):
+        tag.insert_before(NavigableString("\n"))
+        tag.append(NavigableString("\n"))
+    lines = (re.sub(r"[^\S\n]+", " ", line).strip() for line in soup.get_text(separator="").split("\n"))
+    return "\n".join(line for line in lines if line)
 
 
 # --- Sections ----------------------------------------------------------------------------------
@@ -144,6 +183,8 @@ def _loose(phrase: str) -> str:
 _MDA_TITLE = re.compile(_loose("management's discussion and analysis of financial condition and results of operations")
                         .replace("'", "'?") + r"[\s.:]*", re.I)
 TITLE_SKIP = {"1a": re.compile(_loose("risk factors") + r"[\s.:]*", re.I), "7": _MDA_TITLE, "2": _MDA_TITLE}
+
+MIN_SECTION_CHARS = 200
 
 NO_CHANGES = re.compile(r"\b(no|not been any|not been)\s+(material\s+)?changes?\b", re.I)
 NOT_APPLICABLE = re.compile(r"\bnot\s+applicable\b|\bsmaller\s+reporting\s+compan", re.I)
@@ -234,5 +275,36 @@ def find_section(text: str, item: str, form: str) -> Section:
         status = "no_material_changes"
     elif len(body) < 800 and NOT_APPLICABLE.search(body):
         status = "not_applicable"
+    elif len(body) < MIN_SECTION_CHARS:
+        # e.g. JPM's 10-K Item 1A only points to its annual report exhibit
+        return Section("missing", start=start.pos, end=end_m.pos,
+                       note=f"Item {item.upper()} heading found but the section is {len(body)} characters long "
+                            "(likely incorporated by reference from another document); not extracted.")
     refs = form == "10-Q" and item == "1a" and bool(EARLIER_10Q_REF.search(body)) and "incorporated" in body.lower()
     return Section(status, body, start.pos, end_m.pos, note, references_earlier_10q=refs)
+
+
+# --- Paragraphs --------------------------------------------------------------------------------
+MIN_PARAGRAPH_WORDS = 10
+_PAGE_FURNITURE = re.compile(r"^(\d{1,3}|table of contents|.*\|\s*\d{4} form 10-k\s*\|\s*\d+|\d{1,3}\s+table of contents"
+                             r"|(part\s+i{1,2}\s+)?item\s*1a|part\s+i{1,2})$", re.I)   # a lone "PART I" is a running header
+_RUNNING_HEADER = re.compile(r"^(\d{1,3}\s+)?(part\s+i\s+)?item\s*1a\s+(?=[a-z])", re.I)
+
+
+def split_paragraphs(section_text: str) -> list[str]:
+    """Paragraphs of a section. Page numbers, footers and running headers are dropped, a line that
+    continues a sentence across a page break is joined to the one before, and subheadings
+    (short lines with no ending punctuation) are skipped."""
+    out = []
+    for line in (ln.strip() for ln in section_text.split("\n")):
+        if not line or _PAGE_FURNITURE.match(line):
+            continue
+        header = _RUNNING_HEADER.match(line)
+        if header:
+            line = line[header.end():]
+        if out and (line[0].islower() or line[0] in ",;)"):
+            out[-1] += " " + line
+        else:
+            out.append(line)
+    return [p for p in out if len(p.split()) >= MIN_PARAGRAPH_WORDS
+            and not (len(p.split()) < 15 and not p.rstrip()[-1:] in ".:;?!")]

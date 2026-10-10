@@ -7,7 +7,7 @@ import traceback
 import openpyxl
 import yfinance as yf
 import pandas as pd
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Font, PatternFill
 from io import BytesIO
 from datetime import datetime
 from anthropic import Anthropic, APIError
@@ -24,13 +24,13 @@ ET = ZoneInfo("America/New_York")
 
 # --- STREAMLIT PAGE CONFIG + STYLING (colors live in theme.py, CSS in ui.py) ---
 st.set_page_config(
-    page_title="Institutional Research Terminal",
+    page_title="SEC Filing Research Terminal",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 ui.inject_css()
 
-# --- SECURE KEY RETRIEVAL ---
+# --- API KEY AND SEC CONTACT (from Streamlit Secrets) ---
 try:
     if "ANTHROPIC_API_KEY" not in st.secrets:
         st.error("ANTHROPIC_API_KEY was not found in Streamlit Secrets.")
@@ -42,6 +42,16 @@ except Exception as e:
     st.error(f"Initialization Error: {e}")
     st.stop()
 
+# SEC EDGAR asks every automated request to name a real contact (its fair-access policy).
+# The environment fallback exists for the offline test harness, which has no secrets file.
+try:
+    SEC_CONTACT = st.secrets.get("SEC_CONTACT_EMAIL") or os.environ.get("SEC_CONTACT_EMAIL")
+except Exception:
+    SEC_CONTACT = os.environ.get("SEC_CONTACT_EMAIL")
+if not SEC_CONTACT:
+    st.error("SEC_CONTACT_EMAIL is not set in Streamlit Secrets. SEC EDGAR requires a contact email on every request.")
+    st.stop()
+
 # --- BACKEND ---
 # Cached functions RAISE on failure instead of returning None or a fallback:
 # st.cache_data stores return values, not exceptions, so a failure is retried on the next run
@@ -49,7 +59,7 @@ except Exception as e:
 class TickerFailure(Exception):
     """A per-ticker failure whose message is safe to show the user."""
 
-SEC_HEADERS = {"User-Agent": "InstitutionalResearch admin@research-terminal.com"}
+SEC_HEADERS = {"User-Agent": f"SEC Filing Research Terminal {SEC_CONTACT}"}
 
 FALLBACK_DIRECTORY = pd.DataFrame([
     {"ticker": "AAPL", "name": "Apple Inc.", "cik": "320193"},
@@ -93,6 +103,11 @@ def cached_submissions(cik: str) -> dict:
     return json.loads(sec_get(f"https://data.sec.gov/submissions/CIK{cik.zfill(10)}.json"))
 
 @st.cache_data(ttl=86400, show_spinner=False)
+def cached_json(url: str) -> dict:
+    """EDGAR's older filing pages; a page of past filings doesn't change."""
+    return json.loads(sec_get(url))
+
+@st.cache_data(ttl=86400, show_spinner=False)
 def cached_filing_text(url: str) -> str:
     """A filed document never changes, so a successful download is kept for a day.
     A failed one raises and is retried on the next run."""
@@ -105,8 +120,12 @@ def gather_evidence(ticker: str, cik: str) -> dict:
         subs = cached_submissions(cik)
     except Exception as e:
         raise TickerFailure(f"SEC EDGAR didn't return the filing history ({e}), try again") from e
-    filings = sec_data.filings_from_submissions(subs, cik)
-    selection = sec_data.select_filings(filings, datetime.now(ET).date())
+    try:
+        selection = sec_data.select_with_older_pages(subs, cik, datetime.now(ET).date(), cached_json)
+    except Exception as e:
+        print(f"[sec] {ticker}: older filing pages failed: {e}", flush=True)
+        selection = sec_data.select_filings(sec_data.filings_from_submissions(subs, cik), datetime.now(ET).date())
+        selection.notes.append(f"EDGAR's older filing pages couldn't be read ({e}), so the prior 10-K may be missing.")
     if selection.mdna_source is None:
         raise TickerFailure("no 10-K or 10-Q in recent SEC filings (foreign issuers file 20-F instead)")
     wanted = [f for f in [selection.annual_current, selection.annual_prior, selection.mdna_source,
@@ -251,15 +270,16 @@ def generate_excel(profiles):
 
     ws = wb.create_sheet("Findings")
     ws.append(["Ticker", "Type", "Headline", "Summary", "Potential implication", "Detail", "Impact (AI assessment)",
-               "Impact basis", "Annual trend", "Category", "Source", "Form", "Filed", "Period", "Quote",
-               "Excerpt check", "Filing URL"])
+               "Impact basis", "Change vs prior 10-K (code)", "Category", "Source", "Form", "Filed", "Period", "Quote",
+               "Excerpt check", "Wording flags", "Filing URL"])
     for p in profiles:
         for kind in ("catalysts", "risks"):
             for i in p["analysis"]["sections"][kind]["items"]:
                 s = i["source"]
                 ws.append([p["ticker"], kind[:-1].title(), i["headline"], i["summary"], i["implication"], i["detail"],
-                           i["impact"], i["impact_basis"], i.get("trend", ""), i["category"], s["role"], s["form"],
-                           s["filed"], s["period"], i["quote"], i["excerpt"]["status"], s["url"]])
+                           i["impact"], i["impact_basis"], ui.trend_text(i) if kind == "risks" else "", i["category"],
+                           s["role"], s["form"], s["filed"], s["period"], i["quote"], i["excerpt"]["status"],
+                           "; ".join(i.get("wording_flags", [])), s["url"]])
 
     ws = wb.create_sheet("8-K events")
     ws.append(["Ticker", "Filed", "Event date", "8-K items", "Category", "Headline", "Summary", "Quote", "Excerpt check", "Filing URL"])
@@ -288,7 +308,7 @@ def generate_excel(profiles):
 
 # --- HEADER ---
 st.markdown(
-    "<h1 class='irt-title'>Institutional Research Terminal</h1>"
+    "<h1 class='irt-title'>SEC Filing Research Terminal</h1>"
     "<p class='irt-subtitle'>SEC filings, market data and AI summaries for up to five stocks. "
     "A research tool, not investment advice.</p>",
     unsafe_allow_html=True,
@@ -369,9 +389,10 @@ def render_profile(p: dict) -> None:
                     + ui.section_state(secs["catalysts"], "catalysts")
                     + "".join(ui.finding_card(i, "catalyst") for i in secs["catalysts"]["items"]), unsafe_allow_html=True)
     with col_bear:
-        st.markdown(ui.section_header("Risks", len(secs["risks"]["items"]), ui.trend_note(a["comparison"]))
+        st.markdown(ui.section_header("What changed in the risk factors", len(secs["risks"]["items"]), ui.trend_note(a["comparison"]))
                     + ui.section_state(secs["risks"], "risks")
-                    + "".join(ui.finding_card(i, "risk") for i in secs["risks"]["items"]), unsafe_allow_html=True)
+                    + "".join(ui.finding_card(i, "risk") for i in secs["risks"]["items"])
+                    + ui.unchanged_list(a["comparison"]), unsafe_allow_html=True)
 
     questions = "".join(f"<li>{ui.esc(q['question'])}</li>" for q in secs["questions"]["items"])
     st.markdown(ui.section_header("8-K events", len(secs["events"]["items"])) + ui.section_state(secs["events"], "events")
@@ -473,5 +494,5 @@ else:
         "<div class='irt-card' style='margin-top:16px'><div class='irt-card-title'>Pick up to five tickers and click Run analysis</div>"
         "<p class='irt-card-body'>For each stock you get price history with SEC filing dates, AI summaries of catalysts and risks "
         "with the filing excerpts behind them, recent 8-K events, questions for management, and an Excel download. "
-        "A run reads several filings and takes about 35 seconds per ticker the first time.</p></div>",
+        "A first run reads several filings and takes about a minute per ticker.</p></div>",
         unsafe_allow_html=True)

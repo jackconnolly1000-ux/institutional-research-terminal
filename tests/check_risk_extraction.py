@@ -57,13 +57,15 @@ def run(ticker: str) -> list:
     tickers = __import__("json").loads(sec_get("https://www.sec.gov/files/company_tickers.json"))
     cik = next(str(v["cik_str"]).zfill(10) for v in tickers.values() if v["ticker"].upper() == ticker)
     subs = __import__("json").loads(sec_get(f"https://data.sec.gov/submissions/CIK{cik}.json"))
-    sel = sec_data.select_filings(sec_data.filings_from_submissions(subs, cik), date.today())
+    sel = sec_data.select_with_older_pages(subs, cik, date.today(), lambda url: __import__("json").loads(sec_get(url)))
     wanted = [f for f in [sel.annual_current, sel.annual_prior, sel.mdna_source, *sel.quarterly_updates, *sel.eight_ks] if f]
     texts = {f.accession: document_text(ticker, f) for f in {f.accession: f for f in wanted}.values()}
     sources = analysis.build_sources(sel, texts)
     comp = analysis.comparison_status(sources)
     print(f"\n{'=' * 90}\n{ticker} (CIK {int(cik)})  comparison: {comp['status']}"
           + (f"  [{comp['current']}  vs  {comp['prior']}]" if comp["status"] == "available" else f"  ({comp['reason']})"))
+    if comp["status"] == "available":
+        print(f"  paragraph comparison (code): {comp['counts']}")
     for s in sources:
         c = s.coverage()
         where = f"{c.get('label', '')}" if c.get("form") else ""

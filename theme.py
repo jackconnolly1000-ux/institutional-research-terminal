@@ -46,5 +46,7 @@ FONT_STACK = ('-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
 # Low and Not assessed stay neutral: only High and Medium carry color.
 IMPACT_TONE = {"HIGH": "negative", "MEDIUM": "caution", "LOW": "neutral", "NOT_ASSESSED": "neutral"}   # for risks
 CATALYST_IMPACT_TONE = {"HIGH": "positive", "MEDIUM": "neutral", "LOW": "neutral", "NOT_ASSESSED": "neutral"}
-TREND_CHIP = {"NEW": ("info", "New vs prior 10-K"), "ESCALATED": ("caution", "▲ Escalated vs prior 10-K"),
-              "UNCHANGED": ("neutral", "Unchanged vs prior 10-K"), "NOT_COMPARED": ("neutral", "Comparison unavailable")}
+# Change labels come from code (compare.py), not the model. Only "new" carries color; the rest are context.
+TREND_CHIP = {"NEW": ("info", "No close match in the prior 10-K"), "CHANGED": ("neutral", "Changed since the prior 10-K"),
+              "REMOVED": ("neutral", "Removed since the prior 10-K"), "QUARTERLY_UPDATE": ("neutral", "Updated in a 10-Q"),
+              "NOT_COMPARED": ("neutral", "No annual comparison")}

@@ -40,6 +40,14 @@ BY_CIK = {str(v[0]): k for k, v in COMPANIES.items()}
 
 SUPPLY = "The Company depends on a limited number of suppliers for certain components, and a disruption could reduce net sales. "
 DEMAND = "Demand for the Company's products can change quickly with economic conditions and customer budgets. "
+DEMAND_NOW = ("Demand for the Company's products can change quickly with economic conditions, customer budgets and "
+              "international trade issues, including tariffs and counter tariffs. ")
+NEW_RISK = "The Company has begun using artificial intelligence tools in estimating and scheduling, and these tools may not perform as expected. "
+OLD_RISK = "The Company is a defendant in litigation with a federal agency regarding its money transfer services, which may result in penalties. "
+EXTRA = ["Our results vary by quarter because of weather, project timing and the mix of work we perform for customers. ",
+         "We rely on skilled employees, and the loss of key personnel could disrupt operations and delay projects. ",
+         "Changes in interest rates affect the cost of our borrowings and the demand for projects our customers fund. ",
+         "A cybersecurity incident could interrupt our systems, expose personal data and lead to claims and costs. "]
 MDA_LINE = "Net sales increased 8% to $5.2 billion during the quarter, driven by higher volumes in the services segment. "
 FILLER = "The Company operates in a competitive environment and its results depend on the timing of customer orders. "
 TOC = ("TABLE OF CONTENTS Page PART I Item 1. Business 1 Item 1A. Risk Factors 5 Item 1B. Unresolved Staff Comments 17 "
@@ -75,9 +83,12 @@ def _filings(ticker):
 
 def _doc(ticker, form, i):
     if form == "10-K":
+        prior = i == len(_filings(ticker)) - 1
+        paras = [SUPPLY * 2, *(e * 2 for e in EXTRA)] + ([DEMAND * 2, OLD_RISK * 2] if prior else [DEMAND_NOW * 2, NEW_RISK * 2])
+        risk = "".join(f"<p>{x}</p>" for x in paras)
         return (f"<html><body><p>{TOC}</p><p>Forward-looking statements are discussed in Part I, Item 1A of this "
                 f"Form 10-K under the heading “Risk Factors.”</p><p>Item 1. Business {FILLER * 20}</p>"
-                f"<p>Item 1A. Risk Factors {SUPPLY}{DEMAND}{FILLER * 60}</p><p>For cybersecurity, see Item 1A of this Form 10-K.</p>"
+                f"<p>Item 1A. Risk Factors</p>{risk}<p>For cybersecurity, see Item 1A of this Form 10-K.</p>"
                 f"<p>Item 1B. Unresolved Staff Comments None.</p><p>Item 2. Properties We lease offices.</p>"
                 f"<p>Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations "
                 f"{MDA_LINE}{FILLER * 60}</p><p>Item 7A. Quantitative and Qualitative Disclosures About Market Risk None.</p>"
@@ -163,20 +174,19 @@ class FakeTicker:
         return _history(self.ticker, *a, **kw)
 
 
-def _finding(headline, source_id, quote, impact="MEDIUM", category="DEMAND", trend=None, summary=None):
+def _finding(headline, source_id, quote, impact="MEDIUM", category="DEMAND", summary=None):
     f = {"headline": headline, "source_id": source_id, "quote": quote, "impact": impact, "category": category,
          "summary": summary or "Placeholder summary of what the filing states, with the figure and period it gives.",
          "implication": "Placeholder potential implication for revenue or margins, stated with appropriate hedging.",
          "detail": "Placeholder supporting explanation, about two sentences long, drawn from the cited source.",
          "impact_basis": "Placeholder basis: the effect is stated for one segment and its timing is not given."}
-    if trend:
-        f["trend"] = trend
     return f
 
 
-def _ai_payload(ticker, ids):
+def _ai_payload(ticker, ids, risk_ids, prompt):
     k8 = [i for i in ids if i.startswith("K8_")]
     qu = [i for i in ids if i.startswith("QU")]
+    pid = lambda label: (re.search(rf"\[(P\d+|R\d+)\] {label}", prompt) or [None, ""])[1]
     catalysts = [
         _finding("Quarterly net sales rose 8% on services volume", "MDA", MDA_LINE.strip(), "HIGH", "DEMAND",
                  summary="First paragraph.\n\nSecond paragraph.\n\n    Indented third paragraph."),
@@ -186,25 +196,29 @@ def _ai_payload(ticker, ids):
         _finding("Paraphrased quote should not match", "MDA", "Net sales also increased 8% to $5.2 billion during the quarter",
                  "LOW", "OTHER"),
     ]
-    risks = [_finding("Supplier concentration remains a stated risk", "R_CUR", SUPPLY.strip(), "HIGH", "COSTS_SUPPLY_CHAIN", "UNCHANGED"),
-             _finding("Demand sensitivity to economic conditions", "R_CUR", DEMAND.strip(), "MEDIUM", "DEMAND", "ESCALATED"),
-             _finding("Not enough information to rate", "R_CUR", "its results depend on the timing of customer orders",
-                      "NOT_ASSESSED", "OPERATIONS", "NEW")]
+    if "R_CMP" in risk_ids:
+        risks = [_finding("Tariffs added to the demand risk factor", "R_CMP", "international trade issues, including tariffs and counter tariffs",
+                          "MEDIUM", "DEMAND"),
+                 _finding("New risk factor on AI tools in estimating", "R_CMP", NEW_RISK.strip(), "LOW", "OPERATIONS"),
+                 _finding("Litigation risk factor no longer listed", "R_CMP", OLD_RISK.strip(), "NOT_ASSESSED", "REGULATORY_LEGAL")]
+        for r, label in zip(risks, ("CHANGED", "NEW", "REMOVED")):
+            r["paragraph_id"] = pid(label)
+    else:
+        risks = [_finding("Supplier concentration remains a stated risk", "R_CUR", SUPPLY.strip(), "HIGH", "COSTS_SUPPLY_CHAIN")]
     if qu:
-        risks.append(_finding("Quarterly update repeats demand risk", qu[-1], DEMAND.strip(), "LOW", "DEMAND", "NEW"))
+        risks.append(_finding("Quarterly update repeats demand risk", qu[-1], DEMAND.strip(), "LOW", "DEMAND"))
     events = [] if ticker in EMPTY_EVENTS else [
         {"source_id": k8[0], "category": "LEADERSHIP", "headline": "New Chief Financial Officer appointed",
          "summary": "The Board appointed a new CFO effective October 1, 2026.",
          "quote": "the Board appointed a new Chief Financial Officer, effective October 1, 2026"}] if k8 else []
-    questions = [{"question": "Placeholder question about how supplier concentration is being reduced?", "source_id": "R_CUR"},
+    questions = [{"question": "Placeholder question about how supplier concentration is being reduced?", "source_id": risk_ids[0]},
                  {"question": "Placeholder question about what drove services volume this quarter?", "source_id": "MDA"},
                  {"question": "Placeholder question about the CFO transition timeline?", "source_id": k8[0] if k8 else "MDA"}]
     return {"catalysts": catalysts, "risks": risks, "events": events, "questions": questions}
 
 
-def _source_ids(tools):
-    schema = tools[0]["input_schema"]["properties"]["catalysts"]["items"]["properties"]["source_id"]
-    return schema["enum"]
+def _source_ids(tools, section="catalysts"):
+    return tools[0]["input_schema"]["properties"][section]["items"]["properties"]["source_id"]["enum"]
 
 
 class FakeMessages:
@@ -212,7 +226,7 @@ class FakeMessages:
         if DELAY:
             time.sleep(DELAY)
         ticker = re.search(r"\(([A-Z.]+)\)", kw["messages"][0]["content"]).group(1)
-        payload = _ai_payload(ticker, _source_ids(kw["tools"]))
+        payload = _ai_payload(ticker, _source_ids(kw["tools"]), _source_ids(kw["tools"], "risks"), kw["messages"][0]["content"])
         stop = "tool_use"
         if ticker in CUTOFF:
             payload, stop = {"catalysts": payload["catalysts"][:2]}, "max_tokens"

@@ -102,8 +102,7 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 18px 0; font-size: 0.9
 /* Metric tiles, grouped by what they measure */
 .irt-metrics {{ display: grid; grid-template-columns: 2fr 3fr 1fr; gap: 12px; margin-bottom: 8px; }}
 @media (max-width: 900px) {{ .irt-metrics {{ grid-template-columns: 1fr; }} }}
-.irt-group-label {{ color: var(--text-muted); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; margin-bottom: 6px; }}
+.irt-group-label {{ color: var(--text-muted); font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; }}
 .irt-tiles {{ display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }}
 .irt-tile {{ background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; min-width: 0; }}
 .irt-tile .lbl {{ color: var(--text-muted); font-size: 0.78rem; }}
@@ -138,9 +137,8 @@ ol.irt-questions li {{ color: var(--text); font-size: 0.92rem; line-height: 1.5;
 .irt-progress .irt-chip {{ font-size: 0.78rem; padding: 2px 10px; }}
 
 /* Skeleton loaders: gray blocks shaped like the content that's coming, so the layout doesn't jump */
-.sk {{ background: linear-gradient(90deg, var(--surface) 0%, var(--surface-hover) 45%, var(--surface) 90%);
-  background-size: 200% 100%; animation: sk-shimmer 1.4s ease-in-out infinite; border-radius: 6px; }}
-@keyframes sk-shimmer {{ from {{ background-position: 100% 0; }} to {{ background-position: -100% 0; }} }}
+.sk {{ background: var(--surface); animation: sk-pulse 1.6s ease-in-out infinite; border-radius: 6px; }}
+@keyframes sk-pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.55; }} }}
 @media (prefers-reduced-motion: reduce) {{ .sk {{ animation: none; }} }}
 .sk-status {{ color: var(--text-muted); font-size: 0.85rem; margin: 0 0 12px 0; }}
 .sk-row {{ display: grid; gap: 8px; }}
@@ -196,13 +194,33 @@ IMPACT_NOTE = ("Impact is an AI assessment of magnitude relative to the company,
                "A stated dollar figure alone doesn't make an item High.")
 
 
+def _count(counts: dict, label: str) -> int:
+    return sum(v for k, v in counts.items() if k.split(" (")[0] == label)
+
+
 def trend_note(comparison: dict) -> str:
     if comparison["status"] == "available":
-        partial = (f" Only {comparison['prior_share_sent']} of the prior section fit the request budget, so "
-                   "'New' labels are withheld." if comparison.get("prior_partial") else "")
-        return (f"Annual trend compares Item 1A of the {comparison['current']} with the {comparison['prior']}.{partial} "
-                "Trend labels and impact are AI assessments.")
-    return f"Comparison unavailable. {comparison['reason']}"
+        c = comparison["counts"]
+        return (f"Risk factors in the {comparison['current']} compared paragraph by paragraph with the {comparison['prior']}: "
+                f"{_count(c, 'NEW')} with no close match, {_count(c, 'CHANGED')} changed, {c.get('REMOVED', 0)} removed, "
+                f"{_count(c, 'UNCHANGED')} unchanged. Change labels come from that comparison in code; impact is an AI assessment.")
+    return f"No annual comparison. {comparison['reason']}"
+
+
+def trend_text(item: dict) -> str:
+    """The change label for a risk finding, in words, with the code's reason ("Changed since the prior 10-K: edited")."""
+    label = T.TREND_CHIP[item["trend"]][1]
+    return f"{label}: {item['trend_reason']}" if item.get("trend_reason") else label
+
+
+def unchanged_list(comparison: dict) -> str:
+    """Opening sentences of the paragraphs the code found unchanged. Written by code, not sent to Claude."""
+    if comparison["status"] != "available" or not comparison["unchanged"]:
+        return ""
+    items = "".join(f"<li>{esc(t)}</li>" for t in comparison["unchanged"])
+    return (f'<details class="irt-evidence"><summary>Unchanged since the prior 10-K ({len(comparison["unchanged"])})</summary>'
+            f'<p class="irt-note">Opening sentences of paragraphs the code found unchanged. They were not sent to Claude.</p>'
+            f'<ol class="irt-questions">{items}</ol></details>')
 
 
 def analysis_banner(a: dict) -> str:
@@ -243,8 +261,17 @@ def evidence_list(coverage: list, comparison: dict, budget: dict | None) -> str:
         cut = (f' · sent {c["sent_chars"]:,} of {c["chars"]:,} characters' if c["omitted_chars"]
                else (f' · {c["chars"]:,} characters' if c["chars"] else ""))
         note = f'<div class="irt-note" style="margin:2px 0 0 0">{esc(c["note"])}</div>' if c["note"] and c["status"] != "found" else ""
-        rows.append(f'<li><span class="sid">{esc(c["id"] or "–")}</span> {esc(c["role"])} {chip(_STATUS_LABEL.get(c["status"], c["status"]), _STATUS_TONE.get(c["status"], "neutral"))}'
+        label, tone = _STATUS_LABEL.get(c["status"], c["status"]), _STATUS_TONE.get(c["status"], "neutral")
+        if c.get("compared"):
+            label, tone = "Compared in code, not sent", "neutral"
+        elif c["id"] == "R_CMP":
+            label = "Changes sent"
+        rows.append(f'<li><span class="sid">{esc(c["id"] or "–")}</span> {esc(c["role"])} {chip(label, tone)}'
                     f'<div class="irt-note" style="margin:2px 0 0 0">{link}{esc(cut)}</div>{note}</li>')
+    if comparison["status"] == "available" and comparison["removed"]:
+        removed = "".join(f"<li>{esc(t)}</li>" for t in comparison["removed"])
+        rows.append(f'<li><span class="sid">R#</span> Removed since the prior 10-K ({len(comparison["removed"])}), opening sentences'
+                    f'<ol class="irt-questions">{removed}</ol></li>')
     tokens = (f'<p class="irt-note">Request: {budget["input_tokens"]:,} input tokens ({budget["count"]}) plus up to '
               f'{budget["output_reserve"]:,} output tokens, within a {budget["limit"]:,}-token budget.</p>' if budget else "")
     return (f'<details class="irt-evidence"><summary>Evidence: {esc(" · ".join(summary))}</summary>'
@@ -286,6 +313,21 @@ def _excerpt(item: dict) -> str:
             f'check the interpretation above.{esc(elsewhere)}</p></details>')
 
 
+CATEGORY_LABELS = {"DEMAND": "Demand", "PRICING_MARGINS": "Pricing and margins", "COSTS_SUPPLY_CHAIN": "Costs and supply chain",
+                   "CAPEX_CAPACITY": "Capital spending and capacity", "CAPITAL_ALLOCATION": "Capital allocation",
+                   "COMPETITION": "Competition", "REGULATORY_LEGAL": "Regulatory and legal",
+                   "FINANCING_LIQUIDITY": "Financing and liquidity", "OPERATIONS": "Operations",
+                   "LEADERSHIP_GOVERNANCE": "Leadership and governance", "OTHER": "Other", "LEADERSHIP": "Leadership",
+                   "M&A / CONTRACT": "M&A or contract", "FINANCIAL": "Financial", "COMPLIANCE": "Compliance",
+                   "OPERATIONAL": "Operational"}
+
+
+def _wording(item: dict) -> str:
+    flags = item.get("wording_flags") or []
+    return (f'<p class="irt-note" style="margin:6px 0 0 0">Wording check: {esc(", ".join(flags))} '
+            "(words the quality standard bans; left as Claude wrote them).</p>" if flags else "")
+
+
 def finding_card(item: dict, kind: str) -> str:
     impact = item["impact"]
     tones = T.CATALYST_IMPACT_TONE if kind == "catalyst" else T.IMPACT_TONE
@@ -293,11 +335,10 @@ def finding_card(item: dict, kind: str) -> str:
     impact_text = "Not assessed" if impact == "NOT_ASSESSED" else f"{impact.title()} impact"
     chips = chip(f"{impact_text} · AI assessment", tone)
     if kind == "risk":
-        trend_tone, trend_label = T.TREND_CHIP[item["trend"]]
-        chips += chip(trend_label + (" (partial prior text)" if item.get("trend_partial") else ""), trend_tone)
-    chips += chip(item["category"].replace("_", " ").title(), "neutral")
+        chips += chip(trend_text(item), T.TREND_CHIP[item["trend"]][0])
+    chips += chip(CATEGORY_LABELS.get(item["category"], item["category"]), "neutral")
     detail = (f'<details><summary>Detail and impact basis</summary><p class="irt-card-body">{esc(item["detail"])}</p>'
-              f'<p class="irt-note" style="margin:6px 0 0 0">Impact basis (AI): {esc(item["impact_basis"])}</p></details>')
+              f'<p class="irt-note" style="margin:6px 0 0 0">Impact basis (AI): {esc(item["impact_basis"])}</p>{_wording(item)}</details>')
     return (f'<div class="irt-card tone-{tone}"><div class="irt-card-title">{esc(item["headline"])}</div>'
             f'<div class="irt-chips">{chips}</div><p class="irt-card-body">{esc(item["summary"])}</p>'
             f'<p class="irt-card-body"><strong>Potential implication:</strong> {esc(item["implication"])}</p>'
@@ -309,19 +350,17 @@ def event_rows(events: list) -> str:
     rows = []
     for e in sorted(events, key=lambda e: e["source"].get("filed", ""), reverse=True):
         rows.append(f'<div class="irt-event"><div class="date">{esc(e["source"].get("filed", ""))}</div><div>'
-                    f'<p class="irt-card-body" style="margin:0">{chip(e["category"], "info")}&nbsp; <strong>{esc(e["headline"])}</strong> '
+                    f'<p class="irt-card-body" style="margin:0">{chip(CATEGORY_LABELS.get(e["category"], e["category"]), "info")}&nbsp; <strong>{esc(e["headline"])}</strong> '
                     f'{esc(e["summary"])}</p>{_excerpt(e)}</div></div>')
     return f'<div class="irt-card">{"".join(rows)}</div>'
 
 
 def progress_strip(statuses: dict) -> str:
     """statuses: {ticker: (state, detail)}, state in queued / working / done / partial / failed."""
-    style = {"queued": ("neutral", "○"), "working": ("info", "●"), "done": ("positive", "✓"),
-             "partial": ("caution", "!"), "failed": ("negative", "✕")}
+    tones = {"queued": "neutral", "working": "info", "done": "positive", "partial": "caution", "failed": "negative"}
     chips = []
     for ticker, (state, detail) in statuses.items():
-        tone, mark = style[state]
-        chips.append(chip(f"{mark} {ticker}" + (f" · {detail}" if detail else ""), tone))
+        chips.append(chip(f"{ticker} · {detail or state}", tones[state]))
     return f'<div class="irt-progress" role="status" aria-live="polite">{"".join(chips)}</div>'
 
 
