@@ -82,7 +82,6 @@ In priority order. Delete a line once it's fixed.
 4. **Annual comparison runs on partial sections.** In the Oct 10 real run, the 44,000-token input budget sent 35% of AAPL's prior 10-K Risk Factors and 59% of STRL's. Claude labeled a STRL tariff risk "New", but the prior 10-K mentions tariffs after the cut-off. "New" is now withheld when the prior section is partial, and Escalated/Unchanged say "partial prior text", but the comparison itself is still incomplete. Decide: a larger budget, sending the two 10-K sections first, or comparing them in a separate call.
 5. **8-K exhibits aren't read.** Only each 8-K's primary document is sent; press releases usually sit in exhibit EX-99.1.
 6. **Section extraction is tested on four filers** (AAPL, FAST, STRL, MSFT) plus synthetic cases. Other formats may fail; they show "Section not found", not wrong text.
-7. **Phone layout:** 12 px of horizontal overflow at 390 px wide.
 
 ## Excel export standard
 
@@ -143,5 +142,5 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 1. Label every number with period and source (problem 1)
 2. Speed: caching and progress (problem 2)
 3. Rebuild the Excel export as a research record (problem 3)
-4. Phase 2 interface (findings rows, filter, phone overflow); then the comparison budget (problem 4)
+4. Phase 2 interface (findings rows, filter, phone layout check); then the comparison budget (problem 4)
 5. Course features: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes

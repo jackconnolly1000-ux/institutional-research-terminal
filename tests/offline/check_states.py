@@ -77,8 +77,12 @@ with sync_playwright() as p:
     # Phone width: one tab, full page
     page.set_viewport_size({"width": 390, "height": 844})
     page.wait_for_timeout(1500)
-    out["mobile_horizontal_overflow_px"] = page.evaluate(
-        "() => Math.max(0, ...[...document.querySelectorAll('[data-testid=stAppViewContainer] *')].map(e => e.getBoundingClientRect().right - window.innerWidth))")
+    out["mobile_overflow"] = page.evaluate("""() => ({
+      document_scroll_width: document.documentElement.scrollWidth, viewport: window.innerWidth,
+      elements_past_right_edge: [...document.querySelectorAll('[data-testid=stAppViewContainer] *')]
+        .map(e => [e, e.getBoundingClientRect()]).filter(([e, r]) => r.right > window.innerWidth + 0.5 && r.width > 0)
+        .slice(0, 8).map(([e, r]) => (e.tagName + '.' + (typeof e.className === 'string' ? e.className.split(' ')[0] : '') +
+          ' +' + Math.round(r.right - window.innerWidth) + 'px ' + (e.textContent || '').trim().slice(0, 30)))})""")
     h = page.evaluate("() => Math.max(...[...document.querySelectorAll('*')].map(e => e.scrollHeight))")
     page.set_viewport_size({"width": 390, "height": min(h + 40, 9000)})
     page.wait_for_timeout(800)
