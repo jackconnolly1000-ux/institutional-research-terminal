@@ -21,16 +21,21 @@ Everything for this project is in one folder on my Mac: `~/Stock Project`.
 Stock Project/
 ├── README.md        map of the folder
 ├── app/             the code (GitHub repo, PUBLIC, deploys to Streamlit)
-│   ├── app.py       data fetching, Claude call, page layout
+│   ├── app.py       downloads, caching, the Claude call, page layout (runs Streamlit on import)
+│   ├── sec_data.py  which SEC filings to use, and finding real section boundaries (no Streamlit, tested)
+│   ├── analysis.py  evidence blocks, token budget, prompt and schema, response checks, excerpt matching (tested)
+│   ├── market_data.py  Yahoo values as numbers with unit, period, source, retrieval time (tested)
 │   ├── theme.py     color tokens, named by meaning (the one place colors are defined)
 │   ├── ui.py        CSS built from theme.py, cards, chips, metric tiles, skeleton loaders, progress strip
 │   ├── charts.py    price chart (drawing only, no network)
 │   ├── requirements.txt
 │   ├── CLAUDE.md    these instructions, for Claude Code
 │   ├── .streamlit/config.toml   widget theme (repeats the base colors in theme.py)
-│   ├── tests/       diagnostic scripts (no Anthropic calls)
+│   ├── tests/       tests and diagnostics (no Anthropic calls)
+│   │   ├── test_*.py          unit tests of sec_data, analysis, market_data: .venv/bin/python -m unittest discover -s tests -p "test_*.py"
+│   │   ├── check_risk_extraction.py   live EDGAR check of filing selection and sections, using the production functions
 │   │   ├── chart_preview.py   price chart on synthetic prices
-│   │   └── offline/           whole app on fake SEC/Yahoo/Anthropic responses + Playwright screenshots (shots/ is gitignored)
+│   │   └── offline/           whole app on fake SEC/Yahoo/Anthropic responses; check_states.py drives failure scenarios (shots/ is gitignored)
 │   ├── .venv/       local Python environment (gitignored)
 │   └── .gitignore
 ├── docs/            instructions and plans (private)
@@ -52,36 +57,32 @@ Repo: https://github.com/jackconnolly1000-ux/institutional-research-terminal
 
 ## What the app does today
 
-New layout, October 10, 2026. Tested locally with Playwright: offline on fake data (`tests/offline`), the chart on synthetic prices (`tests/chart_preview.py`), and one real-key run of AAPL + STRL. Not yet checked on the live site.
+Layout from Oct 10, 2026 (on `main` and the live site). **Branch `phase-1-evidence`** (Oct 10, not merged or deployed) changes what the analysis is built on. Tested with 40 unit tests, offline browser scenarios, live EDGAR checks on AAPL, FAST, STRL and MSFT, and one real-key run of AAPL + STRL (108 s, $0.27, both answers complete).
 
-- Home screen: title and subtitle ("A research tool, not investment advice"), one ticker picker (`st.multiselect`, search by ticker or company name, up to 5, full company names in the chips), one primary **Run analysis** button, and two outlined example buttons (Example: AAPL, Example: FAST + STRL)
-- While it runs: a progress strip with one chip per ticker (queued, working, done with seconds, failed), and a tab per ticker showing a skeleton loader with a step label ("Reading SEC filings (step 1 of 2)", "Summarizing filings with Claude (step 2 of 2)")
-- Results are saved in `st.session_state`, so clicking Download, a preset, or changing the selection doesn't wipe them (a caption says when the selection no longer matches). A summary line (tickers, run time in ET, how many succeeded) and the Excel download sit at the top, then one tab per ticker
-- Each tab: company header, metric tiles grouped as Market (price, market cap), Valuation and profitability (forward P/E, gross margin, FCF), and Insider filings (Form 4 count, last 90 days), each with a source line; a 5-year daily candlestick chart (opens on 6M, range buttons 1M to 5Y, 50- and 200-day moving averages, volume, SEC filing dates as diamonds); Catalysts and Risks as cards with impact and trend chips and a collapsed filing excerpt; 8-K events as a dated list; numbered questions for management
-- A failed ticker gets a card naming the ticker and the reason; the others still show
-- Real-key run of AAPL + STRL took 84.7 seconds
+- Home screen: title and subtitle ("A research tool, not investment advice"), one ticker picker (`st.multiselect`, up to 5), one primary **Run analysis** button, two outlined example buttons
+- While it runs: a progress strip (queued, working, done, partial, failed) and a tab per ticker with a skeleton loader and step label (SEC filings, market data, Claude)
+- Results are saved in `st.session_state`; a summary line and the Excel download sit at the top
+- **Evidence (branch):** annual trend labels compare Item 1A of the latest 10-K with the prior 10-K, both periods shown. Every 10-Q since that 10-K is read for risk-factor updates (a 10-Q that incorporates an earlier one is flagged). MD&A comes from the latest 10-K or 10-Q; up to four 8-Ks from the last 180 days. Sections are found by their real headings (not tables of contents or cross-references); missing, failed, not applicable and "no material changes" are reported, never replaced with other text. An evidence list shows every source, its status, and how much was sent
+- **Request budget (branch):** the whole request is measured with Anthropic's free token-counting endpoint and kept within 60,000 tokens (44,000 input + 16,000 output reserve). Sources share the input space; omitted characters are reported
+- **Checks (branch):** Claude's `stop_reason` and every required field are checked. Sections are complete, empty, partial, missing, invalid, no input, or failed, each with its own message; only complete answers are cached. Each excerpt is matched, fragments in order, in the one source it cites ("Excerpt matched" means the words are there, not that the interpretation is right). Impact (High, Medium, Low, Not assessed) and trend are labeled AI assessments; "New" is withheld unless the whole prior section was sent
+- **Market data (branch):** numbers with unit, source field and retrieval time; "Period unavailable" where Yahoo doesn't document one. Failures are shown and retried, never cached
+- Each tab: company header, metric tiles, 5-year price chart, catalyst and risk cards (headline, summary, potential implication, detail, source and excerpt), 8-K events dated from EDGAR, questions for management. Excel: market data, findings, 8-K events and evidence sheets, numbers stored as numbers
 
-These features render. That does not mean they're correct. The numbers and AI-written facts have not been verified. Treat every feature as unverified until it's checked against the code or tested. Label claims as verified or unverified.
+These features render. That does not mean they're correct. AI-written findings and Yahoo numbers have not been verified; an excerpt match verifies only the quoted words. Label claims as verified or unverified.
 
-`course_analytics.py` does not exist. The repo has `app.py` (about 480 lines), `theme.py`, `ui.py`, `charts.py`, `requirements.txt`, `.streamlit/config.toml`, and `tests/`. Course features have to be built from scratch, starting with the benchmark tests.
+`course_analytics.py` does not exist. Course features have to be built from scratch, starting with the benchmark tests.
 
-## Known problems (as of October 10, 2026)
+## Known problems (as of October 10, 2026, branch `phase-1-evidence`)
 
 In priority order. Delete a line once it's fixed.
 
-1. **Numbers conflict with no labels.** For AAPL the gross margin card says 48.65% and the AI text says 50.1%. Every number must show its period (TTM, quarter, fiscal year) and source.
-2. **Slow.** About 75 seconds for two tickers (84.7 seconds for AAPL + STRL on Oct 10). Progress feedback is done (Oct 10: progress strip and per-ticker skeleton loaders); speed isn't. Add caching (`st.cache_data`) where it helps.
-3. **The Excel export is a raw data dump.** See the standard below.
-4. **Content:** One 8-K date shows as "2026-04-17/2026-04-20."
-5. **Failures cached as results in `get_comprehensive_financials`:** any yfinance error returns all "N/A" and `st.cache_data` keeps it for an hour. It's called inside `fetch_firm_data`, so the N/A cards are also baked into that cache. Failed 8-K downloads are also skipped silently. Fix like `extract_unified_profile`: raise instead, and fetch the financials outside the cached SEC function.
-6. **Claude's reply can be cut off, and the missing parts show as empty.** Real-key run Oct 10: STRL showed 0 8-K events and 0 questions for management (AAPL got 4 and 3). Likely cause, not yet verified: `extract_unified_profile` calls Claude with `max_tokens=4000` and never checks `response.stop_reason`, so a reply cut off at the limit is used as is, and `.get(..., [])` turns the missing fields into empty lists. STRL's 14 long catalyst and risk items come first in the schema, so the 8-K and question fields come last and get dropped. The page then says "No recent material events found," and the result is cached for an hour.
-7. **The YoY risk comparison can silently run without prior-year text.** In `fetch_firm_data` (around lines 161-171), the prior-year filing fetch is wrapped in `except Exception: pass`, and a failed download leaves `prior_risk` as "PRIOR YEAR FILING NOT AVAILABLE". Either way Claude does the "YoY Delta" with nothing to compare against, the NEW/ESCALATED/STABLE trend labels mean nothing, the user isn't told, and the result is cached for an hour. **Verified Oct 9 by `tests/check_risk_extraction.py` (AAPL, FAST, STRL), and worse than that:**
-   - All three compare 10-Q vs 10-Q (quarter over quarter), never 10-K vs 10-K.
-   - The text sent as "risk factors" isn't the Risk Factors section for any of them. AAPL: a cross-reference in MD&A, so mostly MD&A text. FAST: its 10-Q risk section is one "no material changes" sentence (155 chars, under the 4,000 filter), so the fallback slice sends inline XBRL tags (`us-gaap:...Member 2026-04-01`). STRL: a quoted cross-reference, then MD&A.
-   - The "MD&A" text starts at the table of contents and runs through the financial statements for FAST and STRL (AAPL's MD&A is correct).
-   - Even a 10-K vs 10-K comparison would get the wrong text: `max(key=len)` picks a cross-reference match that runs to the end of the document (signatures included), not the real section. For FAST the real section exists as a smaller match ("ITEM 1A. RISK FACTORS", ending at Item 1B).
-   - Real 10-K Risk Factors sections are about 50,000-85,000 chars, so the 20,000 / 18,000 cuts drop most of each section.
-   - Excerpt check (Oct 10, AAPL export, `--excerpts`): 10 of 11 "Filing Excerpt" quotes appear word for word in the text sent to Claude. The 11th is a sentence from the prior quarter's 10-Q (sent in the "prior risk factors" slot, which holds MD&A text) with the word "also" added, shown as a current catalyst.
+1. **Numbers conflict with no labels.** For AAPL the gross margin card says 48.65% and the AI text says 50.1%. Every number must show its period (TTM, quarter, fiscal year) and source. Partly done on the branch: Yahoo values now name their source field and say "Period unavailable"; the conflict itself remains (a filing-based source such as SEC XBRL would give periods).
+2. **Slow.** 108 seconds for AAPL + STRL on the branch (84.7 before; inputs and answers are now larger). Progress feedback is done; speed isn't. Filings are now cached per document for a day, so repeat runs are faster; first runs are not.
+3. **The Excel export isn't a research record yet.** See the standard below. On the branch, numbers are stored as numbers with period and source columns, findings carry their filing, and an Evidence sheet lists sources. Still missing: the name, a cover sheet, units in headers, wrapped text and set widths.
+4. **Annual comparison runs on partial sections.** In the Oct 10 real run, the 44,000-token input budget sent 35% of AAPL's prior 10-K Risk Factors and 59% of STRL's. Claude labeled a STRL tariff risk "New", but the prior 10-K mentions tariffs after the cut-off. "New" is now withheld when the prior section is partial, and Escalated/Unchanged say "partial prior text", but the comparison itself is still incomplete. Decide: a larger budget, sending the two 10-K sections first, or comparing them in a separate call.
+5. **8-K exhibits aren't read.** Only each 8-K's primary document is sent; press releases usually sit in exhibit EX-99.1.
+6. **Section extraction is tested on four filers** (AAPL, FAST, STRL, MSFT) plus synthetic cases. Other formats may fail; they show "Section not found", not wrong text.
+7. **Phone layout:** 12 px of horizontal overflow at 390 px wide.
 
 ## Excel export standard
 
@@ -142,5 +143,5 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 1. Label every number with period and source (problem 1)
 2. Speed: caching and progress (problem 2)
 3. Rebuild the Excel export as a research record (problem 3)
-4. Content cleanup (problem 4)
+4. Phase 2 interface (findings rows, filter, phone overflow); then the comparison budget (problem 4)
 5. Course features: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes
