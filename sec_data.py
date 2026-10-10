@@ -286,6 +286,7 @@ def find_section(text: str, item: str, form: str) -> Section:
 
 # --- Paragraphs --------------------------------------------------------------------------------
 MIN_PARAGRAPH_WORDS = 10
+MAX_TITLE_WORDS = 30
 _PAGE_FURNITURE = re.compile(r"^(\d{1,3}|table of contents|.*\|\s*\d{4} form 10-k\s*\|\s*\d+|\d{1,3}\s+table of contents"
                              r"|(part\s+i{1,2}\s+)?item\s*1a|part\s+i{1,2})$", re.I)   # a lone "PART I" is a running header
 _RUNNING_HEADER = re.compile(r"^(\d{1,3}\s+)?(part\s+i\s+)?item\s*1a\s+(?=[a-z])", re.I)
@@ -306,5 +307,15 @@ def split_paragraphs(section_text: str) -> list[str]:
             out[-1] += " " + line
         else:
             out.append(line)
-    return [p for p in out if len(p.split()) >= MIN_PARAGRAPH_WORDS
-            and not (len(p.split()) < 15 and not p.rstrip()[-1:] in ".:;?!")]
+    out = [p for p in out if not (len(p.split()) < 15 and p.rstrip()[-1:] not in ".:;?!")]   # subheadings
+    # A risk factor's title is often its own one-sentence paragraph. Join it to the text that follows, so a
+    # title reworded from last year is compared together with its body instead of standing alone.
+    joined = []
+    for i, p in enumerate(out):
+        if joined and joined[-1][1]:
+            joined[-1] = (joined[-1][0] + " " + p, False)
+            continue
+        is_title = (len(p.split()) <= MAX_TITLE_WORDS and len(re.findall(r"[.!?](?=\s|$)", p)) == 1
+                    and p.rstrip()[-1:] in ".!?" and i + 1 < len(out) and out[i + 1][:1].isupper())
+        joined.append((p, is_title))
+    return [p for p, _ in joined if len(p.split()) >= MIN_PARAGRAPH_WORDS]

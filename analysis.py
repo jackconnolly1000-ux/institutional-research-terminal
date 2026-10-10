@@ -18,7 +18,7 @@ import sec_data
 
 MODEL = "claude-sonnet-5"
 MAX_OUTPUT_TOKENS = 16000      # Jack's call, Oct 10. Non-streaming: the SDK refuses above ~21,333 (10-minute rule)
-REQUEST_TOKEN_BUDGET = 60_000  # whole request: prompt + tool schema + evidence + MAX_OUTPUT_TOKENS
+REQUEST_TOKEN_BUDGET = 80_000  # whole request: prompt + tool schema + evidence + MAX_OUTPUT_TOKENS (64K input)
 TOOL_NAME = "record_filing_findings"
 
 IMPACTS = ["HIGH", "MEDIUM", "LOW", "NOT_ASSESSED"]
@@ -28,6 +28,9 @@ CATEGORIES = ["DEMAND", "PRICING_MARGINS", "COSTS_SUPPLY_CHAIN", "CAPEX_CAPACITY
               "COMPETITION", "REGULATORY_LEGAL", "FINANCING_LIQUIDITY", "OPERATIONS", "LEADERSHIP_GOVERNANCE", "OTHER"]
 EVENT_CATEGORIES = ["LEADERSHIP", "M&A / CONTRACT", "FINANCIAL", "COMPLIANCE", "OPERATIONAL"]
 MAX_FINDINGS = 5               # per list; keeps the answer inside MAX_OUTPUT_TOKENS
+MAX_OTHER_RISKS = 3            # risks from management's discussion, not compared to last year
+FINDING_SECTIONS = ("catalysts", "risks", "other_risks")
+SECTIONS = FINDING_SECTIONS + ("events", "questions")
 
 
 # --- Evidence ----------------------------------------------------------------------------------
@@ -169,6 +172,9 @@ def tool_schema(sources: list[Source]) -> dict:
                               "items": {"type": "object", "properties": finding, "required": finding_req}},
                 "risks": {"type": "array", "maxItems": MAX_FINDINGS,
                           "items": {"type": "object", "properties": risk, "required": finding_req}},
+                "other_risks": {"type": "array", "maxItems": MAX_OTHER_RISKS, "items": {"type": "object",
+                                "properties": dict(finding, source_id={"type": "string", "enum": ["MDA"] if "MDA" in ids else ["NONE"]}),
+                                "required": finding_req}},
                 "events": {"type": "array", "maxItems": max(1, len(k8_ids)), "items": {"type": "object", "properties": {
                     "source_id": {"type": "string", "enum": k8_ids},
                     "category": {"type": "string", "enum": EVENT_CATEGORIES},
@@ -179,7 +185,7 @@ def tool_schema(sources: list[Source]) -> dict:
                     "question": text("A specific question for management, at most 35 words."),
                     "source_id": {"type": "string", "enum": ids}}, "required": ["question", "source_id"]}},
             },
-            "required": ["catalysts", "risks", "events", "questions"],
+            "required": ["catalysts", "risks", "other_risks", "events", "questions"],
         },
     }
 
@@ -205,7 +211,8 @@ def build_prompt(ticker: str, company: str, sources: list[Source], comparison: d
         comp = ("R_CMP lists only the risk-factor paragraphs that code found to be new, changed or removed since the prior "
                 "10-K; unchanged paragraphs are not sent. The labels are set by code. For a risk from R_CMP, set "
                 "paragraph_id to the [P#] or [R#] it is based on and describe what changed. Quote only current text, "
-                "never the removed words; for a removed paragraph, quote its opening sentence.")
+                "never the removed words; for a removed paragraph, quote its opening sentence. NEW means the code found "
+                "no close match in the prior 10-K's text, which can also mean heavy rewording: do not call it a new risk.")
     else:
         comp = "No annual comparison is available, so describe risks without saying whether they are new or changed."
     return f"""You are summarizing SEC filings for {company} ({ticker}) for an equity research record.
@@ -214,7 +221,9 @@ Do not describe movements as surging, plunging, soaring or crashing; state the n
 
 Use only the sources below. Each finding is based on one source: set source_id to its ID, and copy
 quote word for word from that source. Up to {MAX_FINDINGS} catalysts and {MAX_FINDINGS} risks, the most significant first.
-Risks come only from risk-factor sources (R_CMP, R_CUR, QU).
+"risks" come only from risk-factor sources (R_CMP, R_CUR, QU). A risk that appears only in management's discussion
+goes in "other_risks" (up to {MAX_OTHER_RISKS}, source_id MDA). Never cite a source that reports no material changes
+as evidence for a finding. Figures in a finding must come from the source it cites.
 
 {comp}
 
@@ -368,11 +377,71 @@ def response_status(stop_reason: str | None, tool_input) -> str:
 
 
 # Section 1 words of the quality standard. "leverage" is flagged only outside its financial senses.
-_BANNED_RE = re.compile(r"\b(powerful|robust|seamless|cutting-edge|next-gen|unlock\w*|elevat\w*|comprehensive|insights?|"
+_BANNED_RE = re.compile(r"\b(powerful|robust|seamless|cutting-edge|next-gen|unlock\w*|elevat(?:e|es|ing)|comprehensive|insights?|"
                         r"intelligent|ai-powered|institutional-grade|game-changing|surg(?:e|ed|ing)|plung\w*|skyrocket\w*|"
                         r"soar\w*|crash\w*|undervalued|target price|leverag(?:e|es|ed|ing))\b", re.I)
 _FINANCIAL_LEVERAGE = re.compile(r"leverage (ratio|covenant|level)|(operating|financial|net|gross|debt) leverage|"
-                                 r"leverage (of|at|to) \d|\d(\.\d+)?x leverage", re.I)
+                                 r"leverage (of|at|to) \d|\d(\.\d+)?x\b", re.I)   # any ratio like 2.00x nearby
+
+
+_NEW_RISK_CLAIM = re.compile(r"\bnew(?:ly)?\s+(?:added\s+|disclosed\s+|introduced\s+)?risks?(?:\s+factors?)?\b|"
+                             r"\bnewly\s+(?:added|disclosed|introduced|cited)\b", re.I)
+
+# --- Figures: does every figure in a finding appear in the source it cites? ------------------------
+# Formats are normalized before comparing: $14.7M = 14.7 million = $14,700 thousand; 15% = 15.0% = 15 percent.
+# A figure counts as found when it equals a source figure within the rounding of the less precise one.
+# Unscaled source numbers also count in thousands and millions, because filing tables say "(in millions)" once
+# in a header. Dates, years, form names and item numbers are not figures. A miss is flagged, not rejected:
+# some figures are fair calculations (a percent change).
+_MONTHS = "january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec"
+_NOT_FIGURES = re.compile(
+    rf"\b(?:{_MONTHS})\.?\s+\d{{1,2}}(?!\d)(?:st|nd|rd|th)?(?:,\s*\d{{4}})?|\b(?:{_MONTHS})\.?\s+\d{{4}}|\b(?:q[1-4]|h[12])\s*(?:fy)?'?\d{{0,4}}\b|"
+    r"\b(?:fy|fiscal(?:\s+year)?)\s*'?\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b|"
+    r"\b(?:form\s+)?(?:10-k|10-q|8-k|20-f|6-k|s-\d|def\s*14a)\b|\b(?:item|section|rule|note|part|article|chapter|tier|level)\s+\d+[a-z]?(?:\.\d+)?\b|"
+    r"\b\d+(?:st|nd|rd|th)\b|\b(?:covid|ex)-\d+\b", re.I)
+_FIGURE = re.compile(r"(?P<usd>\$\s?)?(?P<num>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)\s*"
+                     r"(?P<unit>%|percent\b|per\s+cent\b|basis\s+points?\b|bps\b|x\b|trillion\b|billion\b|million\b|"
+                     r"thousand\b|bn\b|mm\b|[tbmk]\b)?", re.I)
+_SCALE = {"trillion": 1e12, "t": 1e12, "billion": 1e9, "bn": 1e9, "b": 1e9, "million": 1e6, "mm": 1e6, "m": 1e6,
+          "thousand": 1e3, "k": 1e3}
+
+
+def _figures(text: str) -> list[tuple]:
+    """(kind, value, tolerance, as written) for each figure. kind: percent, bps, multiple or amount."""
+    text = _NOT_FIGURES.sub(" ", text)
+    out = []
+    for m in _FIGURE.finditer(text):
+        raw, unit = m.group("num"), (m.group("unit") or "").lower().replace(" ", "")
+        value = float(raw.replace(",", ""))
+        decimals = len(raw.split(".")[1]) if "." in raw else 0
+        if unit in ("%", "percent", "percent"):
+            kind, scale = "percent", 1
+        elif unit in ("basispoint", "basispoints", "bps"):
+            kind, scale = "bps", 1
+        elif unit == "x":
+            kind, scale = "multiple", 1
+        else:
+            kind, scale = "amount", _SCALE.get(unit, 1)
+            if not m.group("usd") and scale == 1 and (value < 13 and decimals == 0 or 1900 <= value <= 2100 and decimals == 0):
+                continue   # counts like "3 segments", and years, aren't checked
+        out.append((kind, value * scale, 0.5 * 10 ** -decimals * scale, m.group(0).strip()))
+    return out
+
+
+def unsupported_figures(item: dict, source_texts: list[str]) -> list[str]:
+    """Figures in the finding's headline, summary or detail that don't appear in its cited source."""
+    have = []
+    for kind, value, tol, _ in (f for t in source_texts for f in _figures(t)):
+        have.append((kind, value, tol))
+        if kind == "amount" and tol == 0.5 and value >= 1000:      # unscaled table number: maybe in thousands or millions
+            have += [(kind, value * 1e3, tol * 1e3), (kind, value * 1e6, tol * 1e6)]
+    missing = []
+    for key in ("headline", "summary", "detail"):
+        for kind, value, tol, written in _figures(item.get(key) or ""):
+            if not any(k == kind and abs(v - value) <= max(t, tol) + 1e-9 * abs(value) for k, v, t in have):
+                if written not in missing:
+                    missing.append(written)
+    return missing
 
 
 def wording_flags(item: dict) -> list[str]:
@@ -381,9 +450,11 @@ def wording_flags(item: dict) -> list[str]:
     for key in ("headline", "summary", "implication", "detail", "impact_basis", "question"):
         text = item.get(key) or ""
         for m in _BANNED_RE.finditer(text):
-            if m.group(0).lower().startswith("leverag") and _FINANCIAL_LEVERAGE.search(text[max(0, m.start() - 25):m.end() + 25]):
+            if m.group(0).lower().startswith("leverag") and _FINANCIAL_LEVERAGE.search(text[max(0, m.start() - 40):m.end() + 40]):
                 continue
             flags.append(f"{key}: {m.group(0)}")
+        for m in _NEW_RISK_CLAIM.finditer(text):
+            flags.append(f"{key}: '{m.group(0)}' (the code found only no close match in the prior 10-K's text)")
     return flags
 
 
@@ -410,6 +481,10 @@ def _check_finding(item, kind, sources_by_id, all_by_id) -> tuple[dict | None, s
     src = sources_by_id.get(item.get("source_id"))
     if src is None:
         return None, f"unknown source {item.get('source_id')!r}"
+    if src.status == "no_material_changes":
+        return None, f"cites {src.id}, which reports no material changes and so can't support a finding"
+    if kind == "other_risks" and src.id != "MDA":
+        return None, f"other risk cites {src.id}; this group is for management's discussion (MDA) only"
     out = dict(item)
     if kind == "risks":
         if not (src.id in ("R_CMP", "R_CUR") or src.id.startswith("QU")):
@@ -430,6 +505,8 @@ def _check_finding(item, kind, sources_by_id, all_by_id) -> tuple[dict | None, s
                      and match_excerpt(item["quote"], s.sent_text)["status"] == "matched"]
         out["excerpt"]["found_in"] = elsewhere
     out["wording_flags"] = wording_flags(out)
+    seen = [src.sent_text] + ([all_by_id["R_CUR"].text, all_by_id["R_PRIOR"].text] if src.id == "R_CMP" else [])
+    out["unsupported_figures"] = unsupported_figures(out, seen)
     return out, ""
 
 
@@ -445,7 +522,8 @@ def _check_event(item, sources_by_id) -> tuple[dict | None, str]:
     if src is None or not src.id.startswith("K8_"):
         return None, f"unknown 8-K source {item.get('source_id')!r}"
     return dict(item, source=src.filing | {"id": src.id, "role": src.role},
-                excerpt=match_excerpt(item["quote"], src.sent_text), wording_flags=wording_flags(item)), ""
+                excerpt=match_excerpt(item["quote"], src.sent_text), wording_flags=wording_flags(item),
+                unsupported_figures=unsupported_figures(item, [src.sent_text])), ""
 
 
 def _check_question(item, sources_by_id) -> tuple[dict | None, str]:
@@ -467,9 +545,10 @@ def check_response(stop_reason: str | None, tool_input, sources: list[Source]) -
     comparison = comparison_status(sources)
     data = tool_input if isinstance(tool_input, dict) else {}
     sections = {}
-    for name in ("catalysts", "risks", "events", "questions"):
+    for name in SECTIONS:
         raw = data.get(name)
-        if (name == "events" and not any(i.startswith("K8_") for i in by_id)) or (name == "risks" and not risk_source_ids(sources)):
+        if ((name == "events" and not any(i.startswith("K8_") for i in by_id)) or (name == "risks" and not risk_source_ids(sources))
+                or (name == "other_risks" and "MDA" not in by_id)):
             sections[name] = {"status": "no_input", "items": [], "dropped": []}
             continue
         if raw is None:
@@ -480,7 +559,7 @@ def check_response(stop_reason: str | None, tool_input, sources: list[Source]) -
             continue
         items, dropped = [], []
         for i, it in enumerate(raw):
-            if name in ("catalysts", "risks"):
+            if name in FINDING_SECTIONS:
                 ok, why = _check_finding(it, name, by_id, all_by_id)
             elif name == "events":
                 ok, why = _check_event(it, by_id)
@@ -499,7 +578,7 @@ def failed_result(sources: list[Source], reason: str) -> dict:
     """The analysis couldn't run (API error, budget couldn't be met). Every section says so;
     none of them reads as an empty result."""
     return {"response_status": "failed", "stop_reason": None, "error": reason, "comparison": comparison_status(sources),
-            "sections": {n: {"status": "failed", "items": [], "dropped": []} for n in ("catalysts", "risks", "events", "questions")}}
+            "sections": {n: {"status": "failed", "items": [], "dropped": []} for n in SECTIONS}}
 
 
 def is_cacheable(checked: dict) -> bool:

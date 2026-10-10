@@ -63,6 +63,7 @@ def finding(**kw):
 def answer(**kw):
     base = {"catalysts": [finding(source_id="MDA", paragraph_id="", quote="Net sales increased 8% to $5.2 billion")],
             "risks": [finding()],
+            "other_risks": [finding(source_id="MDA", paragraph_id="", quote="Net sales increased 8% to $5.2 billion in the quarter")],
             "events": [{"source_id": "K8_1", "category": "LEADERSHIP", "headline": "New CFO appointed",
                         "summary": "s", "quote": "the Board appointed a new Chief Financial Officer"}],
             "questions": [{"question": "How is supplier risk being reduced?", "source_id": "R_CMP"}]}
@@ -169,7 +170,7 @@ class ResponseChecks(unittest.TestCase):
     def test_complete_with_trend_from_code(self):
         r = check_response("tool_use", answer(), sources())
         self.assertEqual({k: v["status"] for k, v in r["sections"].items()},
-                         {"catalysts": "complete", "risks": "complete", "events": "complete", "questions": "complete"})
+                         {"catalysts": "complete", "risks": "complete", "other_risks": "complete", "events": "complete", "questions": "complete"})
         self.assertTrue(is_cacheable(r))
         risk = r["sections"]["risks"]["items"][0]
         self.assertEqual((risk["trend"], risk["trend_reason"]), ("CHANGED", "edited"))
@@ -220,6 +221,30 @@ class ResponseChecks(unittest.TestCase):
         ex = r["sections"]["catalysts"]["items"][0]["excerpt"]
         self.assertEqual((ex["status"], ex["found_in"]), ("not_matched", ["MDA"]))
 
+    def test_no_material_changes_source_is_rejected(self):
+        srcs = sources(quarterly=True)
+        srcs[[s.id for s in srcs].index("QU1")].status = "no_material_changes"
+        r = check_response("tool_use", answer(risks=[finding(source_id="QU1", paragraph_id="", quote="Demand for our products may change quickly")]), srcs)
+        self.assertIn("reports no material changes", r["sections"]["risks"]["dropped"][0]["reason"])
+
+    def test_other_risks_cite_management_discussion_only(self):
+        r = check_response("tool_use", answer(other_risks=[finding(source_id="K8_1", paragraph_id="", quote="the Board appointed a new Chief Financial Officer")]), sources())
+        self.assertIn("management's discussion (MDA) only", r["sections"]["other_risks"]["dropped"][0]["reason"])
+        r = check_response("tool_use", answer(), sources())
+        other = r["sections"]["other_risks"]["items"][0]
+        self.assertNotIn("trend", other)                                 # not compared to last year
+
+    def test_figures_must_appear_in_the_cited_source(self):
+        ok = finding(source_id="MDA", paragraph_id="", quote="Net sales increased 8% to $5.2 billion",
+                     summary="Net sales rose 8% to $5,200 million.")             # same figures, other format
+        bad = finding(source_id="MDA", paragraph_id="", quote="Net sales increased 8% to $5.2 billion",
+                      summary="Operating income fell to $14.7 million, a 7.3% margin.")
+        r = check_response("tool_use", answer(catalysts=[ok, bad]), sources())
+        items = r["sections"]["catalysts"]["items"]
+        self.assertEqual(items[0]["unsupported_figures"], [])
+        self.assertEqual(items[1]["unsupported_figures"], ["$14.7 million", "7.3%"])   # flagged, not rejected
+        self.assertEqual(r["sections"]["catalysts"]["status"], "complete")
+
     def test_refusal_and_no_output(self):
         self.assertEqual(check_response("refusal", None, sources())["response_status"], "refused")
         self.assertEqual(check_response("end_turn", None, sources())["response_status"], "no_output")
@@ -230,6 +255,22 @@ class Wording(unittest.TestCase):
         self.assertEqual(analysis.wording_flags({"summary": "Revenue surged and margins soared."}), ["summary: surged", "summary: soared"])
         self.assertEqual(analysis.wording_flags({"detail": "a 3.50x leverage covenant", "implication": "debt capacity and leverage ratio"}), [])
         self.assertEqual(analysis.wording_flags({"headline": "The company will leverage AI"}), ["headline: leverage"])
+        self.assertEqual(analysis.wording_flags({"detail": "unlimited amounts if leverage stays below 2.00x"}), [])
+        self.assertEqual(analysis.wording_flags({"question": "Are any units at elevated risk of impairment?"}), [])
+        self.assertEqual(analysis.wording_flags({"headline": "Plans to elevate the brand"}), ["headline: elevate"])
+
+    def test_new_risk_claim_flagged(self):
+        flags = analysis.wording_flags({"headline": "New risk disclosed on contract termination"})
+        self.assertEqual(len(flags), 1)
+        self.assertIn("no close match", flags[0])
+
+    def test_figure_formats_are_normalized(self):
+        fig = lambda t: [(k, round(v, 4)) for k, v, _, _ in analysis._figures(t)]
+        self.assertEqual(fig("$14.7M"), fig("14.7 million"))
+        self.assertEqual(fig("15%"), fig("15.0 percent"))
+        self.assertEqual(fig("On June 30, 2026, in Q3 2026, Item 1A of Form 10-K listed 3 segments"), [])
+        self.assertEqual(fig("approved in November 2025 and November 12, 2025"), [])
+        self.assertEqual(analysis.unsupported_figures({"summary": "$109.4 billion"}, ["Net sales 109,430 (in millions)"]), [])
 
 
 if __name__ == "__main__":

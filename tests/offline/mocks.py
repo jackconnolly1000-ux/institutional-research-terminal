@@ -214,7 +214,9 @@ def _ai_payload(ticker, ids, risk_ids, prompt):
     questions = [{"question": "Placeholder question about how supplier concentration is being reduced?", "source_id": risk_ids[0]},
                  {"question": "Placeholder question about what drove services volume this quarter?", "source_id": "MDA"},
                  {"question": "Placeholder question about the CFO transition timeline?", "source_id": k8[0] if k8 else "MDA"}]
-    return {"catalysts": catalysts, "risks": risks, "events": events, "questions": questions}
+    other = [_finding("Quarterly volumes depend on services demand", "MDA", MDA_LINE.strip(), "MEDIUM", "DEMAND",
+                      summary="Net sales increased 8% to $5.2 billion in the quarter; a 12% services decline would reverse it.")]
+    return {"catalysts": catalysts, "risks": risks, "other_risks": other, "events": events, "questions": questions}
 
 
 def _source_ids(tools, section="catalysts"):

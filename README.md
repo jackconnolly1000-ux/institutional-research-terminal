@@ -12,7 +12,7 @@ For up to five tickers:
 - Finds the Risk Factors (Item 1A) and Management's Discussion and Analysis sections by their headings. A section that can't be found is reported as missing, not replaced with other text.
 - Compares the two 10-Ks' risk factors paragraph by paragraph in code (`compare.py`) and labels each paragraph new, changed, unchanged or removed.
 - Sends the changed and new paragraphs, the 10-Q updates, MD&A and the 8-Ks to Claude (Anthropic API), which returns catalysts, risks, 8-K events and questions for management, each tied to one source.
-- Checks the answer: whether it was complete, whether every field is valid, and whether each quoted excerpt appears word for word in the cited filing.
+- Checks the answer: whether it was complete, whether every field is valid, whether each quoted excerpt appears word for word in the cited filing, and whether each figure in a finding appears in that filing.
 - Shows market data from Yahoo Finance with its source field and retrieval time, and a five-year price chart.
 - Exports the results to Excel.
 
@@ -27,7 +27,8 @@ For up to five tickers:
 
 - "No close match in the prior 10-K" is a text test. A heavily rewritten paragraph can be labeled that way; the closest prior paragraph is shown as context.
 - Section extraction has been checked on seven filers (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM). Other filing layouts may not be recognized.
-- Each request is capped at 60,000 tokens. When the evidence is larger, the rest is omitted and the omission is shown.
+- Each request is capped at 80,000 tokens (64,000 of input). When the evidence is larger, the rest is omitted and the omission is shown.
+- The figures check is a text match. It normalizes formats ($14.7M, 14.7 million, $14,700 thousand) and ignores dates and form names, but a figure written very differently from the filing (for example "2.00 to 1.00" vs "2.00x") is flagged even when it's right, and a fair calculation such as a percent change is always flagged.
 - A first run takes about a minute per ticker.
 
 ## Running it

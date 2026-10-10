@@ -282,7 +282,7 @@ def section_state(sec: dict, name: str) -> str:
     """A message for every section status except a complete list, so missing output never reads as "none found"."""
     status, dropped = sec["status"], len(sec.get("dropped", []))
     msg = {
-        "empty": f"Claude reviewed the sources and reported no {name}.",
+        "empty": f"Claude reviewed the sources and reported no {name.replace('_', ' ')}.",
         "partial": "Claude's answer was cut off; this list may be incomplete.",
         "missing": "Not available: Claude's answer ended before this section.",
         "invalid": f"Claude's answer for this section didn't pass validation ({dropped} item{'s' * (dropped != 1)} rejected).",
@@ -328,13 +328,24 @@ def _wording(item: dict) -> str:
             "(words the quality standard bans; left as Claude wrote them).</p>" if flags else "")
 
 
+def _figures_flag(item: dict) -> str:
+    """Figures in the finding that the code couldn't find in the cited source. Shown on the card, not hidden:
+    some are fair calculations (a percent change), others mean the finding rests on another source."""
+    missing = item.get("unsupported_figures") or []
+    if not missing:
+        return ""
+    return (f'<div class="irt-chips">{chip("Figures not found in the cited source: " + ", ".join(missing), "caution")}</div>'
+            '<p class="irt-note" style="margin:4px 0 0 0">Some may be calculations from the source, such as a percent change. Check them against the filing.</p>')
+
+
 def finding_card(item: dict, kind: str) -> str:
     impact = item["impact"]
     tones = T.CATALYST_IMPACT_TONE if kind == "catalyst" else T.IMPACT_TONE
     tone = tones.get(impact, "neutral")
     impact_text = "Not assessed" if impact == "NOT_ASSESSED" else f"{impact.title()} impact"
+    kind = "risk" if kind == "other_risk" else kind   # same colors; other risks just have no change label
     chips = chip(f"{impact_text} · AI assessment", tone)
-    if kind == "risk":
+    if "trend" in item:
         chips += chip(trend_text(item), T.TREND_CHIP[item["trend"]][0])
     chips += chip(CATEGORY_LABELS.get(item["category"], item["category"]), "neutral")
     detail = (f'<details><summary>Detail and impact basis</summary><p class="irt-card-body">{esc(item["detail"])}</p>'
@@ -342,7 +353,7 @@ def finding_card(item: dict, kind: str) -> str:
     return (f'<div class="irt-card tone-{tone}"><div class="irt-card-title">{esc(item["headline"])}</div>'
             f'<div class="irt-chips">{chips}</div><p class="irt-card-body">{esc(item["summary"])}</p>'
             f'<p class="irt-card-body"><strong>Potential implication:</strong> {esc(item["implication"])}</p>'
-            f'{detail}{_excerpt(item)}</div>')
+            f'{_figures_flag(item)}{detail}{_excerpt(item)}</div>')
 
 
 def event_rows(events: list) -> str:
@@ -351,7 +362,7 @@ def event_rows(events: list) -> str:
     for e in sorted(events, key=lambda e: e["source"].get("filed", ""), reverse=True):
         rows.append(f'<div class="irt-event"><div class="date">{esc(e["source"].get("filed", ""))}</div><div>'
                     f'<p class="irt-card-body" style="margin:0">{chip(CATEGORY_LABELS.get(e["category"], e["category"]), "info")}&nbsp; <strong>{esc(e["headline"])}</strong> '
-                    f'{esc(e["summary"])}</p>{_excerpt(e)}</div></div>')
+                    f'{esc(e["summary"])}</p>{_figures_flag(e)}{_excerpt(e)}</div></div>')
     return f'<div class="irt-card">{"".join(rows)}</div>'
 
 

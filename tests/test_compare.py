@@ -70,6 +70,10 @@ class Labels(unittest.TestCase):
 
 
 class Paragraphs(unittest.TestCase):
+    def test_one_sentence_title_joins_its_body(self):
+        title = "The early termination of contracts could adversely affect our business."
+        self.assertEqual(sec_data.split_paragraphs(title + "\n" + BASE + "\n" + OTHER), [title + " " + BASE, OTHER])
+
     def test_page_breaks_headers_and_subheadings(self):
         section = ("Risks Related to Our Business\n" + BASE[:60] + "\n12\nPART I\nItem 1A\n" + BASE[60:] + "\n"
                    "Apple Inc. | 2025 Form 10-K | 12\n" + OTHER)
@@ -103,6 +107,8 @@ class RealFilings(unittest.TestCase):
         self.assertIn("international trade issues including tariffs and counter tariffs", tariff.added)
         goodwill = self.find(c, "of goodwill and")
         self.assertEqual((goodwill.label, goodwill.reason), ("CHANGED", "figures changed"))
+        # Its title stood alone and had no close match until titles were joined to their body text
+        self.assertEqual(self.find(c, "early termination of contracts and uncertainty of new project awards").label, "CHANGED")
 
     def test_msft_supply_changed_and_no_header_fragments(self):
         c = _compare("MSFT", "msft-20260630", "msft-20250630")
@@ -124,9 +130,10 @@ class RealFilings(unittest.TestCase):
         self.assertIn("incorporated by reference", s.note)
 
     def test_counts_stay_close(self):
-        expected = {"AAPL": ("aapl-20250927", "aapl-20240928", 48, 4), "FAST": ("fast-20251231", "fast-20241231", 32, 1),
-                    "STRL": ("strl-20251231", "strl-20241231", 98, 16), "MSFT": ("msft-20260630", "msft-20250630", 44, 15),
-                    "WMT": ("wmt-20260131", "wmt-20250131", 68, 3), "JNJ": ("jnj-20251228", "jnj-20241229", 56, 7)}
+        # Recounted Oct 10, 2026 after one-sentence titles were joined to their body text
+        expected = {"AAPL": ("aapl-20250927", "aapl-20240928", 34, 4), "FAST": ("fast-20251231", "fast-20241231", 32, 1),
+                    "STRL": ("strl-20251231", "strl-20241231", 65, 12), "MSFT": ("msft-20260630", "msft-20250630", 39, 13),
+                    "WMT": ("wmt-20260131", "wmt-20250131", 55, 3), "JNJ": ("jnj-20251228", "jnj-20241229", 36, 7)}
         for t, (cur, prior, unchanged, new) in expected.items():
             with self.subTest(t):
                 c = _compare(t, cur, prior).counts()

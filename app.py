@@ -271,15 +271,16 @@ def generate_excel(profiles):
     ws = wb.create_sheet("Findings")
     ws.append(["Ticker", "Type", "Headline", "Summary", "Potential implication", "Detail", "Impact (AI assessment)",
                "Impact basis", "Change vs prior 10-K (code)", "Category", "Source", "Form", "Filed", "Period", "Quote",
-               "Excerpt check", "Wording flags", "Filing URL"])
+               "Excerpt check", "Figures not in cited source", "Wording flags", "Filing URL"])
     for p in profiles:
-        for kind in ("catalysts", "risks"):
+        for kind in ("catalysts", "risks", "other_risks"):
             for i in p["analysis"]["sections"][kind]["items"]:
                 s = i["source"]
-                ws.append([p["ticker"], kind[:-1].title(), i["headline"], i["summary"], i["implication"], i["detail"],
+                ws.append([p["ticker"], {"catalysts": "Catalyst", "risks": "Risk factor change",
+                                         "other_risks": "Other risk (management's discussion)"}[kind], i["headline"], i["summary"], i["implication"], i["detail"],
                            i["impact"], i["impact_basis"], ui.trend_text(i) if kind == "risks" else "", i["category"],
                            s["role"], s["form"], s["filed"], s["period"], i["quote"], i["excerpt"]["status"],
-                           "; ".join(i.get("wording_flags", [])), s["url"]])
+                           "; ".join(i.get("unsupported_figures", [])), "; ".join(i.get("wording_flags", [])), s["url"]])
 
     ws = wb.create_sheet("8-K events")
     ws.append(["Ticker", "Filed", "Event date", "8-K items", "Category", "Headline", "Summary", "Quote", "Excerpt check", "Filing URL"])
@@ -392,7 +393,11 @@ def render_profile(p: dict) -> None:
         st.markdown(ui.section_header("What changed in the risk factors", len(secs["risks"]["items"]), ui.trend_note(a["comparison"]))
                     + ui.section_state(secs["risks"], "risks")
                     + "".join(ui.finding_card(i, "risk") for i in secs["risks"]["items"])
-                    + ui.unchanged_list(a["comparison"]), unsafe_allow_html=True)
+                    + ui.unchanged_list(a["comparison"])
+                    + ui.section_header("Other risks from management's discussion (not compared to last year)",
+                                        len(secs["other_risks"]["items"]))
+                    + ui.section_state(secs["other_risks"], "other_risks")
+                    + "".join(ui.finding_card(i, "other_risk") for i in secs["other_risks"]["items"]), unsafe_allow_html=True)
 
     questions = "".join(f"<li>{ui.esc(q['question'])}</li>" for q in secs["questions"]["items"])
     st.markdown(ui.section_header("8-K events", len(secs["events"]["items"])) + ui.section_state(secs["events"], "events")
