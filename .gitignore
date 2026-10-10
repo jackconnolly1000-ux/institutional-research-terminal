@@ -1,0 +1,17 @@
+# Secrets: never commit
+.streamlit/secrets.toml
+.env
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Generated files
+*.xlsx
+*.csv
+
+# Mac
+.DS_Store
