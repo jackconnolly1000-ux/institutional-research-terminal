@@ -25,6 +25,7 @@ Stock Project/
 │   ├── requirements.txt
 │   ├── CLAUDE.md    these instructions, for Claude Code
 │   ├── .streamlit/config.toml   widget theme (matches the CSS colors)
+│   ├── tests/       diagnostic scripts (no Anthropic calls)
 │   ├── .venv/       local Python environment (gitignored)
 │   └── .gitignore
 ├── docs/            instructions and plans (private)
@@ -67,7 +68,12 @@ In priority order. Delete a line once it's fixed.
 5. **Layout:** four identical blue buttons with no visual hierarchy; clicking a preset or changing the ticker selection wipes the current results without warning (results aren't kept in session state); ticker chips cut off long company names ("FAST — Fasten…").
 6. **Content:** "Load Tech (AAPL)" loads one stock and "Load Industrials" loads two (FAST, STRL), so neither is a basket. The "LIVE FEED" badge probably overclaims, since yfinance data is usually delayed (verify). The subtitle promises "Form 4 Insider Velocity" but the app shows a count. "CapEx & Growth Catalysts" mostly holds items that aren't capex. One 8-K date shows as "2026-04-17/2026-04-20."
 7. **Failures cached as results in `get_comprehensive_financials`:** any yfinance error returns all "N/A" and `st.cache_data` keeps it for an hour. It's called inside `fetch_firm_data`, so the N/A cards are also baked into that cache. Failed 8-K downloads are also skipped silently. Fix like `extract_unified_profile`: raise instead, and fetch the financials outside the cached SEC function.
-8. **The YoY risk comparison can silently run without prior-year text.** In `fetch_firm_data` (around lines 232-242), the prior-year filing fetch is wrapped in `except Exception: pass`, and a failed download leaves `prior_risk` as "PRIOR YEAR FILING NOT AVAILABLE". Either way Claude does the "YoY Delta" with nothing to compare against, the NEW/ESCALATED/STABLE trend labels mean nothing, the user isn't told, and the result is cached for an hour. Related (from reading the code, not tested): the "prior" filing is just the next 10-K or 10-Q back, so when the latest filing is a 10-Q the "YoY" comparison is really quarter over quarter.
+8. **The YoY risk comparison can silently run without prior-year text.** In `fetch_firm_data` (around lines 232-242), the prior-year filing fetch is wrapped in `except Exception: pass`, and a failed download leaves `prior_risk` as "PRIOR YEAR FILING NOT AVAILABLE". Either way Claude does the "YoY Delta" with nothing to compare against, the NEW/ESCALATED/STABLE trend labels mean nothing, the user isn't told, and the result is cached for an hour. **Verified Oct 9 by `tests/check_risk_extraction.py` (AAPL, FAST, STRL), and worse than that:**
+   - All three compare 10-Q vs 10-Q (quarter over quarter), never 10-K vs 10-K.
+   - The text sent as "risk factors" isn't the Risk Factors section for any of them. AAPL: a cross-reference in MD&A, so mostly MD&A text. FAST: its 10-Q risk section is one "no material changes" sentence (155 chars, under the 4,000 filter), so the fallback slice sends inline XBRL tags (`us-gaap:...Member 2026-04-01`). STRL: a quoted cross-reference, then MD&A.
+   - The "MD&A" text starts at the table of contents and runs through the financial statements for FAST and STRL (AAPL's MD&A is correct).
+   - Even a 10-K vs 10-K comparison would get the wrong text: `max(key=len)` picks a cross-reference match that runs to the end of the document (signatures included), not the real section. For FAST the real section exists as a smaller match ("ITEM 1A. RISK FACTORS", ending at Item 1B).
+   - Real 10-K Risk Factors sections are about 50,000-85,000 chars, so the 20,000 / 18,000 cuts drop most of each section.
 
 ## Excel export standard
 
