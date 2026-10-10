@@ -1,101 +1,30 @@
-import os
 import json
 import requests
 import re
-import base64
 import time
 import traceback
-import concurrent.futures
 import openpyxl
 import yfinance as yf
 import pandas as pd
-import plotly.graph_objects as go
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
 from datetime import datetime
 from bs4 import BeautifulSoup
 from anthropic import Anthropic, APIError
+from zoneinfo import ZoneInfo
 import streamlit as st
 
-# --- STREAMLIT PAGE CONFIG & PROFESSIONAL BLOOMBERG/FACTSET CSS ---
+import ui
+from charts import CHART_CONFIG, build_price_chart
+
+
+# --- STREAMLIT PAGE CONFIG + STYLING (colors live in theme.py, CSS in ui.py) ---
 st.set_page_config(
-    page_title="Institutional Research Terminal v9.7",
+    page_title="Institutional Research Terminal",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
-st.markdown("""
-    <style>
-    /* Global High-Contrast Professional Theme */
-    .stApp, .stMarkdown, p, span, label, div {
-        color: #d1d4dc !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    .stApp {
-        background-color: #131722 !important;
-    }
-    
-    /* Typography */
-    h1 { color: #ffffff !important; font-weight: 700; font-size: 1.8rem !important; letter-spacing: -0.5px; }
-    h2, h3, h4 { color: #f8fafc !important; font-weight: 600; }
-    .stCaption, small { color: #787b86 !important; }
-    
-    /* Completely Neutralize Container Block Backgrounds & Borders */
-    div[data-testid="stHorizontalBlock"],
-    div[data-testid="stVerticalBlock"],
-    div[data-testid="column"],
-    div[data-testid="element-container"],
-    div[data-testid="stToolbar"] {
-        background-color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-    }
-    
-    /* Professional Action Button */
-    .stButton button {
-        background: #2962ff !important;
-        color: white !important;
-        font-weight: 600;
-        border: none;
-        border-radius: 4px;
-        padding: 0.45rem 0.9rem;
-        font-size: 0.9rem;
-        transition: background 0.2s ease;
-        margin-top: 28px;
-    }
-    .stButton button:hover {
-        background: #1e53e5 !important;
-    }
-    
-    /* Metric Cards */
-    div[data-testid="stMetric"] {
-        background-color: #1e222d;
-        border: 1px solid #2a2e39;
-        padding: 10px 14px;
-        border-radius: 4px;
-    }
-    div[data-testid="stMetric"] label {
-        color: #787b86 !important;
-        font-size: 0.75rem !important;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-        color: #ffffff !important;
-        font-size: 1.25rem !important;
-        font-weight: 600;
-        font-family: monospace;
-    }
-    
-    /* Info/Warning Callouts */
-    .stAlert {
-        background-color: #1e222d !important;
-        border: 1px solid #2a2e39 !important;
-        color: #d1d4dc !important;
-        border-radius: 4px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+ui.inject_css()
 
 # --- SECURE KEY RETRIEVAL ---
 try:
@@ -125,7 +54,7 @@ FALLBACK_DIRECTORY = pd.DataFrame([
     {"ticker": "AAP", "name": "Advance Auto Parts Inc."}
 ], columns=["ticker", "name"])
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=86400, show_spinner=False)
 def _fetch_sec_directory() -> pd.DataFrame:
     headers = {'User-Agent': 'InstitutionalResearchDirectory admin@research-terminal.com'}
     resp = requests.get("https://www.sec.gov/files/company_tickers.json", headers=headers, timeout=5)
@@ -140,7 +69,7 @@ def load_sec_directory() -> tuple[pd.DataFrame, bool]:
     except Exception:
         return FALLBACK_DIRECTORY, True
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_comprehensive_financials(ticker: str) -> dict:
     try:
         tkr = yf.Ticker(ticker)
@@ -175,7 +104,7 @@ def sec_get_request(url: str, headers: dict, retries: int = 3):
         except Exception: time.sleep(1.0)
     return None
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner=False)
 def fetch_firm_data(ticker: str) -> dict:
     headers = {'User-Agent': f'InstitutionalResearch analyst_{ticker.lower()}@research-terminal.com'}
     tickers_url = "https://www.sec.gov/files/company_tickers.json"
@@ -290,7 +219,7 @@ UNIFIED_EXTRACTION_TOOL = {
     }
 }
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner=False)
 def extract_unified_profile(sec_payload: dict) -> dict:
     ticker, f_type = sec_payload["ticker"], sec_payload["form_type"]
     prompt = f"""
@@ -332,34 +261,21 @@ def extract_unified_profile(sec_payload: dict) -> dict:
             }
     raise TickerFailure("Anthropic returned no analysis, try again")
 
-def escape_md(text) -> str:
-    """Escape $ so Streamlit markdown shows dollar amounts as text, not LaTeX math.
-    Applied only at display time, so stored data and the Excel export keep real $ signs."""
-    return str(text).replace("$", r"\$")
 
-def generate_interactive_chart(ticker, events):
-    try:
-        hist = yf.Ticker(ticker).history(period="6mo")
-        if hist.empty: return None
-        
-        fig = go.Figure(data=[go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'], increasing_line_color='#089981', decreasing_line_color='#f23645', name='Price')])
-        
-        if events:
-            e_dates, e_labels, y_vals = [], [], []
-            for date_str, label in events:
-                try:
-                    dt = pd.to_datetime(date_str).tz_localize(hist.index.tz)
-                    if dt in hist.index: y_val = hist.loc[dt]['High'] * 1.02
-                    else: y_val = hist['High'].max()
-                    e_dates.append(dt); e_labels.append(label); y_vals.append(y_val)
-                except: pass
-            
-            if e_dates:
-                fig.add_trace(go.Scatter(x=e_dates, y=y_vals, mode='markers+text', marker=dict(symbol='triangle-down', size=10, color='#2962ff'), text=e_labels, textposition='top center', textfont=dict(color='#2962ff', size=10, family="monospace"), name='SEC Event'))
-                
-        fig.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=10, b=0), height=300, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", xaxis_rangeslider_visible=False, showlegend=False, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#2a2e39'))
-        return fig
-    except Exception: return None
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_price_history(ticker: str) -> pd.DataFrame:
+    """Five years of daily OHLCV bars from Yahoo Finance via yfinance.
+    auto_adjust=True is the yfinance default, written out so it's visible: past prices are
+    adjusted for splits and dividends. Raises instead of returning an empty frame, so a failure
+    is never cached."""
+    hist = yf.Ticker(ticker).history(period="5y", interval="1d", auto_adjust=True)
+    if hist.empty:
+        raise TickerFailure("Yahoo Finance returned no price history")
+    hist = hist[["Open", "High", "Low", "Close", "Volume"]].copy()
+    if hist.index.tz is not None:
+        hist.index = hist.index.tz_localize(None)  # keep the New York trading date, drop the time zone
+    hist.index = hist.index.normalize()
+    return hist
 
 def generate_excel(profiles):
     wb = openpyxl.Workbook()
@@ -391,15 +307,15 @@ def generate_excel(profiles):
     wb.save(buf)
     return buf.getvalue()
 
-# --- SLEEK COMPACT HEADER ---
-c_head1, c_head2 = st.columns([3, 1])
-c_head1.markdown("<h1>INSTITUTIONAL RESEARCH TERMINAL</h1>", unsafe_allow_html=True)
-c_head1.markdown("<p style='color: #787b86; margin-top: -10px; font-size: 0.95rem;'>SEC EDGAR Ingestion • Form 4 Insider Velocity • Quant & Risk Analytics</p>", unsafe_allow_html=True)
-c_head2.markdown("<div style='text-align: right; padding-top: 10px;'><span style='background: #1e222d; border: 1px solid #2a2e39; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #089981;'>● LIVE FEED</span></div>", unsafe_allow_html=True)
+# --- HEADER ---
+st.markdown(
+    "<h1 class='irt-title'>Institutional Research Terminal</h1>"
+    "<p class='irt-subtitle'>SEC filings, market data and AI summaries for up to five stocks. "
+    "A research tool, not investment advice.</p>",
+    unsafe_allow_html=True,
+)
 
-st.divider()
-
-# --- COMMAND TOOLBAR: TICKER PICKER + PRESETS ---
+# --- TOOLBAR: TICKER PICKER, ONE PRIMARY ACTION, EXAMPLE PRESETS ---
 sec_directory, used_fallback = load_sec_directory()
 ticker_names = dict(zip(sec_directory["ticker"], sec_directory["name"]))
 
@@ -410,98 +326,153 @@ def apply_preset(tickers):
 # Drop any saved ticker that isn't in today's options (e.g. after a fallback), or the multiselect raises
 st.session_state.ticker_select = [t for t in st.session_state.get("ticker_select", ["AAPL"]) if t in ticker_names]
 
-col_bar1, col_bar2, col_bar3, col_bar4 = st.columns([2, 1, 1, 1])
-with col_bar1:
+col_pick, col_run = st.columns([5, 1])
+with col_pick:
     st.multiselect(
-        "Target Tickers",
+        "Tickers",
         options=list(ticker_names),
-        format_func=lambda t: f"{t} — {ticker_names[t]}",
+        format_func=lambda t: f"{t} · {ticker_names[t]}",
         key="ticker_select",
-        placeholder="Search ticker or company name...",
+        placeholder="Search by ticker or company name (up to 5)",
         max_selections=5,
+        label_visibility="collapsed",  # the placeholder explains it; screen readers still get the label
     )
-with col_bar2:
-    st.button("Load Tech (AAPL)", on_click=apply_preset, args=(["AAPL"],), use_container_width=True)
-with col_bar3:
-    st.button("Load Industrials", on_click=apply_preset, args=(["FAST", "STRL"],), use_container_width=True)
-with col_bar4:
-    run_btn = st.button("⚡ Run Terminal", use_container_width=True)
+with col_run:
+    run_btn = st.button("Run analysis", type="primary", use_container_width=True)
+
+col_ex1, col_ex2, _ = st.columns([1.3, 1.6, 5])
+col_ex1.button("Example: AAPL", on_click=apply_preset, args=(["AAPL"],), use_container_width=True)
+col_ex2.button("Example: FAST + STRL", on_click=apply_preset, args=(["FAST", "STRL"],), use_container_width=True)
 
 if used_fallback:
     st.warning("Couldn't reach the SEC ticker list, so only 6 tickers are available. Reload the page to retry.")
 
-# --- EXECUTION & HIGH-DENSITY DISPLAY ---
-if run_btn:
-    raw_list = st.session_state.ticker_select
-    if raw_list:
-        with st.spinner("Executing SEC EDGAR parsing, YoY risk delta, and quantitative modeling..."):
-            profiles, failures = [], []
-            for t in raw_list:
-                try:
-                    profiles.append(extract_unified_profile(fetch_firm_data(t)))
-                except TickerFailure as e:
-                    failures.append(f"{t}: {e}")
-                except Exception as e:
-                    traceback.print_exc()  # full stack trace to the server log; the user sees only the short message
-                    failures.append(f"{t}: unexpected error ({type(e).__name__}), try again")
-            for msg in failures:
-                st.error(msg)
 
-            if profiles:
-                st.success(f"Analysis successfully compiled for: {', '.join([p['ticker'] for p in profiles])}")
-                st.divider()
-                
-                for p in profiles:
-                    f = p['financials']
-                    ins_vel = p['insider_velocity']
-                    
-                    st.markdown(f"### {p['ticker']} — {p['company_name']}")
-                    st.caption(f"Industry: {p['industry']} | Filing: {p['form_type']}")
-                    
-                    cols = st.columns(6)
-                    cols[0].metric("Insider 90D", str(ins_vel))
-                    cols[1].metric("Price", f['price'])
-                    cols[2].metric("Fwd P/E", f['fpe'])
-                    cols[3].metric("Gross Mgn", f['gross_margin'])
-                    cols[4].metric("FCF", f['fcf'])
-                    cols[5].metric("Market Cap", f['mcap'])
-                    
-                    chart_fig = generate_interactive_chart(p['ticker'], p['event_markers'])
-                    if chart_fig: st.plotly_chart(chart_fig, use_container_width=True)
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.subheader("💡 CapEx & Growth Catalysts")
-                        for item in p['bull']:
-                            st.info(escape_md(f"**{item['target']}** ({item['impact']})\n\n{item['description']}\n\n*{item['quote']}*"))
-                    with col2:
-                        st.subheader("⚠️ Supply Chain & Risks")
-                        for item in p['bear']:
-                            st.warning(escape_md(f"**{item['target']}** ({item['impact']} | {item.get('trend', 'STABLE')})\n\n{item['description']}\n\n*{item['quote']}*"))
-                    
-                    st.subheader("🏛️ SEC Form 8-K Events")
-                    if not p['eight_k']:
-                        st.write("No recent material events found.")
-                    else:
-                        e_cols = st.columns(min(3, len(p['eight_k'])))
-                        for idx, event in enumerate(p['eight_k']):
-                            with e_cols[idx % 3]:
-                                st.success(escape_md(f"**{event['event_date']}** | {event['category']}\n\n{event['takeaway']}"))
-                    
-                    st.subheader("🎙️ Executive Q&A / Meeting Prep")
-                    for q in p['questions']: st.markdown(escape_md(f"- {q}"))
-                    
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.divider()
+# --- RESULTS RENDERING ---
+def metric_groups(p: dict) -> list:
+    f = p["financials"]
+    yahoo, unstated = "Yahoo Finance", "Yahoo Finance · period not stated"
+    return [
+        ("Market", [("Price", f["price"], yahoo), ("Market cap", f["mcap"], yahoo)]),
+        ("Valuation and profitability", [("Forward P/E", f["fpe"], yahoo), ("Gross margin", f["gross_margin"], unstated),
+                                         ("Free cash flow", f["fcf"], unstated)]),
+        ("Insider filings", [("Form 4, last 90 days", str(p["insider_velocity"]), "SEC EDGAR · count of filings")]),
+    ]
 
-                excel_data = generate_excel(profiles)
-                st.download_button(label="📊 Download Institutional Model (.xlsx)", data=excel_data, file_name="Institutional_Model.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    else:
-        st.warning("Pick at least one ticker, then click Run Terminal.")
+
+def render_profile(p: dict) -> None:
+    st.markdown(ui.company_header(p["ticker"], p["company_name"], p["industry"], p["form_type"])
+                + ui.metric_tiles(metric_groups(p)), unsafe_allow_html=True)
+
+    try:
+        hist = get_price_history(p["ticker"])
+        st.plotly_chart(build_price_chart(hist, p["event_markers"]), use_container_width=True, theme=None, config=CHART_CONFIG)
+        st.caption(f"Daily bars through {hist.index[-1]:%Y-%m-%d}, adjusted for splits and dividends. "
+                   "Source: Yahoo Finance via yfinance. Diamonds: SEC filing dates from EDGAR.")
+    except TickerFailure as e:
+        st.caption(f"Price chart unavailable: {e}")
+    except Exception as e:
+        traceback.print_exc()
+        st.caption(f"Price chart unavailable ({type(e).__name__})")
+
+    col_bull, col_bear = st.columns(2, gap="large")
+    with col_bull:
+        st.markdown(ui.section_header("Catalysts", len(p["bull"]), "AI summary of the filings. Open an excerpt to check it.")
+                    + "".join(ui.catalyst_card(i) for i in p["bull"]), unsafe_allow_html=True)
+    with col_bear:
+        st.markdown(ui.section_header("Risks", len(p["bear"]), "Trend labels compare against the prior filing and aren't verified yet.")
+                    + "".join(ui.risk_card(i) for i in p["bear"]), unsafe_allow_html=True)
+
+    events_html = ui.event_rows(p["eight_k"]) if p["eight_k"] else "<p class='irt-note'>No recent material events found.</p>"
+    questions = "".join(f"<li>{ui.esc(q)}</li>" for q in p["questions"])
+    st.markdown(ui.section_header("8-K events", len(p["eight_k"])) + events_html
+                + ui.section_header("Questions for management", len(p["questions"]))
+                + f"<ol class='irt-questions'>{questions}</ol>", unsafe_allow_html=True)
+
+
+def render_failure(ticker: str, reason: str) -> None:
+    st.markdown(f"<div class='irt-card tone-negative'><div class='irt-card-title'>Couldn't analyze {ui.esc(ticker)}</div>"
+                f"<p class='irt-card-body'>{ui.esc(reason)}</p></div>", unsafe_allow_html=True)
+
+
+# --- RUN: SKELETONS FIRST, THEN EACH TICKER FILLS IN AS IT FINISHES ---
+if run_btn and not st.session_state.ticker_select:
+    st.warning("Pick at least one ticker, then click Run analysis.")
+elif run_btn:
+    tickers = list(st.session_state.ticker_select)
+    statuses = {t: ("queued", "queued") for t in tickers}
+    strip = st.empty()
+    strip.markdown(ui.progress_strip(statuses), unsafe_allow_html=True)
+    slots = {}
+    for t, tab in zip(tickers, st.tabs(tickers)):
+        with tab:
+            slots[t] = st.empty()
+            slots[t].markdown(ui.skeleton(t, "Queued"), unsafe_allow_html=True)
+
+    profiles, failures = {}, {}
+    for t in tickers:
+        started = time.time()
+        try:
+            statuses[t] = ("working", "reading SEC filings")
+            strip.markdown(ui.progress_strip(statuses), unsafe_allow_html=True)
+            slots[t].markdown(ui.skeleton(t, "Reading SEC filings (step 1 of 2)"), unsafe_allow_html=True)
+            payload = fetch_firm_data(t)
+
+            statuses[t] = ("working", "summarizing with Claude")
+            strip.markdown(ui.progress_strip(statuses), unsafe_allow_html=True)
+            slots[t].markdown(ui.skeleton(t, "Summarizing filings with Claude (step 2 of 2)"), unsafe_allow_html=True)
+            profiles[t] = extract_unified_profile(payload)
+            statuses[t] = ("done", f"{time.time() - started:.0f}s")
+        except TickerFailure as e:
+            failures[t] = str(e)
+        except Exception as e:
+            traceback.print_exc()  # full stack trace to the server log; the user sees only the short message
+            failures[t] = f"unexpected error ({type(e).__name__}), try again"
+        if t in failures:
+            statuses[t] = ("failed", "failed")
+            with slots[t].container():
+                render_failure(t, failures[t])
+        else:
+            with slots[t].container():
+                render_profile(profiles[t])
+        strip.markdown(ui.progress_strip(statuses), unsafe_allow_html=True)
+
+    # Keep the results so a download, preset click or ticker change doesn't wipe them
+    st.session_state.results = {
+        "tickers": tickers, "profiles": profiles, "failures": failures,
+        "run_at": datetime.now(ZoneInfo("America/New_York")),
+    }
+    st.rerun()  # redraw once from session state: summary row and download button on top
+
+# --- SAVED RESULTS ---
+# st.rerun() above stops this run, so this section only draws on the next run (and every run after)
+results = st.session_state.get("results")
+if results:
+    profiles, failures = results["profiles"], results["failures"]
+    done = [t for t in results["tickers"] if t in profiles]
+
+    col_sum, col_dl = st.columns([4, 1])
+    col_sum.markdown(
+        f"<p class='irt-subtitle'>Results for {ui.esc(', '.join(results['tickers']))} · "
+        f"run {results['run_at']:%b %d, %I:%M %p} ET · {len(done)} of {len(results['tickers'])} succeeded</p>",
+        unsafe_allow_html=True)
+    if profiles:
+        col_dl.download_button("Download Excel", data=generate_excel([profiles[t] for t in done]),
+                               file_name="Institutional_Model.xlsx", use_container_width=True,
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    if sorted(st.session_state.ticker_select) != sorted(results["tickers"]):
+        st.caption("Your ticker selection changed. Click Run analysis to update these results.")
+
+    for t, tab in zip(results["tickers"], st.tabs(results["tickers"])):
+        with tab:
+            if t in profiles:
+                render_profile(profiles[t])
+            else:
+                render_failure(t, failures.get(t, "unknown error"))
 else:
-    st.markdown("""
-        <div style='background-color: #1e222d; border: 1px solid #2a2e39; padding: 20px; border-radius: 6px; text-align: center;'>
-            <h3 style='color: #ffffff; margin-bottom: 8px;'>Terminal Ready</h3>
-            <p style='color: #787b86; margin: 0;'>Select a preset basket above or type in the search bar to preview live stock suggestions, then click <b>Run Terminal</b>.</p>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        "<div class='irt-card' style='margin-top:16px'><div class='irt-card-title'>Pick up to five tickers and click Run analysis</div>"
+        "<p class='irt-card-body'>For each stock you get price history with SEC filing dates, AI summaries of catalysts and risks "
+        "with the filing excerpts behind them, recent 8-K events, questions for management, and an Excel download. "
+        "A run reads several filings and takes about 35 seconds per ticker the first time.</p></div>",
+        unsafe_allow_html=True)

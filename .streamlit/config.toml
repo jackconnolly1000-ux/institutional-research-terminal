@@ -1,4 +1,4 @@
-# Built-in widget theme. Colors match the custom CSS palette in app.py.
+# Built-in widget theme. These colors repeat the base tokens in theme.py (BG, SURFACE, TEXT, ACCENT); change both together.
 [theme]
 base = "dark"
 primaryColor = "#2962ff"

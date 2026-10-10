@@ -21,11 +21,16 @@ Everything for this project is in one folder on my Mac: `~/Stock Project`.
 Stock Project/
 ├── README.md        map of the folder
 ├── app/             the code (GitHub repo, PUBLIC, deploys to Streamlit)
-│   ├── app.py
+│   ├── app.py       data fetching, Claude call, page layout
+│   ├── theme.py     color tokens, named by meaning (the one place colors are defined)
+│   ├── ui.py        CSS built from theme.py, cards, chips, metric tiles, skeleton loaders, progress strip
+│   ├── charts.py    price chart (drawing only, no network)
 │   ├── requirements.txt
 │   ├── CLAUDE.md    these instructions, for Claude Code
-│   ├── .streamlit/config.toml   widget theme (matches the CSS colors)
+│   ├── .streamlit/config.toml   widget theme (repeats the base colors in theme.py)
 │   ├── tests/       diagnostic scripts (no Anthropic calls)
+│   │   ├── chart_preview.py   price chart on synthetic prices
+│   │   └── offline/           whole app on fake SEC/Yahoo/Anthropic responses + Playwright screenshots (shots/ is gitignored)
 │   ├── .venv/       local Python environment (gitignored)
 │   └── .gitignore
 ├── docs/            instructions and plans (private)
@@ -47,27 +52,30 @@ Repo: https://github.com/jackconnolly1000-ux/institutional-research-terminal
 
 ## What the app does today
 
-Tested in a browser on October 9, 2026:
+New layout, October 10, 2026. Tested locally with Playwright: offline on fake data (`tests/offline`), the chart on synthetic prices (`tests/chart_preview.py`), and one real-key run of AAPL + STRL. Not yet checked on the live site.
 
-- Home screen: ticker input, two preset buttons (Load Tech, Load Industrials), Run Terminal, and a suggestion list with a Select button. **Changed Oct 9 (tested locally with Playwright, a dummy key, and a real-key AAPL run; Jack checked it on the live site):** the input and suggestion list are now one `st.multiselect` (search by ticker or company name, up to 5 tickers), presets update it, and a failed ticker shows a message naming the ticker and the reason
-- Results for each ticker: metric cards (insider count over 90 days, price, forward P/E, gross margin, FCF, market cap), a candlestick chart with 8-K and 10-Q markers, AI-written catalysts and risks with filing excerpts, 8-K events, executive Q&A prep, and an Excel download
-- Run Terminal took about 75 seconds for two tickers
+- Home screen: title and subtitle ("A research tool, not investment advice"), one ticker picker (`st.multiselect`, search by ticker or company name, up to 5, full company names in the chips), one primary **Run analysis** button, and two outlined example buttons (Example: AAPL, Example: FAST + STRL)
+- While it runs: a progress strip with one chip per ticker (queued, working, done with seconds, failed), and a tab per ticker showing a skeleton loader with a step label ("Reading SEC filings (step 1 of 2)", "Summarizing filings with Claude (step 2 of 2)")
+- Results are saved in `st.session_state`, so clicking Download, a preset, or changing the selection doesn't wipe them (a caption says when the selection no longer matches). A summary line (tickers, run time in ET, how many succeeded) and the Excel download sit at the top, then one tab per ticker
+- Each tab: company header, metric tiles grouped as Market (price, market cap), Valuation and profitability (forward P/E, gross margin, FCF), and Insider filings (Form 4 count, last 90 days), each with a source line; a 5-year daily candlestick chart (opens on 6M, range buttons 1M to 5Y, 50- and 200-day moving averages, volume, SEC filing dates as diamonds); Catalysts and Risks as cards with impact and trend chips and a collapsed filing excerpt; 8-K events as a dated list; numbered questions for management
+- A failed ticker gets a card naming the ticker and the reason; the others still show
+- Real-key run of AAPL + STRL took 84.7 seconds
 
 These features render. That does not mean they're correct. The numbers and AI-written facts have not been verified. Treat every feature as unverified until it's checked against the code or tested. Label claims as verified or unverified.
 
-`course_analytics.py` does not exist. The repo has only `app.py` (500 lines), `requirements.txt`, and `.streamlit/config.toml`. Course features have to be built from scratch, starting with the benchmark tests.
+`course_analytics.py` does not exist. The repo has `app.py` (about 480 lines), `theme.py`, `ui.py`, `charts.py`, `requirements.txt`, `.streamlit/config.toml`, and `tests/`. Course features have to be built from scratch, starting with the benchmark tests.
 
 ## Known problems (as of October 10, 2026)
 
 In priority order. Delete a line once it's fixed.
 
 1. **Numbers conflict with no labels.** For AAPL the gross margin card says 48.65% and the AI text says 50.1%. Every number must show its period (TTM, quarter, fiscal year) and source.
-2. **Slow.** About 75 seconds for two tickers, with only a status line while it runs. Add caching (`st.cache_data`) and real progress feedback.
+2. **Slow.** About 75 seconds for two tickers (84.7 seconds for AAPL + STRL on Oct 10). Progress feedback is done (Oct 10: progress strip and per-ticker skeleton loaders); speed isn't. Add caching (`st.cache_data`) where it helps.
 3. **The Excel export is a raw data dump.** See the standard below.
-4. **Layout:** four identical blue buttons with no visual hierarchy; clicking a preset or changing the ticker selection wipes the current results without warning (results aren't kept in session state); ticker chips cut off long company names ("FAST — Fasten…").
-5. **Content:** "Load Tech (AAPL)" loads one stock and "Load Industrials" loads two (FAST, STRL), so neither is a basket. The "LIVE FEED" badge probably overclaims, since yfinance data is usually delayed (verify). The subtitle promises "Form 4 Insider Velocity" but the app shows a count. "CapEx & Growth Catalysts" mostly holds items that aren't capex. One 8-K date shows as "2026-04-17/2026-04-20."
-6. **Failures cached as results in `get_comprehensive_financials`:** any yfinance error returns all "N/A" and `st.cache_data` keeps it for an hour. It's called inside `fetch_firm_data`, so the N/A cards are also baked into that cache. Failed 8-K downloads are also skipped silently. Fix like `extract_unified_profile`: raise instead, and fetch the financials outside the cached SEC function.
-7. **The YoY risk comparison can silently run without prior-year text.** In `fetch_firm_data` (around lines 232-242), the prior-year filing fetch is wrapped in `except Exception: pass`, and a failed download leaves `prior_risk` as "PRIOR YEAR FILING NOT AVAILABLE". Either way Claude does the "YoY Delta" with nothing to compare against, the NEW/ESCALATED/STABLE trend labels mean nothing, the user isn't told, and the result is cached for an hour. **Verified Oct 9 by `tests/check_risk_extraction.py` (AAPL, FAST, STRL), and worse than that:**
+4. **Content:** One 8-K date shows as "2026-04-17/2026-04-20."
+5. **Failures cached as results in `get_comprehensive_financials`:** any yfinance error returns all "N/A" and `st.cache_data` keeps it for an hour. It's called inside `fetch_firm_data`, so the N/A cards are also baked into that cache. Failed 8-K downloads are also skipped silently. Fix like `extract_unified_profile`: raise instead, and fetch the financials outside the cached SEC function.
+6. **Claude's reply can be cut off, and the missing parts show as empty.** Real-key run Oct 10: STRL showed 0 8-K events and 0 questions for management (AAPL got 4 and 3). Likely cause, not yet verified: `extract_unified_profile` calls Claude with `max_tokens=4000` and never checks `response.stop_reason`, so a reply cut off at the limit is used as is, and `.get(..., [])` turns the missing fields into empty lists. STRL's 14 long catalyst and risk items come first in the schema, so the 8-K and question fields come last and get dropped. The page then says "No recent material events found," and the result is cached for an hour.
+7. **The YoY risk comparison can silently run without prior-year text.** In `fetch_firm_data` (around lines 161-171), the prior-year filing fetch is wrapped in `except Exception: pass`, and a failed download leaves `prior_risk` as "PRIOR YEAR FILING NOT AVAILABLE". Either way Claude does the "YoY Delta" with nothing to compare against, the NEW/ESCALATED/STABLE trend labels mean nothing, the user isn't told, and the result is cached for an hour. **Verified Oct 9 by `tests/check_risk_extraction.py` (AAPL, FAST, STRL), and worse than that:**
    - All three compare 10-Q vs 10-Q (quarter over quarter), never 10-K vs 10-K.
    - The text sent as "risk factors" isn't the Risk Factors section for any of them. AAPL: a cross-reference in MD&A, so mostly MD&A text. FAST: its 10-Q risk section is one "no material changes" sentence (155 chars, under the 4,000 filter), so the fallback slice sends inline XBRL tags (`us-gaap:...Member 2026-04-01`). STRL: a quoted cross-reference, then MD&A.
    - The "MD&A" text starts at the table of contents and runs through the financial statements for FAST and STRL (AAPL's MD&A is correct).
@@ -134,5 +142,5 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 1. Label every number with period and source (problem 1)
 2. Speed: caching and progress (problem 2)
 3. Rebuild the Excel export as a research record (problem 3)
-4. Layout and content cleanup (problems 4 and 5)
+4. Content cleanup (problem 4)
 5. Course features: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes
