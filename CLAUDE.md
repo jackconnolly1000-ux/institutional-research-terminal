@@ -92,6 +92,7 @@ In priority order. Delete a line once it's fixed.
 5. **"No close match" is a text test.** Joining one-sentence titles to their body text fixed STRL's contract-termination title. A heavily rewritten paragraph can land there (MSFT's FY2026 "We may experience outages…" rewrites last year's "We may have excessive outages…"). The closest prior paragraph is sent as context when word overlap is at least 0.20, and the label says "no close match", not "new risk".
 6. **8-K exhibits aren't read.** Only each 8-K's primary document is sent; press releases usually sit in exhibit EX-99.1.
 7. **Section extraction is tested on seven filers** (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM) plus synthetic cases. Other formats may fail; they show "Section not found", not wrong text.
+8. **The live site doesn't run the pinned versions.** `requirements.txt` pins `streamlit==1.32.0`, but the live site runs 1.65.0 (its frontend bundle `index.CKCTizkM.js` matches the 1.65.0 wheel, Oct 11). `requirements.txt` is the repo's only dependency file and has no format problems. The pinned set has Linux wheels only up to Python 3.12 (`pandas==2.2.1` has none for 3.13 or 3.14), so the likely cause is that Cloud runs Python 3.13 or newer, the pinned install fails, and the app runs on Cloud's own newer packages. Not yet confirmed against the Cloud log. Local tests run 1.32, so they can miss live-only bugs (Oct 11: icon text, cut-off button). 1.65 also warns that `use_container_width` is deprecated.
 
 ## Excel export standard
 
@@ -130,7 +131,8 @@ I use two tools on this project, and both read these same instructions. I often 
 Rule of thumb: thinking and learning go in chat. Touching files goes in Claude Code.
 
 **How to pass work between them**
-- **Chat to Claude Code:** when a plan in chat is ready to build, end with a ready-to-paste prompt for Claude Code in a code block. It should start with "Read CLAUDE.md," say what to change, and end with "Wait for my OK before editing."
+- **Chat to Claude Code:** when a plan in chat is ready to build, end with a ready-to-paste prompt for Claude Code in a code block. It should start with "Read CLAUDE.md," say what to change, and name anything that needs my OK (see the next rule).
+- **When Claude Code waits for my OK:** only before paid runs, merges to `main`, deleting things, or changes outside a branch. Otherwise it proceeds on a branch and reports what it did.
 - **Claude Code to chat:** after Claude Code finishes something, it should end with a one-line "Take this to chat" note: what changed, and which file and function. The question to ask chat so I learn it goes in `~/Stock Project/docs/Learning_Questions.md` (date, question, file and function), appended as a new entry, not in the reply.
 - **Keep both in sync:** when the known-problems list changes, Claude Code updates `app/CLAUDE.md` and `docs/Project_Instructions.md`, then reminds me to re-paste the instructions into the claude.ai project.
 - In chat, if I ask for code changes, don't just write the code. Give me the Claude Code prompt instead, plus the explanation. Exception: a short snippet to show a concept is fine.
@@ -142,7 +144,7 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 - Use the real technical terms and define each one the first time it comes up.
 - Give full functions or files I can paste in, plus the explanation. Both, every time.
 - When it fits, name one question an interviewer could ask about that piece.
-- Plan first. Wait for my OK before editing files.
+- Plan first. Wait for my OK only where the handoff rule says (paid runs, merges to `main`, deleting things, changes outside a branch); otherwise proceed on a branch and report.
 
 **Testing**
 - Before saying a button or feature works, ask my permission to run the app and test it. Then report exactly what happened.

@@ -62,8 +62,10 @@ def inject_css() -> None:
 }}
 {tone_css}
 
-/* One font everywhere. Before, paragraphs, headings/lists and metrics each used a different font. */
-.stApp, .stApp div, .stApp span, .stApp p, .stApp li, .stApp a, .stApp h1, .stApp h2, .stApp h3, .stApp h4,
+/* One font everywhere. Before, paragraphs, headings/lists and metrics each used a different font. Newer Streamlit
+   draws icons as words in an icon font (span[data-testid=stIconMaterial]); they keep that font, or the eye icon
+   on the passcode field reads "visibility". */
+.stApp, .stApp div, .stApp span:not([data-testid="stIconMaterial"]), .stApp p, .stApp li, .stApp a, .stApp h1, .stApp h2, .stApp h3, .stApp h4,
 .stApp h5, .stApp label, .stApp input, .stApp button, .stApp summary {{ font-family: var(--font); }}
 .stApp code, .stApp pre {{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }}
 .stApp {{ background: var(--bg); }}
@@ -87,16 +89,31 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 /* A clicked button keeps focus, and Streamlit draws a heavy ring on it (the outlined Download box). Keep the ring
    for keyboard users only. */
 .stButton button:focus:not(:focus-visible), .stDownloadButton button:focus:not(:focus-visible) {{ box-shadow: none; outline: none; }}
+/* Toolbar: the picker takes the free width and the button column fits its label, so "Run analysis" is never cut off
+   (a 5:1 column split left the button about 80 px wide at 1000 px with the sidebar open). From 640 px down
+   Streamlit stacks the columns, so the rule stops there. */
+@media (min-width: 640px) {{
+[data-testid="stHorizontalBlock"]:has([data-testid="stMultiSelect"]) > [data-testid="column"]:first-child,
+[data-testid="stHorizontalBlock"]:has([data-testid="stMultiSelect"]) > [data-testid="stColumn"]:first-child {{ flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }}
+[data-testid="stHorizontalBlock"]:has([data-testid="stMultiSelect"]) > [data-testid="column"]:last-child,
+[data-testid="stHorizontalBlock"]:has([data-testid="stMultiSelect"]) > [data-testid="stColumn"]:last-child {{ flex: 0 0 auto !important; width: auto !important; min-width: max-content !important; }}
+}}
+[data-testid="stHorizontalBlock"]:has([data-testid="stMultiSelect"]) button p {{ white-space: nowrap; }}
 /* The results bar: Streamlit columns have fixed widths, so a long label wrapped inside its column. A marker span
-   in the row lets CSS size these columns to their content instead. */
+   in the row lets CSS size these columns to their content instead. Streamlit 1.32 names columns "column" and
+   element wrappers "element-container"; newer versions use "stColumn" and "stElementContainer", so both match. */
 [data-testid="stHorizontalBlock"]:has(.irt-mark-results) {{ align-items: center; flex-wrap: wrap; gap: 8px 16px;
   padding: 10px 0; margin-top: 6px; border-top: 1px solid var(--border); }}
-[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"]:first-child {{ flex: 1 1 260px !important; width: auto !important; }}
-[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"]:last-child {{ flex: 0 0 auto !important; width: auto !important; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"]:first-child,
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="stColumn"]:first-child {{ flex: 1 1 260px !important; width: auto !important; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"]:last-child,
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="stColumn"]:last-child {{ flex: 0 0 auto !important; width: auto !important; }}
 /* Streamlit gives each element inside a column a fixed pixel width and gives markdown a negative bottom margin;
    in this row that kept the text column full width and made the button overlap it */
-[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"] {{ min-width: 0 !important; }}
-[data-testid="stHorizontalBlock"]:has(.irt-mark-results) [data-testid="element-container"] {{ width: auto !important; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"],
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="stColumn"] {{ min-width: 0 !important; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) [data-testid="element-container"],
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) [data-testid="stElementContainer"] {{ width: auto !important; }}
 [data-testid="stHorizontalBlock"]:has(.irt-mark-results) [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
 
 /* Tabs */

@@ -395,7 +395,7 @@ with col_pick:
         options=list(ticker_names),
         format_func=lambda t: f"{t} · {ticker_names[t]}",
         key="ticker_select",
-        placeholder="Search by ticker or company name (up to 5)",
+        placeholder="Search by ticker or company name",
         max_selections=5,
         label_visibility="collapsed",  # the placeholder explains it; screen readers still get the label
     )
@@ -588,7 +588,7 @@ if results:
                 render_failure(t, failures.get(t, "unknown error"))
 else:
     st.markdown(
-        "<div class='irt-card' style='margin-top:16px'><div class='irt-card-title'>Pick up to five tickers and click Run analysis</div>"
+        "<div class='irt-card' style='margin-top:16px'><div class='irt-card-title'>Choose tickers and click Run analysis</div>"
         "<p class='irt-card-body'>For each stock you get price history with SEC filing dates, AI summaries of catalysts and risks "
         "with the filing excerpts behind them, and recent 8-K events, and an Excel download. "
         "A first run reads several filings and takes about a minute per ticker.</p></div>",
