@@ -1,32 +1,36 @@
+import hashlib
 import json
+import os
 import requests
-import re
 import time
 import traceback
 import openpyxl
 import yfinance as yf
 import pandas as pd
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Font, PatternFill
 from io import BytesIO
 from datetime import datetime
-from bs4 import BeautifulSoup
 from anthropic import Anthropic, APIError
 from zoneinfo import ZoneInfo
 import streamlit as st
 
+import analysis
+import market_data
+import sec_data
 import ui
 from charts import CHART_CONFIG, build_price_chart
 
+ET = ZoneInfo("America/New_York")
 
 # --- STREAMLIT PAGE CONFIG + STYLING (colors live in theme.py, CSS in ui.py) ---
 st.set_page_config(
-    page_title="Institutional Research Terminal",
+    page_title="SEC Filing Research Terminal",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 ui.inject_css()
 
-# --- SECURE KEY RETRIEVAL ---
+# --- API KEY AND SEC CONTACT (from Streamlit Secrets) ---
 try:
     if "ANTHROPIC_API_KEY" not in st.secrets:
         st.error("ANTHROPIC_API_KEY was not found in Streamlit Secrets.")
@@ -38,28 +42,53 @@ except Exception as e:
     st.error(f"Initialization Error: {e}")
     st.stop()
 
-# --- BACKEND FUNCTIONS ---
+# SEC EDGAR asks every automated request to name a real contact (its fair-access policy).
+# The environment fallback exists for the offline test harness, which has no secrets file.
+try:
+    SEC_CONTACT = st.secrets.get("SEC_CONTACT_EMAIL") or os.environ.get("SEC_CONTACT_EMAIL")
+except Exception:
+    SEC_CONTACT = os.environ.get("SEC_CONTACT_EMAIL")
+if not SEC_CONTACT:
+    st.error("SEC_CONTACT_EMAIL is not set in Streamlit Secrets. SEC EDGAR requires a contact email on every request.")
+    st.stop()
+
+# --- BACKEND ---
 # Cached functions RAISE on failure instead of returning None or a fallback:
 # st.cache_data stores return values, not exceptions, so a failure is retried on the next run
-# instead of being served from cache.
+# instead of being served from cache. Pure logic lives in sec_data.py, analysis.py and market_data.py.
 class TickerFailure(Exception):
     """A per-ticker failure whose message is safe to show the user."""
 
+SEC_HEADERS = {"User-Agent": f"SEC Filing Research Terminal {SEC_CONTACT}"}
+
 FALLBACK_DIRECTORY = pd.DataFrame([
-    {"ticker": "AAPL", "name": "Apple Inc."},
-    {"ticker": "MSFT", "name": "Microsoft Corp."},
-    {"ticker": "NVDA", "name": "Nvidia Corp."},
-    {"ticker": "FAST", "name": "Fastenal Co."},
-    {"ticker": "STRL", "name": "Sterling Infrastructure Inc."},
-    {"ticker": "AAP", "name": "Advance Auto Parts Inc."}
-], columns=["ticker", "name"])
+    {"ticker": "AAPL", "name": "Apple Inc.", "cik": "320193"},
+    {"ticker": "MSFT", "name": "Microsoft Corp.", "cik": "789019"},
+    {"ticker": "NVDA", "name": "Nvidia Corp.", "cik": "1045810"},
+    {"ticker": "FAST", "name": "Fastenal Co.", "cik": "815556"},
+    {"ticker": "STRL", "name": "Sterling Infrastructure Inc.", "cik": "874238"},
+    {"ticker": "AAP", "name": "Advance Auto Parts Inc.", "cik": "1158449"}
+], columns=["ticker", "name", "cik"])
+
+def sec_get(url: str, retries: int = 3) -> bytes:
+    """GET from SEC EDGAR with retries. Raises if every attempt fails."""
+    last = "no response"
+    for attempt in range(retries):
+        try:
+            resp = requests.get(url, headers=SEC_HEADERS, timeout=12)
+            if resp.status_code == 200:
+                return resp.content
+            last = f"HTTP {resp.status_code}"
+            time.sleep(1.5 * (attempt + 1) if resp.status_code == 429 else 0.5)
+        except requests.RequestException as e:
+            last = type(e).__name__
+            time.sleep(1.0)
+    raise RuntimeError(f"SEC EDGAR request failed ({last})")
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def _fetch_sec_directory() -> pd.DataFrame:
-    headers = {'User-Agent': 'InstitutionalResearchDirectory admin@research-terminal.com'}
-    resp = requests.get("https://www.sec.gov/files/company_tickers.json", headers=headers, timeout=5)
-    resp.raise_for_status()
-    rows = [{"ticker": v['ticker'].upper(), "name": v['title'].title()} for v in resp.json().values()]
+    rows = [{"ticker": v['ticker'].upper(), "name": v['title'].title(), "cik": str(v['cik_str'])}
+            for v in json.loads(sec_get("https://www.sec.gov/files/company_tickers.json", retries=1)).values()]
     return pd.DataFrame(rows).drop_duplicates("ticker")
 
 def load_sec_directory() -> tuple[pd.DataFrame, bool]:
@@ -70,197 +99,139 @@ def load_sec_directory() -> tuple[pd.DataFrame, bool]:
         return FALLBACK_DIRECTORY, True
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_comprehensive_financials(ticker: str) -> dict:
+def cached_submissions(cik: str) -> dict:
+    return json.loads(sec_get(f"https://data.sec.gov/submissions/CIK{cik.zfill(10)}.json"))
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def cached_json(url: str) -> dict:
+    """EDGAR's older filing pages; a page of past filings doesn't change."""
+    return json.loads(sec_get(url))
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def cached_filing_text(url: str) -> str:
+    """A filed document never changes, so a successful download is kept for a day.
+    A failed one raises and is retried on the next run."""
+    return sec_data.html_to_text(sec_get(url))
+
+def gather_evidence(ticker: str, cik: str) -> dict:
+    """Pick the filings, download them (each separately, so one failure doesn't sink the rest),
+    and extract their sections. Not cached itself: it reassembles from cached pieces every run."""
     try:
-        tkr = yf.Ticker(ticker)
-        info = tkr.info
-        mcap = info.get('marketCap', 0)
-        mcap_str = f"${mcap/1e12:.2f}T" if mcap >= 1e12 else (f"${mcap/1e9:.2f}B" if mcap >= 1e9 else (f"${mcap/1e6:.2f}M" if mcap > 0 else "N/A"))
-        price = info.get('currentPrice') or info.get('regularMarketPrice')
-        price_str = f"${price:.2f}" if price else "N/A"
-        fpe = info.get('forwardPE')
-        fpe_str = f"{fpe:.1f}x" if fpe else "N/A"
-        rev_growth = info.get('revenueGrowth')
-        rev_str = f"{rev_growth * 100:.1f}%" if rev_growth else "N/A"
-        gross_margin = f"{info.get('grossMargins', 0) * 100:.2f}%" if info.get('grossMargins') else "N/A"
-        op_margin = f"{info.get('operatingMargins', 0) * 100:.2f}%" if info.get('operatingMargins') else "N/A"
-        profit_margin = f"{info.get('profitMargins', 0) * 100:.2f}%" if info.get('profitMargins') else "N/A"
-        roe = f"{info.get('returnOnEquity', 0) * 100:.2f}%" if info.get('returnOnEquity') else "N/A"
-        debt_to_equity = f"{info.get('debtToEquity', 0):.2f}" if info.get('debtToEquity') else "N/A"
-        fcf = info.get('freeCashflow', 0)
-        fcf_str = f"${fcf/1e9:.2f}B" if fcf and abs(fcf) >= 1e9 else (f"${fcf/1e6:.2f}M" if fcf else "N/A")
-        ebitda = info.get('ebitda', 0)
-        ebitda_str = f"${ebitda/1e9:.2f}B" if ebitda and abs(ebitda) >= 1e9 else (f"${ebitda/1e6:.2f}M" if ebitda else "N/A")
-        return {"mcap": mcap_str, "price": price_str, "fpe": fpe_str, "rev_growth": rev_str, "gross_margin": gross_margin, "op_margin": op_margin, "profit_margin": profit_margin, "roe": roe, "debt_to_equity": debt_to_equity, "fcf": fcf_str, "ebitda": ebitda_str}
+        subs = cached_submissions(cik)
     except Exception as e:
-        return {k: "N/A" for k in ["mcap", "price", "fpe", "rev_growth", "gross_margin", "op_margin", "profit_margin", "roe", "debt_to_equity", "fcf", "ebitda"]}
-
-def sec_get_request(url: str, headers: dict, retries: int = 3):
-    for attempt in range(retries):
-        try:
-            resp = requests.get(url, headers=headers, timeout=12)
-            if resp.status_code == 200: return resp
-            elif resp.status_code == 429: time.sleep(1.5 * (attempt + 1))
-        except Exception: time.sleep(1.0)
-    return None
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def fetch_firm_data(ticker: str) -> dict:
-    headers = {'User-Agent': f'InstitutionalResearch analyst_{ticker.lower()}@research-terminal.com'}
-    tickers_url = "https://www.sec.gov/files/company_tickers.json"
-    
-    resp = sec_get_request(tickers_url, headers)
-    if not resp: raise TickerFailure("SEC EDGAR didn't respond, try again")
+        raise TickerFailure(f"SEC EDGAR didn't return the filing history ({e}), try again") from e
     try:
-        data = resp.json()
-    except json.JSONDecodeError:
-        raise TickerFailure("SEC EDGAR sent an unreadable ticker list, try again")
-
-    cik_padded = next((str(v['cik_str']).zfill(10) for v in data.values() if v['ticker'].upper() == ticker.upper()), None)
-    if not cik_padded: raise TickerFailure("not found in the SEC ticker list")
-
-    subs_url = f"https://data.sec.gov/submissions/CIK{cik_padded}.json"
-    time.sleep(0.15)
-    subs_resp = sec_get_request(subs_url, headers)
-    if not subs_resp: raise TickerFailure("SEC EDGAR didn't return the filing history, try again")
-    subs_data = subs_resp.json()
-    filings = subs_data['filings']['recent']
-    
-    company_name = subs_data.get('name', ticker.upper()).title()
-    industry_desc = subs_data.get('sicDescription', 'Public Issuer').title()
-    form_list = filings['form']
-    
-    form_4_dates = [filings['filingDate'][i] for i, f in enumerate(form_list) if f in ['4', '4/A']]
-    recent_4s = [d for d in form_4_dates if (datetime.now() - datetime.strptime(d, '%Y-%m-%d')).days <= 90]
-    insider_velocity = len(recent_4s)
-    
-    idx_curr = next((i for i, f in enumerate(form_list) if f in ['10-K', '10-Q']), -1)
-    if idx_curr == -1: raise TickerFailure("no 10-K or 10-Q in recent SEC filings (foreign issuers file 20-F instead)")
-        
-    form_type = form_list[idx_curr]
-    acc_curr = filings['accessionNumber'][idx_curr].replace('-', '')
-    doc_curr = filings['primaryDocument'][idx_curr]
-    date_curr = filings['filingDate'][idx_curr]
-    cik_no_zeros = str(int(cik_padded))
-    
-    idx_prior = next((i for i in range(idx_curr + 1, len(form_list)) if form_list[i] in ['10-K', '10-Q']), -1)
-    
-    risk_regex = r'(?:item\s+1a\b[\.\:\s\-\—\xa0]*(?:risk\s+factors)?)(.*?)(?:item\s+(?:1b|2)\b[\.\:\s\-\—\xa0]|$)'
-    mda_regex = r'(?:item\s+7\b[\.\:\s\-\—\xa0]*(?:management[\'\’]?s\s+discussion)?)(.*?)(?:item\s+(?:7a|8)\b[\.\:\s\-\—\xa0]|$)' if form_type == '10-K' else r'(?:item\s+2\b[\.\:\s\-\—\xa0]*(?:management[\'\’]?s\s+discussion)?)(.*?)(?:item\s+(?:3|4)\b[\.\:\s\-\—\xa0]|$)'
-    
-    url_curr = f"https://www.sec.gov/Archives/edgar/data/{cik_no_zeros}/{acc_curr}/{doc_curr}"
-    time.sleep(0.15)
-    resp_curr = sec_get_request(url_curr, headers)
-    if not resp_curr: raise TickerFailure(f"couldn't download the {form_type} filed {date_curr}, try again")
-    html_curr = resp_curr.content
-    text_clean_curr = re.sub(r'\s+', ' ', BeautifulSoup(html_curr, 'html.parser').get_text(separator=' ', strip=True))
-    
-    risk_raw_curr = max([m.group(1) for m in re.compile(risk_regex, re.I | re.S).finditer(text_clean_curr) if len(m.group(1).strip()) > 4000], key=len, default=text_clean_curr[5000:35000])
-    mda_raw_curr = max([m.group(1) for m in re.compile(mda_regex, re.I | re.S).finditer(text_clean_curr) if len(m.group(1).strip()) > 4000], key=len, default=text_clean_curr[40000:80000])
-    
-    prior_risk_raw = "PRIOR YEAR FILING NOT AVAILABLE"
-    if idx_prior != -1:
+        selection = sec_data.select_with_older_pages(subs, cik, datetime.now(ET).date(), cached_json)
+    except Exception as e:
+        print(f"[sec] {ticker}: older filing pages failed: {e}", flush=True)
+        selection = sec_data.select_filings(sec_data.filings_from_submissions(subs, cik), datetime.now(ET).date())
+        selection.notes.append(f"EDGAR's older filing pages couldn't be read ({e}), so the prior 10-K may be missing.")
+    if selection.mdna_source is None:
+        raise TickerFailure("no 10-K or 10-Q in recent SEC filings (foreign issuers file 20-F instead)")
+    wanted = [f for f in [selection.annual_current, selection.annual_prior, selection.mdna_source,
+                          *selection.quarterly_updates, *selection.eight_ks] if f]
+    texts = {}
+    for f in {f.accession: f for f in wanted}.values():
         try:
-            acc_prior = filings['accessionNumber'][idx_prior].replace('-', '')
-            doc_prior = filings['primaryDocument'][idx_prior]
-            time.sleep(0.15)
-            resp_prior = sec_get_request(f"https://www.sec.gov/Archives/edgar/data/{cik_no_zeros}/{acc_prior}/{doc_prior}", headers)
-            if resp_prior:
-                text_clean_prior = re.sub(r'\s+', ' ', BeautifulSoup(resp_prior.content, 'html.parser').get_text(separator=' ', strip=True))
-                prior_risk_raw = max([m.group(1) for m in re.compile(risk_regex, re.I | re.S).finditer(text_clean_prior) if len(m.group(1).strip()) > 4000], key=len, default=text_clean_prior[5000:35000])[:18000]
-        except Exception: pass
+            texts[f.accession] = cached_filing_text(f.url)
+        except Exception as e:
+            print(f"[sec] {ticker}: {f.label} failed: {e}", flush=True)
+            texts[f.accession] = e
+    sources = analysis.build_sources(selection, texts)
+    if not any(s.sendable for s in sources):
+        raise TickerFailure("no usable text could be extracted from its SEC filings")
+    return {"company_name": subs.get("name", ticker).title(), "industry": subs.get("sicDescription", "Public issuer").title(),
+            "selection": selection, "sources": sources,
+            "event_markers": [(f.filed, f.form) for f in wanted]}
 
-    eight_k_texts, eight_k_dates, k8_count = "", [], 0
-    for idx_form, f_type in enumerate(form_list):
-        if f_type in ['8-K', '8-K/A'] and k8_count < 4:
-            acc_8k = filings['accessionNumber'][idx_form].replace('-', '')
-            doc_8k = filings['primaryDocument'][idx_form]
-            date_8k = filings['filingDate'][idx_form]
-            time.sleep(0.2)
-            resp_8k = sec_get_request(f"https://www.sec.gov/Archives/edgar/data/{cik_no_zeros}/{acc_8k}/{doc_8k}", headers)
-            if resp_8k and resp_8k.status_code == 200:
-                text_clean_8k = re.sub(r'\s+', ' ', BeautifulSoup(resp_8k.content, 'html.parser').get_text(separator=' ', strip=True))
-                if len(text_clean_8k) > 100:
-                    eight_k_texts += f"--- 8-K FILED ON {date_8k} ---\n{text_clean_8k[:4500]}\n\n"
-                    eight_k_dates.append((date_8k, '8-K'))
-                    k8_count += 1
-            
-    if not eight_k_texts.strip(): eight_k_texts = "NO RECENT 8-K FILINGS IDENTIFIED."
-    financial_stats = get_comprehensive_financials(ticker.upper())
+@st.cache_data(ttl=900, show_spinner=False)
+def cached_financials(ticker: str) -> dict:
+    return market_data.fetch_financials(ticker, yf.Ticker)
 
-    return {
-        "ticker": ticker.upper(), "company_name": company_name, "industry": industry_desc, "form_type": form_type,
-        "risk": risk_raw_curr.strip()[:20000], "mda": mda_raw_curr.strip()[:20000], "prior_risk": prior_risk_raw.strip(),
-        "eight_k": eight_k_texts, "cik": cik_no_zeros, "financials": financial_stats,
-        "insider_velocity": insider_velocity, "event_markers": [(date_curr, form_type)] + eight_k_dates
-    }
-
-UNIFIED_EXTRACTION_TOOL = {
-    "name": "record_comprehensive_firm_analysis",
-    "description": "Record catalysts, vulnerabilities, recent 8-K material events, and executive Q&A.",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "bull_items": {
-                "type": "array",
-                "items": {"type": "object", "properties": {"target": {"type": "string"}, "category": {"type": "string"}, "description": {"type": "string"}, "impact": {"type": "string", "enum": ["HIGH", "MEDIUM"]}, "quote": {"type": "string"}}, "required": ["target", "category", "description", "impact", "quote"]}
-            },
-            "bear_items": {
-                "type": "array",
-                "items": {"type": "object", "properties": {"target": {"type": "string"}, "category": {"type": "string"}, "description": {"type": "string"}, "impact": {"type": "string", "enum": ["HIGH", "MEDIUM"]}, "trend": {"type": "string", "enum": ["NEW", "ESCALATED", "STABLE"]}, "quote": {"type": "string"}}, "required": ["target", "category", "description", "impact", "trend", "quote"]}
-            },
-            "eight_k_insights": {
-                "type": "array",
-                "items": {"type": "object", "properties": {"event_date": {"type": "string"}, "category": {"type": "string", "enum": ["LEADERSHIP", "M&A / CONTRACT", "FINANCIAL", "COMPLIANCE", "OPERATIONAL"]}, "takeaway": {"type": "string"}, "quote": {"type": "string"}}, "required": ["event_date", "category", "takeaway", "quote"]}
-            },
-            "strategic_questions": {"type": "array", "items": {"type": "string"}}
-        },
-        "required": ["bull_items", "bear_items", "eight_k_insights", "strategic_questions"]
-    }
-}
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def extract_unified_profile(sec_payload: dict) -> dict:
-    ticker, f_type = sec_payload["ticker"], sec_payload["form_type"]
-    prompt = f"""
-    You are an elite equity research portfolio manager evaluating SEC disclosures ({f_type}) for {ticker}.
-    1. Isolate CapEx ROI, supply chain bottlenecks, vendor concentrations, tariff/working-capital timing.
-    2. Perform YoY Delta analysis on Item 1A Risk Factors.
-    3. Analyze Recent 8-K Filings to extract material corporate events.
-    4. Generate 3 highly targeted, institutional executive meeting questions.
-
-    === MD&A ({f_type}) ===
-    {sec_payload['mda']}
-    === RISK FACTORS ({f_type}) ===
-    {sec_payload['risk']}
-    === PRIOR PERIOD RISK FACTORS ===
-    {sec_payload['prior_risk']}
-    === RECENT SEC FORM 8-K ===
-    {sec_payload['eight_k']}
-    """
+def load_financials(ticker: str) -> dict:
     try:
-        response = client.messages.create(
-            model="claude-sonnet-5", max_tokens=4000,
-            tools=[UNIFIED_EXTRACTION_TOOL], tool_choice={"type": "tool", "name": "record_comprehensive_firm_analysis"},
-            messages=[{"role": "user", "content": prompt}]
-        )
+        return {"status": "ok", **cached_financials(ticker)}
+    except market_data.MarketDataError as e:
+        return {"status": "failed", "reason": str(e)}
+
+@st.cache_resource(show_spinner=False)
+def analysis_store() -> dict:
+    """Complete Claude answers, keyed by a hash of the exact request. Written only when
+    analysis.is_cacheable() says every section is usable, so a cut-off or malformed answer is
+    never served again as if it were complete."""
+    return {}
+
+ANALYSIS_TTL = 3600
+ANALYSIS_TIMEOUT = 300  # seconds; an answer of up to 16,000 tokens can take minutes
+# Local diagnostics only: set SAVE_AI_RESPONSES_DIR to keep each raw Claude answer and the profile built from it
+SAVE_DIR = os.environ.get("SAVE_AI_RESPONSES_DIR")
+
+def count_request_tokens(prompt: str, tool: dict, method: dict) -> int:
+    """Token count for the whole request from Anthropic's free counting endpoint.
+    Falls back to a conservative estimate (3 characters per token) if that call fails."""
+    try:
+        return client.messages.count_tokens(model=analysis.MODEL, tools=[tool],
+                                            tool_choice={"type": "tool", "name": analysis.TOOL_NAME},
+                                            messages=[{"role": "user", "content": prompt}]).input_tokens
     except APIError as e:
-        raise TickerFailure(f"Anthropic API error ({type(e).__name__}), try again") from e
+        method["method"] = f"estimated ({type(e).__name__} from the counting endpoint)"
+        return (len(prompt) + len(json.dumps(tool))) // 3
 
-    for block in response.content:
-        if block.type == "tool_use":
-            raw_data = block.input
-            bear_sorted = sorted(raw_data.get("bear_items", []), key=lambda x: {"HIGH": 0, "MEDIUM": 1}.get(x.get("impact", "MEDIUM").upper(), 2))
-            bull_sorted = sorted(raw_data.get("bull_items", []), key=lambda x: {"HIGH": 0, "MEDIUM": 1}.get(x.get("impact", "MEDIUM").upper(), 2))
-            high_threats = sum(1 for e in bear_sorted if e.get("impact") == "HIGH")
-            return {
-                "ticker": ticker, "company_name": sec_payload["company_name"], "industry": sec_payload["industry"], "form_type": f_type,
-                "bear": bear_sorted, "bull": bull_sorted, "eight_k": raw_data.get("eight_k_insights", []),
-                "questions": raw_data.get("strategic_questions", []), "risk_score": min(10.0, round((high_threats * 1.5) + ((len(bear_sorted) - high_threats) * 0.5), 1)),
-                "financials": sec_payload["financials"], "insider_velocity": sec_payload["insider_velocity"], "event_markers": sec_payload["event_markers"]
-            }
-    raise TickerFailure("Anthropic returned no analysis, try again")
+def run_analysis(ticker: str, evidence: dict) -> dict:
+    sources = evidence["sources"]
+    method = {"method": "measured"}
+    try:
+        req = analysis.fit_to_budget(ticker, evidence["company_name"], sources,
+                                     lambda p, t: count_request_tokens(p, t, method))
+    except ValueError as e:
+        return analysis.failed_result(sources, str(e))
+    key = hashlib.sha256(analysis.request_fingerprint(req["prompt"], req["tool"]).encode()).hexdigest()
+    store = analysis_store()
+    hit = store.get(key)
+    from_cache = bool(hit and time.time() - hit["at"] < ANALYSIS_TTL)
+    if from_cache:
+        raw = hit["raw"]
+    else:
+        try:
+            # One attempt only: an SDK retry after a timeout could bill the same request twice.
+            response = client.with_options(timeout=ANALYSIS_TIMEOUT, max_retries=0).messages.create(
+                model=analysis.MODEL, max_tokens=analysis.MAX_OUTPUT_TOKENS, tools=[req["tool"]],
+                tool_choice={"type": "tool", "name": analysis.TOOL_NAME},
+                messages=[{"role": "user", "content": req["prompt"]}])
+        except APIError as e:
+            return analysis.failed_result(sources, f"Anthropic API error ({type(e).__name__}); try again")
+        raw = {"stop_reason": response.stop_reason,
+               "tool_input": next((b.input for b in response.content if b.type == "tool_use"), None),
+               "usage": {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}}
+        # stop_reason says why Claude stopped: "tool_use" means it finished filling in the tool,
+        # "max_tokens" means it hit the cap mid-answer and the later fields are missing.
+        print(f"[claude] {ticker}: stop_reason={raw['stop_reason']} output_tokens={raw['usage']['output_tokens']} "
+              f"input_tokens={raw['usage']['input_tokens']} max_tokens={analysis.MAX_OUTPUT_TOKENS}", flush=True)
+    checked = analysis.check_response(raw["stop_reason"], raw["tool_input"], sources)
+    if SAVE_DIR and not from_cache:
+        saved = {"ticker": ticker, "saved_at": datetime.now(ET).isoformat(timespec="seconds"), "model": analysis.MODEL,
+                 "max_tokens": analysis.MAX_OUTPUT_TOKENS, "raw": raw, "request": req,
+                 "evidence": [s.coverage() for s in sources], "checked": checked}
+        os.makedirs(SAVE_DIR, exist_ok=True)
+        with open(os.path.join(SAVE_DIR, f"{ticker}_{datetime.now(ET):%Y%m%d_%H%M%S}.json"), "w") as fh:
+            json.dump(saved, fh, indent=1, default=str)
+    if not from_cache and analysis.is_cacheable(checked):
+        store[key] = {"at": time.time(), "raw": raw}
+    return checked | {"usage": raw.get("usage"), "from_cache": from_cache,
+                      "budget": {"input_tokens": req["input_tokens"], "limit": req["budget"],
+                                 "output_reserve": analysis.MAX_OUTPUT_TOKENS, "count": method["method"]}}
 
+def analyze_ticker(ticker: str, cik: str, progress) -> dict:
+    progress("Reading SEC filings (step 1 of 3)")
+    evidence = gather_evidence(ticker, cik)
+    progress("Fetching market data (step 2 of 3)")
+    financials = load_financials(ticker)
+    progress("Summarizing filings with Claude (step 3 of 3)")
+    result = run_analysis(ticker, evidence)
+    return {"ticker": ticker, "company_name": evidence["company_name"], "industry": evidence["industry"],
+            "financials": financials,
+            "evidence": [s.coverage() for s in evidence["sources"]], "analysis": result,
+            "event_markers": evidence["event_markers"]}
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_price_history(ticker: str) -> pd.DataFrame:
@@ -278,46 +249,77 @@ def get_price_history(ticker: str) -> pd.DataFrame:
     return hist
 
 def generate_excel(profiles):
+    """One row per record, one header per column, numbers stored as numbers."""
     wb = openpyxl.Workbook()
     header_fill, header_font = PatternFill(start_color="1e222d", end_color="1e222d", fill_type="solid"), Font(color="ffffff", bold=True)
-    
-    ws_quant = wb.active
-    ws_quant.title = "Financial Model Feed"
-    ws_quant.append(['Ticker', 'Company Name', 'Gross Margin', 'Operating Margin', 'Net Margin', 'ROE', 'Debt to Equity', 'Free Cash Flow', 'EBITDA'])
-    for p in profiles:
-        ws_quant.append([p['ticker'], p['company_name'], p['financials']['gross_margin'], p['financials']['op_margin'], p['financials']['profit_margin'], p['financials']['roe'], p['financials']['debt_to_equity'], p['financials']['fcf'], p['financials']['ebitda']])
+    formats = {"USD": '"$"#,##0', "fraction": "0.00%", "multiple": '0.0"x"'}
 
-    ws_bull = wb.create_sheet(title="CapEx & Catalysts")
-    ws_bull.append(['Ticker', 'Category', 'Target Initiative', 'Impact', 'Strategic Thesis', 'Filing Excerpt'])
+    ws = wb.active
+    ws.title = "Market data"
+    ws.append(["Ticker", "Metric", "Value", "Unit", "Period", "Source", "Retrieved at"])
     for p in profiles:
-        for b in p['bull']:
-            ws_bull.append([p['ticker'], b.get('category',''), b.get('target',''), b.get('impact',''), b.get('description',''), b.get('quote','')])
+        f = p["financials"]
+        if f["status"] != "ok":
+            ws.append([p["ticker"], "All metrics", None, None, None, f"Failed: {f['reason']}", None])
+            continue
+        for m in f["metrics"].values():
+            ws.append([p["ticker"], m["label"], m["value"], m["unit"], m["period"] or "Period not stated",
+                       f"{f['source']}: {m['field']}", f["retrieved_at"]])
+            if m["value"] is not None:
+                ws.cell(ws.max_row, 3).number_format = '"$"#,##0.00' if m["field"] in ("currentPrice", "regularMarketPrice") else formats[m["unit"]]
 
-    ws_bear = wb.create_sheet(title="Supply Chain & Risks")
-    ws_bear.append(['Ticker', 'Category', 'Target Risk', 'Impact', 'YoY Trend', 'Vulnerability', 'Filing Excerpt'])
+    ws = wb.create_sheet("Findings")
+    ws.append(["Ticker", "Type", "Headline", "Summary", "Potential implication", "Detail", "Impact (AI assessment)",
+               "Impact basis", "Change vs prior 10-K (code)", "Category", "Source", "Form", "Filed", "Period", "Quote",
+               "Excerpt check", "Figures not in cited source", "Wording flags", "Filing URL", "Other sources for figures"])
     for p in profiles:
-        for b in p['bear']:
-            ws_bear.append([p['ticker'], b.get('category',''), b.get('target',''), b.get('impact',''), b.get('trend','STABLE'), b.get('description',''), b.get('quote','')])
+        for kind in ("catalysts", "risks", "other_risks"):
+            for i in p["analysis"]["sections"][kind]["items"]:
+                s = i["source"]
+                ws.append([p["ticker"], {"catalysts": "Catalyst", "risks": "Risk factor change",
+                                         "other_risks": "Other risk (management's discussion)"}[kind], i["headline"], i["summary"], i["implication"], i["detail"],
+                           i["impact"], i["impact_basis"], ui.trend_text(i) if kind == "risks" else "", i["category"],
+                           s["role"], s["form"], s["filed"], s["period"], i["quote"], i["excerpt"]["status"],
+                           "; ".join(i.get("unsupported_figures", [])), "; ".join(i.get("wording_flags", [])), s["url"],
+                           "; ".join(f"{o['label']} {o['url']}" for o in i.get("other_sources", []))])
+
+    ws = wb.create_sheet("8-K events")
+    ws.append(["Ticker", "Filed", "Event date", "8-K items", "Category", "Headline", "Summary", "Quote", "Excerpt check", "Filing URL"])
+    for p in profiles:
+        for e in p["analysis"]["sections"]["events"]["items"]:
+            s = e["source"]
+            ws.append([p["ticker"], s["filed"], s["period"], s.get("items", ""), e["category"], e["headline"],
+                       e["summary"], e["quote"], e["excerpt"]["status"], s["url"]])
+
+    ws = wb.create_sheet("Evidence")
+    ws.append(["Ticker", "Source ID", "Source", "Status", "Form", "Filed", "Period", "Characters found",
+               "Characters sent", "Characters omitted", "Note", "Filing URL"])
+    for p in profiles:
+        for c in p["evidence"]:
+            ws.append([p["ticker"], c["id"], c["role"], c["status"], c.get("form"), c.get("filed"), c.get("period"),
+                       c["chars"], c["sent_chars"], c["omitted_chars"], c["note"], c.get("url")])
 
     for ws in wb.worksheets:
         for cell in ws[1]: cell.fill, cell.font = header_fill, header_font
         for col in ws.columns: ws.column_dimensions[col[0].column_letter].width = 25
-    
+        ws.freeze_panes = "A2"
+
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()
 
 # --- HEADER ---
 st.markdown(
-    "<h1 class='irt-title'>Institutional Research Terminal</h1>"
-    "<p class='irt-subtitle'>SEC filings, market data and AI summaries for up to five stocks. "
-    "A research tool, not investment advice.</p>",
+    "<div class='irt-header'><div class='irt-title' role='heading' aria-level='1'>SEC Filing Research Terminal</div>"
+    "<div class='irt-sub'>SEC filings, market data and AI summaries for up to five stocks. "
+    "A research tool, not investment advice.</div></div>",
     unsafe_allow_html=True,
 )
 
 # --- TOOLBAR: TICKER PICKER, ONE PRIMARY ACTION, EXAMPLE PRESETS ---
 sec_directory, used_fallback = load_sec_directory()
 ticker_names = dict(zip(sec_directory["ticker"], sec_directory["name"]))
+ticker_ciks = dict(zip(sec_directory["ticker"], sec_directory["cik"]))
 
 def apply_preset(tickers):
     # on_click callbacks run before the rerun, so the multiselect hasn't been drawn yet: setting its key is allowed
@@ -340,9 +342,11 @@ with col_pick:
 with col_run:
     run_btn = st.button("Run analysis", type="primary", use_container_width=True)
 
-col_ex1, col_ex2, _ = st.columns([1.3, 1.6, 5])
-col_ex1.button("Example: AAPL", on_click=apply_preset, args=(["AAPL"],), use_container_width=True)
-col_ex2.button("Example: FAST + STRL", on_click=apply_preset, args=(["FAST", "STRL"],), use_container_width=True)
+# The marker span lets ui.py's CSS size these columns to their content (see "Rows of compact buttons")
+col_lbl, col_ex1, col_ex2 = st.columns(3)
+col_lbl.markdown("<span class='irt-mark-examples'>Examples</span>", unsafe_allow_html=True)
+col_ex1.button("AAPL", on_click=apply_preset, args=(["AAPL"],), help="Fill the picker with AAPL")
+col_ex2.button("FAST + STRL", on_click=apply_preset, args=(["FAST", "STRL"],), help="Fill the picker with FAST and STRL")
 
 if used_fallback:
     st.warning("Couldn't reach the SEC ticker list, so only 6 tickers are available. Reload the page to retry.")
@@ -350,19 +354,28 @@ if used_fallback:
 
 # --- RESULTS RENDERING ---
 def metric_groups(p: dict) -> list:
+    """[(heading, caption, [(label, value, period line), ...]), ...]; empty when market data failed."""
     f = p["financials"]
-    yahoo, unstated = "Yahoo Finance", "Yahoo Finance · period not stated"
-    return [
-        ("Market", [("Price", f["price"], yahoo), ("Market cap", f["mcap"], yahoo)]),
-        ("Valuation and profitability", [("Forward P/E", f["fpe"], yahoo), ("Gross margin", f["gross_margin"], unstated),
-                                         ("Free cash flow", f["fcf"], unstated)]),
-        ("Insider filings", [("Form 4, last 90 days", str(p["insider_velocity"]), "SEC EDGAR · count of filings")]),
-    ]
+    if f["status"] != "ok":
+        return []
+    m = f["metrics"]
+    retrieved = datetime.fromisoformat(f["retrieved_at"])
+    hour = retrieved.strftime("%I").lstrip("0")
+    caption = f"Yahoo Finance · retrieved {retrieved:%b} {retrieved.day}, {retrieved:%Y}, {hour}:{retrieved:%M %p} ET"
+    tile = lambda k: (m[k]["label"], ui.format_metric(m[k]["value"], m[k]["unit"]), m[k]["period"] or "Period not stated")
+    return [("Price and valuation", caption, [tile("price"), tile("market_cap"), tile("forward_pe")]),
+            ("Profitability", caption, [tile("gross_margin"), tile("free_cash_flow")])]
+
+
+SHOW = ["All", "Catalysts", "Risk factor changes", "Other risks"]
 
 
 def render_profile(p: dict) -> None:
-    st.markdown(ui.company_header(p["ticker"], p["company_name"], p["industry"], p["form_type"])
-                + ui.metric_tiles(metric_groups(p)), unsafe_allow_html=True)
+    a, secs = p["analysis"], p["analysis"]["sections"]
+    st.markdown(ui.company_header(p["ticker"], p["company_name"], p["industry"])
+                + ui.metric_tiles(metric_groups(p))
+                + (ui.notice("Market data unavailable", f"{p['financials']['reason']}. It is retried on the next run.", "caution")
+                   if p["financials"]["status"] != "ok" else ""), unsafe_allow_html=True)
 
     try:
         hist = get_price_history(p["ticker"])
@@ -375,24 +388,40 @@ def render_profile(p: dict) -> None:
         traceback.print_exc()
         st.caption(f"Price chart unavailable ({type(e).__name__})")
 
-    col_bull, col_bear = st.columns(2, gap="large")
-    with col_bull:
-        st.markdown(ui.section_header("Catalysts", len(p["bull"]), "AI summary of the filings. Open an excerpt to check it.")
-                    + "".join(ui.catalyst_card(i) for i in p["bull"]), unsafe_allow_html=True)
-    with col_bear:
-        st.markdown(ui.section_header("Risks", len(p["bear"]), "Trend labels compare against the prior filing and aren't verified yet.")
-                    + "".join(ui.risk_card(i) for i in p["bear"]), unsafe_allow_html=True)
+    st.markdown(ui.analysis_banner(a) + ui.evidence_list(p["evidence"], a["comparison"], a.get("budget")), unsafe_allow_html=True)
 
-    events_html = ui.event_rows(p["eight_k"]) if p["eight_k"] else "<p class='irt-note'>No recent material events found.</p>"
-    questions = "".join(f"<li>{ui.esc(q)}</li>" for q in p["questions"])
-    st.markdown(ui.section_header("8-K events", len(p["eight_k"])) + events_html
-                + ui.section_header("Questions for management", len(p["questions"]))
-                + f"<ol class='irt-questions'>{questions}</ol>", unsafe_allow_html=True)
+    counts = {"Catalysts": len(secs["catalysts"]["items"]), "Risk factor changes": len(secs["risks"]["items"]),
+              "Other risks": len(secs["other_risks"]["items"])}
+    counts["All"] = sum(counts.values())
+    show = st.radio("Show", SHOW, horizontal=True, key=f"show_{p['ticker']}", label_visibility="collapsed",
+                    format_func=lambda o: f"{o} {counts[o]}")
+    html = ui.impact_criteria()
+    if show in ("All", "Catalysts"):
+        html += (ui.section_header("Catalysts", counts["Catalysts"]) + ui.section_state(secs["catalysts"], "catalysts")
+                 + ui.findings_list(secs["catalysts"]["items"], "catalyst"))
+    if show in ("All", "Risk factor changes"):
+        html += (ui.section_header("What changed in the risk factors", counts["Risk factor changes"], ui.trend_note(a["comparison"]))
+                 + ui.section_state(secs["risks"], "risks") + ui.findings_list(secs["risks"]["items"], "risk")
+                 + ui.unchanged_list(a["comparison"]))
+    if show in ("All", "Other risks"):
+        html += (ui.section_header("Other risks from management's discussion (not compared to last year)", counts["Other risks"])
+                 + ui.section_state(secs["other_risks"], "other_risks")
+                 + ui.findings_list(secs["other_risks"]["items"], "other_risk"))
+    html += (ui.section_header("8-K events", len(secs["events"]["items"]), f"Last {sec_data.EIGHT_K_WINDOW_DAYS} days · dates and item numbers from EDGAR; headlines and summaries by Claude")
+             + ui.section_state(secs["events"], "events") + ui.event_list(secs["events"]["items"]))
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def render_failure(ticker: str, reason: str) -> None:
     st.markdown(f"<div class='irt-card tone-negative'><div class='irt-card-title'>Couldn't analyze {ui.esc(ticker)}</div>"
                 f"<p class='irt-card-body'>{ui.esc(reason)}</p></div>", unsafe_allow_html=True)
+
+
+def run_state(p: dict) -> tuple:
+    """Progress chip for a finished ticker: done, or partial when any piece failed or was cut off."""
+    partial = (p["analysis"]["response_status"] != "complete" or p["financials"]["status"] != "ok"
+               or any(c["status"] == "failed" for c in p["evidence"]))
+    return ("partial", "partial results") if partial else ("done", "")
 
 
 # --- RUN: SKELETONS FIRST, THEN EACH TICKER FILLS IN AS IT FINISHES ---
@@ -412,17 +441,16 @@ elif run_btn:
     profiles, failures = {}, {}
     for t in tickers:
         started = time.time()
-        try:
-            statuses[t] = ("working", "reading SEC filings")
-            strip.markdown(ui.progress_strip(statuses), unsafe_allow_html=True)
-            slots[t].markdown(ui.skeleton(t, "Reading SEC filings (step 1 of 2)"), unsafe_allow_html=True)
-            payload = fetch_firm_data(t)
 
-            statuses[t] = ("working", "summarizing with Claude")
+        def progress(step, t=t):
+            statuses[t] = ("working", step.split(" (")[0].lower())
             strip.markdown(ui.progress_strip(statuses), unsafe_allow_html=True)
-            slots[t].markdown(ui.skeleton(t, "Summarizing filings with Claude (step 2 of 2)"), unsafe_allow_html=True)
-            profiles[t] = extract_unified_profile(payload)
-            statuses[t] = ("done", f"{time.time() - started:.0f}s")
+            slots[t].markdown(ui.skeleton(t, step), unsafe_allow_html=True)
+
+        try:
+            profiles[t] = analyze_ticker(t, ticker_ciks[t], progress)
+            state, label = run_state(profiles[t])
+            statuses[t] = (state, f"{label + ', ' if label else ''}{time.time() - started:.0f}s")
         except TickerFailure as e:
             failures[t] = str(e)
         except Exception as e:
@@ -440,7 +468,7 @@ elif run_btn:
     # Keep the results so a download, preset click or ticker change doesn't wipe them
     st.session_state.results = {
         "tickers": tickers, "profiles": profiles, "failures": failures,
-        "run_at": datetime.now(ZoneInfo("America/New_York")),
+        "run_at": datetime.now(ET),
     }
     st.rerun()  # redraw once from session state: summary row and download button on top
 
@@ -450,15 +478,17 @@ results = st.session_state.get("results")
 if results:
     profiles, failures = results["profiles"], results["failures"]
     done = [t for t in results["tickers"] if t in profiles]
+    partial = [t for t in done if run_state(profiles[t])[0] == "partial"]
 
     col_sum, col_dl = st.columns([4, 1])
     col_sum.markdown(
-        f"<p class='irt-subtitle'>Results for {ui.esc(', '.join(results['tickers']))} · "
-        f"run {results['run_at']:%b %d, %I:%M %p} ET · {len(done)} of {len(results['tickers'])} succeeded</p>",
+        f"<p class='irt-subtitle irt-mark-results'>Results for {ui.esc(', '.join(results['tickers']))} · "
+        f"run {results['run_at']:%b %d, %I:%M %p} ET · {len(done)} of {len(results['tickers'])} succeeded"
+        + (f" ({len(partial)} with partial results)" if partial else "") + "</p>",
         unsafe_allow_html=True)
     if profiles:
         col_dl.download_button("Download Excel", data=generate_excel([profiles[t] for t in done]),
-                               file_name="Institutional_Model.xlsx", use_container_width=True,
+                               file_name=f"Research_Record_{'_'.join(done)}_{results['run_at']:%Y-%m-%d}.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     if sorted(st.session_state.ticker_select) != sorted(results["tickers"]):
         st.caption("Your ticker selection changed. Click Run analysis to update these results.")
@@ -473,6 +503,6 @@ else:
     st.markdown(
         "<div class='irt-card' style='margin-top:16px'><div class='irt-card-title'>Pick up to five tickers and click Run analysis</div>"
         "<p class='irt-card-body'>For each stock you get price history with SEC filing dates, AI summaries of catalysts and risks "
-        "with the filing excerpts behind them, recent 8-K events, questions for management, and an Excel download. "
-        "A run reads several filings and takes about 35 seconds per ticker the first time.</p></div>",
+        "with the filing excerpts behind them, and recent 8-K events, and an Excel download. "
+        "A first run reads several filings and takes about a minute per ticker.</p></div>",
         unsafe_allow_html=True)

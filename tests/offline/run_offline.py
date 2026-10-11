@@ -10,8 +10,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+import os  # noqa: E402
+
 import mocks  # noqa: E402
 
+os.environ.setdefault("SEC_CONTACT_EMAIL", "offline-test@example.com")  # app.py requires a contact; no request leaves this machine
 mocks.install()
 import anthropic  # noqa: E402
 

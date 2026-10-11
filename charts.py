@@ -1,4 +1,4 @@
-"""Price chart for the Institutional Research Terminal.
+"""Price chart for the SEC Filing Research Terminal.
 
 Drawing only: no Streamlit, no yfinance, no network calls. app.py fetches the data
 (get_price_history) and passes it in, so this module can be tested with any DataFrame
