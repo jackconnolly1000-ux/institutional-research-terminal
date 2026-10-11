@@ -8,8 +8,9 @@ Then:
 
 Runs AAPL + FAST + STRL twice in one browser session and prints a JSON report per run and tab.
 Expected: run 1 shows the simulated Yahoo and 8-K failures for AAPL, no annual comparison for FAST,
-and an incomplete answer for STRL. Run 2 recovers AAPL's market data and 8-K (they weren't cached)
-and still reports STRL as incomplete (a cut-off answer is never cached as complete).
+and an incomplete answer for STRL. Run 2 recovers AAPL's market data and 8-K (they weren't cached).
+STRL's cut-off answer isn't cached, so run 2 tries it again; with the $0.25 daily cap the three run-1 calls leave
+too little room, so STRL is skipped by the spending limit.
 """
 import json
 import sys
