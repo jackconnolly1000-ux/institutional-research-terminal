@@ -4,19 +4,19 @@ The one place colors are defined. ui.py turns these into CSS variables, charts.p
 in Plotly, and .streamlit/config.toml repeats the five base colors (TOML can't import Python).
 
 Semantic colors are named by MEANING, not by hue. Use them only when the color carries meaning:
-    POSITIVE  price up, a check that passed ("Excerpt matched"), a finished step
+    POSITIVE  price up (chart candles)
     NEGATIVE  price down, errors and failures
-    CAUTION   warnings: "Figures to check", incomplete answers, partial results
-    INFO      neutral facts: SEC filing markers, 8-K categories, the "no close match" label
+    CAUTION   notice cards for incomplete answers and partial results
+    INFO      SEC filing markers on the chart, links
     ACCENT    interactive: primary button, selected state
 Everything else (metrics, body text, cards) stays neutral. Margins and P/E get no color:
 a number isn't good or bad on its own. AI judgments such as impact get no color either; they are plain text.
 
 Each semantic color has two shades:
-    *_SOLID  fills, borders, candles, chips' left edge
+    *_SOLID  fills, borders, candles, a notice card's left edge
     *_TEXT   text on dark backgrounds; every one is at least 4.5:1 against SURFACE and against
              its own 16% tint (WCAG AA for normal text). Contrast values checked Oct 10, 2026.
-Color never carries meaning alone: every chip says what it means in words.
+Color never carries meaning alone, and labels are plain text: the app draws no pills or badges.
 """
 
 # Neutral surfaces and text
@@ -24,6 +24,7 @@ BG = "#131722"            # page background
 SURFACE = "#1e222d"       # cards, metric tiles
 SURFACE_HOVER = "#262b38"
 BORDER = "#2a2e39"
+BORDER_STRONG = "#454b5a"  # outline of an expanded finding row, so it reads as one container
 TEXT = "#d1d4dc"          # body text: 10.7:1 on SURFACE
 TEXT_STRONG = "#f8fafc"   # headings, key numbers
 TEXT_MUTED = "#9598a1"    # labels, sources, captions: 5.5:1 on SURFACE (the old #787b86 was 3.8:1)

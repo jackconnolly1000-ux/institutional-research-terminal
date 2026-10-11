@@ -8,6 +8,7 @@ output can contain "<", "&" or "$", and unsafe_allow_html=True renders whatever 
 from __future__ import annotations
 
 import html
+import re
 
 import streamlit as st
 
@@ -42,6 +43,11 @@ TONES = {  # tone name -> (solid edge, text color, chip background)
 }
 
 
+# Column-count classes for the metrics panel (see the CSS comment there); up to 6 tiles per panel
+_GRID_CSS = " ".join(f".irt-cols-{n} {{ grid-template-columns: repeat({n}, minmax(0, 1fr)); }} "
+                     f".irt-span-{n} {{ grid-column: span {n}; }}" for n in range(1, 7))
+
+
 def inject_css() -> None:
     tone_css = "\n".join(
         f".tone-{name} {{ --tone-edge: {edge}; --tone-text: {text}; --tone-bg: {bg}; }}"
@@ -50,6 +56,7 @@ def inject_css() -> None:
     st.markdown(f"""<style>
 :root {{
   --bg: {T.BG}; --surface: {T.SURFACE}; --surface-hover: {T.SURFACE_HOVER}; --border: {T.BORDER};
+  --border-strong: {T.BORDER_STRONG}; --link: {T.INFO_TEXT};
   --text: {T.TEXT}; --text-strong: {T.TEXT_STRONG}; --text-muted: {T.TEXT_MUTED}; --accent: {T.ACCENT};
   --font: {T.FONT_STACK};
 }}
@@ -60,31 +67,54 @@ def inject_css() -> None:
 .stApp h5, .stApp label, .stApp input, .stApp button, .stApp summary {{ font-family: var(--font); }}
 .stApp code, .stApp pre {{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }}
 .stApp {{ background: var(--bg); }}
+/* Streamlit draws a red-to-yellow gradient line across the top of every app; it carries no meaning */
+[data-testid="stDecoration"] {{ display: none; }}
 /* Streamlit's default top padding is about 6rem; the toolbar should sit near the top */
 .main .block-container {{ padding-top: 2.2rem; padding-bottom: 3rem; }}
-.irt-header {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 0 0 10px 0; }}
-h1.irt-title {{ font-size: 1.3rem; font-weight: 650; color: var(--text-strong); margin: 0; padding: 0; letter-spacing: -0.01em; }}
-.irt-header .irt-sub {{ color: var(--text-muted); font-size: 0.85rem; }}
-p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 10px 0; font-size: 0.85rem; }}
+/* Page header: title, then a one-line description under it. A div, not an h1: Streamlit adds a
+   link-anchor icon to markdown headings, which pushed the description sideways. */
+.irt-header {{ margin: 0 0 14px 0; }}
+.irt-title {{ font-size: 1.4rem; font-weight: 700; color: var(--text-strong); line-height: 1.25; letter-spacing: -0.01em; }}
+.irt-header .irt-sub {{ color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }}
+p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 
-/* Buttons: one filled primary action (Run). Everything else is outlined. */
-.stButton button[kind="secondary"] {{ background: transparent; border: 1px solid var(--border); color: var(--text);
-  min-height: 0; padding: 0.2rem 0.75rem; font-size: 0.85rem; }}
-.stButton button[kind="secondary"]:hover {{ background: var(--surface); border-color: var(--text-muted); color: var(--text-strong); }}
+/* Buttons: one filled primary action (Run). Everything else, including Download, is outlined and compact. */
+.stButton button[kind="secondary"], .stDownloadButton button {{ background: transparent; border: 1px solid var(--border);
+  color: var(--text); min-height: 0; padding: 0.3rem 0.85rem; font-size: 0.85rem; white-space: nowrap; }}
+.stButton button[kind="secondary"]:hover, .stDownloadButton button:hover {{ background: var(--surface);
+  border-color: var(--text-muted); color: var(--text-strong); }}
 .stButton button[kind="primary"] {{ font-weight: 600; }}
+/* A clicked button keeps focus, and Streamlit draws a heavy ring on it (the outlined Download box). Keep the ring
+   for keyboard users only. */
+.stButton button:focus:not(:focus-visible), .stDownloadButton button:focus:not(:focus-visible) {{ box-shadow: none; outline: none; }}
+/* Rows of compact buttons (examples) and the results bar: Streamlit columns have fixed widths, so a long label
+   wrapped inside its column. A marker span in the row lets CSS size these columns to their content instead. */
+[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) {{ flex-wrap: wrap; gap: 8px; align-items: center; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) > [data-testid="column"] {{ flex: 0 0 auto !important; width: auto !important; min-width: 0; }}
+.irt-mark-examples {{ color: var(--text-muted); font-size: 0.85rem; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) {{ align-items: center; flex-wrap: wrap; gap: 8px 16px;
+  padding: 10px 0; margin-top: 6px; border-top: 1px solid var(--border); }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"]:first-child {{ flex: 1 1 260px !important; width: auto !important; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"]:last-child {{ flex: 0 0 auto !important; width: auto !important; }}
+/* Streamlit gives each element inside a column a fixed pixel width and gives markdown a negative bottom margin;
+   in these two rows that kept the text column full width and made the button overlap it */
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"],
+[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) > [data-testid="column"] {{ min-width: 0 !important; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) [data-testid="element-container"],
+[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) [data-testid="element-container"] {{ width: auto !important; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) [data-testid="stMarkdownContainer"],
+[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) [data-testid="stMarkdownContainer"] p {{ margin: 0; }}
 
 /* Tabs */
 .stTabs [data-baseweb="tab"] {{ font-weight: 600; }}
 
-/* Cards and chips */
+/* Cards (notices and failures). No pills or badges anywhere: labels are plain text. */
 .irt-card {{ background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--tone-edge, var(--border));
   border-radius: 6px; padding: 12px 14px; margin: 0 0 10px 0; }}
 .irt-card-head {{ display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }}
 .irt-card-title {{ color: var(--text-strong); font-weight: 600; font-size: 0.95rem; line-height: 1.35; }}
 .irt-card-body {{ color: var(--text); font-size: 0.9rem; line-height: 1.5; margin: 6px 0 0 0; }}
-.irt-chips {{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }}
-.irt-chip {{ display: inline-block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; line-height: 1.6;
-  padding: 0 8px; border-radius: 999px; color: var(--tone-text); background: var(--tone-bg); max-width: 100%; }}
 .irt-card details {{ margin-top: 8px; }}
 .irt-card summary {{ color: var(--text-muted); font-size: 0.8rem; cursor: pointer; }}
 .irt-card summary:hover {{ color: var(--text); }}
@@ -103,62 +133,100 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 10px 0; font-size: 0.8
 .irt-company .nm {{ font-size: 1.05rem; color: var(--text); }}
 .irt-company .meta {{ font-size: 0.85rem; color: var(--text-muted); }}
 
-/* Metric tiles, grouped by what they measure */
-/* One panel; groups are split by a divider and headed in body text color, so they read as separate from the
-   tile labels inside them (muted, smaller). Tiles have no card of their own. */
-.irt-metrics {{ display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; }}
-.irt-group {{ flex: var(--tiles, 1) 1 0; min-width: 0; padding: 12px 20px; }}
+/* Metrics panel: one grid. Columns: every tile the same width whichever group it's in. Rows: group heading, label,
+   value, period; groups and tiles use CSS subgrid, so every label, value and period line sits on the same row across
+   the panel even when a heading or period wraps. The source line is said once, at the foot. Column counts are classes,
+   not inline CSS variables: Streamlit drops custom properties from inline styles. */
+.irt-metrics {{ display: grid; grid-template-rows: auto auto auto auto auto; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; }}
+.irt-group {{ display: grid; grid-template-columns: subgrid; grid-template-rows: subgrid; grid-row: 1 / span 4;
+  padding: 14px 0 14px; min-width: 0; }}
 .irt-group + .irt-group {{ border-left: 1px solid var(--border); }}
-.irt-group-head {{ color: var(--text); font-size: 0.9rem; font-weight: 600; }}
-.irt-group-caption {{ color: var(--text-muted); font-size: 0.72rem; margin: 2px 0 10px 0; }}
+.irt-group-head {{ grid-column: 1 / -1; grid-row: 1; padding: 0 20px 10px; color: var(--text); font-size: 0.85rem; font-weight: 600; }}
+.irt-tile {{ display: contents; }}
+.irt-tile .lbl, .irt-tile .val, .irt-tile .src {{ padding: 0 20px; min-width: 0; }}
+.irt-tile .lbl {{ grid-row: 2; color: var(--text-muted); font-size: 0.78rem; }}
+.irt-tile .val {{ grid-row: 3; color: var(--text-strong); font-size: 1.25rem; font-weight: 650; font-variant-numeric: tabular-nums;
+  margin-top: 2px; }}
+.irt-tile .src {{ grid-row: 4; color: var(--text-muted); font-size: 0.72rem; margin-top: 2px; line-height: 1.35; }}  /* wraps, never clipped */
+.irt-metrics-foot {{ grid-column: 1 / -1; grid-row: 5; border-top: 1px solid var(--border); padding: 8px 20px;
+  color: var(--text-muted); font-size: 0.72rem; }}
+{_GRID_CSS}
+/* Narrower screens: groups stack; tiles share three columns so they still line up across groups */
 @media (max-width: 900px) {{
-  .irt-metrics {{ flex-direction: column; }}
+  .irt-metrics {{ grid-template-columns: 1fr !important; grid-template-rows: none; }}
+  .irt-group {{ grid-column: 1 / -1; grid-row: auto; grid-template-rows: none; grid-template-columns: repeat(3, minmax(0, 1fr)); }}
   .irt-group + .irt-group {{ border-left: 0; border-top: 1px solid var(--border); }}
+  .irt-metrics-foot {{ grid-row: auto; }}
 }}
-.irt-tiles {{ display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 16px; }}
-.irt-tile {{ min-width: 0; }}
-.irt-tile .lbl {{ color: var(--text-muted); font-size: 0.78rem; }}
-.irt-tile .val {{ color: var(--text-strong); font-size: 1.2rem; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }}
-.irt-tile .src {{ color: var(--text-muted); font-size: 0.7rem; margin-top: 4px; line-height: 1.35; }}  /* wraps: periods and sources are never clipped */
 
-/* 8-K timeline */
-.irt-event {{ display: grid; grid-template-columns: 96px 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }}
-.irt-event:last-child {{ border-bottom: none; }}
-.irt-event .date {{ color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 0.85rem; padding-top: 2px; }}
-.irt-event details {{ margin-top: 2px; }}
-
-/* Finding rows: one compact row per finding; expanding needs no rerun (HTML details) */
-.irt-list {{ border: 1px solid var(--border); border-radius: 6px; background: var(--surface); margin-bottom: 8px; }}
-.irt-row {{ border-top: 1px solid var(--border); }}
-.irt-row:first-child {{ border-top: 0; }}
-.irt-row > summary {{ display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 10px 14px; cursor: pointer; list-style: none; }}
+/* Finding rows: each finding is its own card, so an expanded one visibly holds its details.
+   Expanding needs no rerun (HTML details). */
+.irt-list {{ display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }}
+.irt-row {{ background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }}
+.irt-row > summary {{ display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 12px 16px; cursor: pointer; list-style: none; }}
 .irt-row > summary::-webkit-details-marker {{ display: none; }}
 .irt-row > summary:hover {{ background: var(--surface-hover); }}
-.irt-row .badges {{ display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }}
-.irt-impact {{ color: var(--text-muted); font-size: 0.75rem; font-weight: 600; margin-right: 2px; }}
+.irt-row > summary:focus {{ outline: none; }}
+.irt-row > summary:focus-visible {{ outline: 2px solid var(--accent); outline-offset: -2px; }}
+/* Open: stronger outline, an accent bar down the left edge of the whole card, and a divider between the row and its details */
+.irt-row {{ position: relative; }}
+.irt-row[open] {{ border-color: var(--border-strong); }}
+.irt-row[open]::before {{ content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); z-index: 1; }}
+.irt-row[open] > summary {{ background: var(--surface-hover); }}
+/* One line of plain text above the headline: impact, change label, checks */
+.irt-row .row-meta {{ color: var(--text-muted); font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; }}
+.irt-row .row-meta:empty {{ display: none; }}
 .irt-row .row-head {{ color: var(--text-strong); font-weight: 600; font-size: 0.95rem; line-height: 1.35; }}
-.irt-row .row-text {{ color: var(--text); font-size: 0.86rem; line-height: 1.45; margin-top: 3px; }}
-.irt-row .impl-label {{ color: var(--text-muted); font-weight: 600; }}
-.irt-row .row-src {{ color: var(--text-muted); font-size: 0.75rem; text-align: right; white-space: nowrap; }}
-.irt-row .chev {{ display: inline-block; margin-left: 8px; transition: transform .15s; }}
-.irt-row[open] .chev {{ transform: rotate(90deg); }}
-.irt-row .row-body {{ padding: 0 14px 14px; font-size: 0.86rem; line-height: 1.5; color: var(--text); }}
-.irt-row .row-body p {{ margin: 6px 0 0 0; }}
-.irt-row blockquote {{ margin: 8px 0 0 0; padding: 6px 10px; border-left: 2px solid var(--border); color: var(--text-muted); }}
-.irt-row a {{ color: {T.INFO_TEXT}; }}
+.irt-row .row-text {{ color: var(--text); font-size: 0.86rem; line-height: 1.5; margin-top: 4px; max-width: 72ch; }}
+/* Small headings inside a row ("Potential implication", "Detail", "Filing excerpt"), each on its own line, with the
+   content indented beneath a thin rule */
+.irt-row .sub-label {{ color: var(--text-muted); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; margin: 0 0 4px 0; }}
+.irt-row .impl {{ margin-top: 12px; max-width: 72ch; }}
+.irt-row .impl-body, .irt-row .sub-body {{ border-left: 2px solid var(--border); padding-left: 12px; color: var(--text);
+  font-size: 0.86rem; line-height: 1.5; }}
+.irt-row .irt-sub {{ margin-top: 16px; max-width: 80ch; }}
+.stApp .irt-row .sub-body > p:first-child, .stApp .irt-row .sub-body > blockquote:first-child,
+.stApp .irt-row .sub-body > ul:first-child {{ margin-top: 0; }}
+.stApp .irt-row ul.irt-points {{ margin: 0; padding-left: 1.1rem; }}
+.stApp .irt-row ul.irt-points li {{ font-size: 0.86rem; line-height: 1.5; margin: 0 0 4px 0; }}
+.irt-row .row-src {{ color: var(--text-muted); font-size: 0.75rem; text-align: right; white-space: nowrap;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }}
+/* The toggle says what a click does; the words change with the state (details/summary already tells screen readers) */
+.irt-row .toggle {{ color: var(--link); font-weight: 600; }}
+.irt-row .toggle::before {{ content: "Show details"; }}
+.irt-row[open] .toggle::before {{ content: "Hide details"; }}
+.irt-row .toggle::after {{ content: "›"; display: inline-block; margin-left: 6px; transition: transform .15s; }}
+.irt-row[open] .toggle::after {{ transform: rotate(90deg); }}
+.irt-row .row-body {{ border-top: 1px solid var(--border); margin: 0 16px; padding: 4px 0 16px;
+  font-size: 0.86rem; line-height: 1.5; color: var(--text); }}
+/* Streamlit's own markdown styles set p and blockquote to 1rem; these selectors outrank them so details aren't
+   larger than the row they belong to */
+.stApp .irt-row .row-body p, .stApp .irt-row .row-body blockquote {{ font-size: 0.86rem; line-height: 1.5; }}
+.stApp .irt-row .row-body p {{ margin: 8px 0 0 0; }}
+.stApp .irt-row .row-body p.irt-note {{ font-size: 0.8rem; }}
+.irt-row blockquote {{ margin: 10px 0 0 0; padding: 0; border: 0; color: var(--text-muted); font-style: italic; }}
+.irt-row a {{ color: var(--link); }}
 .irt-row .phone-only {{ display: none; }}
 .irt-criteria {{ font-size: 0.8rem; color: var(--text-muted); margin: 0 0 8px 0; }}
 .irt-criteria summary {{ cursor: pointer; }}
 .irt-criteria ul {{ margin: 6px 0 0 0; padding-left: 1.1rem; line-height: 1.5; }}
-@media (prefers-reduced-motion: reduce) {{ .irt-row .chev {{ transition: none; }} }}
-/* Phones: a collapsed row is badges and headline; summary and implication move into the expanded row */
+@media (prefers-reduced-motion: reduce) {{ .irt-row .toggle::after {{ transition: none; }} }}
+/* Phones: a collapsed row is the meta line and headline; summary and implication move into the expanded row */
 @media (max-width: 640px) {{
-  .main .block-container {{ padding-top: 1.2rem; }}
-  .irt-row > summary {{ grid-template-columns: 1fr; }}
-  .irt-row .row-src {{ text-align: left; white-space: normal; order: -1; }}
+  /* Streamlit's toolbar overlaps the top of the page on phones; this keeps the title clear of it */
+  .main .block-container {{ padding-top: 3.2rem; }}
+  .irt-row > summary {{ grid-template-columns: 1fr; padding: 12px 14px; }}
+  .irt-row .row-src {{ text-align: left; white-space: normal; order: -1; flex-direction: row; justify-content: space-between;
+    align-items: baseline; }}
+  .irt-row .row-body {{ margin: 0 14px; }}
   .irt-row .desk-only {{ display: none; }}
   .irt-row .phone-only {{ display: block; }}
-  .irt-tiles {{ grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+  /* Two columns: tiles become ordinary blocks, so a third tile wraps to a new row instead of adding a column */
+  .irt-group {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+  .irt-tile {{ display: block; padding: 0 16px 14px; }}
+  .irt-tile .lbl, .irt-tile .val, .irt-tile .src {{ padding: 0; }}
+  .irt-group-head, .irt-metrics-foot {{ padding-left: 16px; padding-right: 16px; }}
 }}
 
 /* Evidence list */
@@ -168,8 +236,9 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 10px 0; font-size: 0.8
 .irt-evidence ul {{ list-style: none; padding: 0; margin: 8px 0; }}
 .irt-evidence li {{ padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; color: var(--text); }}
 .irt-evidence .sid {{ display: inline-block; min-width: 64px; color: var(--text-muted); font-variant-numeric: tabular-nums; }}
-.irt-card a, .irt-evidence a {{ color: var(--accent-text, #7aa2ff); }}
-.irt-state.tone-caution {{ color: var(--tone-text); }}
+.irt-card a, .irt-evidence a {{ color: var(--link); }}
+.irt-evidence .ev-status {{ color: var(--text-muted); }}
+.irt-evidence .ev-status.problem, .irt-progress .problem {{ color: var(--text-strong); font-weight: 600; }}
 
 /* Numbered lists: unchanged and removed risk-factor paragraphs */
 ol.irt-ol {{ margin: 0; padding-left: 1.3rem; }}
@@ -180,8 +249,8 @@ ol.irt-ol li {{ color: var(--text); font-size: 0.92rem; line-height: 1.5; margin
 .stMultiSelect [data-baseweb="tag"] span {{ max-width: none; }}
 
 /* Run progress strip */
-.irt-progress {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px 0; }}
-.irt-progress .irt-chip {{ font-size: 0.78rem; padding: 2px 10px; }}
+.irt-progress {{ display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 4px 0 12px 0; color: var(--text-muted); font-size: 0.85rem; }}
+.irt-progress b {{ color: var(--text); font-weight: 600; margin-right: 4px; }}
 
 /* Skeleton loaders: gray blocks shaped like the content that's coming, so the layout doesn't jump */
 .sk {{ background: var(--surface); animation: sk-pulse 1.6s ease-in-out infinite; border-radius: 6px; }}
@@ -190,10 +259,6 @@ ol.irt-ol li {{ color: var(--text); font-size: 0.92rem; line-height: 1.5; margin
 .sk-status {{ color: var(--text-muted); font-size: 0.85rem; margin: 0 0 12px 0; }}
 .sk-row {{ display: grid; gap: 8px; }}
 </style>""", unsafe_allow_html=True)
-
-
-def chip(text: str, tone: str = "neutral") -> str:
-    return f'<span class="irt-chip tone-{tone}">{esc(text)}</span>'
 
 
 def section_header(title: str, count: int | None = None, note: str | None = None) -> str:
@@ -212,7 +277,7 @@ def format_metric(value, unit: str) -> str:
     if value is None:
         return "—"
     if unit == "fraction":
-        return f"{value * 100:.2f}%"
+        return f"{value * 100:.1f}%"
     if unit == "multiple":
         return f"{value:.1f}x"
     for size, suffix in ((1e12, "T"), (1e9, "B"), (1e6, "M")):
@@ -222,17 +287,22 @@ def format_metric(value, unit: str) -> str:
 
 
 def metric_tiles(groups: list) -> str:
-    """groups: [(heading, caption, [(label, value, period line), ...]), ...]. One panel, one section per group."""
+    """groups: [(heading, caption, [(label, value, period line), ...]), ...]. One panel; each group spans as many of the
+    panel's equal columns as it has tiles. Captions (source and retrieval time) go once in the panel's foot: one line
+    when every group shares a source, otherwise one per group."""
     if not groups:
         return ""
     out = []
-    for heading, caption, tiles in groups:
+    for heading, _, tiles in groups:
         cells = "".join(
             f'<div class="irt-tile"><div class="lbl">{esc(lbl)}</div><div class="val">{esc(val)}</div>'
             f'<div class="src">{esc(period)}</div></div>' for lbl, val, period in tiles)
-        out.append(f'<section class="irt-group" style="--tiles:{len(tiles)}"><div class="irt-group-head">{esc(heading)}</div>'
-                   f'<div class="irt-group-caption">{esc(caption)}</div><div class="irt-tiles">{cells}</div></section>')
-    return f'<div class="irt-metrics">{"".join(out)}</div>'
+        out.append(f'<section class="irt-group irt-span-{len(tiles)}"><div class="irt-group-head">{esc(heading)}</div>{cells}</section>')
+    captions = [c for _, c, _ in groups]
+    foot = captions[0] if len(set(captions)) == 1 else " · ".join(f"{h}: {c}" for h, c, _ in groups)
+    total = sum(len(t) for _, _, t in groups)
+    return (f'<div class="irt-metrics irt-cols-{total}">{"".join(out)}'
+            f'<div class="irt-metrics-foot">Source: {esc(foot)}</div></div>')
 
 
 def notice(title: str, body: str, tone: str = "neutral") -> str:
@@ -289,8 +359,7 @@ def analysis_banner(a: dict) -> str:
 
 _STATUS_LABEL = {"found": "Extracted", "no_material_changes": "No material changes reported", "not_applicable": "Not applicable",
                  "missing": "Section not found", "failed": "Download failed", "none_in_window": "None in window"}
-_STATUS_TONE = {"found": "positive", "no_material_changes": "neutral", "not_applicable": "neutral",
-                "missing": "caution", "failed": "negative", "none_in_window": "neutral"}
+_PROBLEM = {"missing", "failed"}   # shown in stronger text, not color
 
 
 def evidence_list(coverage: list, comparison: dict, budget: dict | None) -> str:
@@ -311,12 +380,13 @@ def evidence_list(coverage: list, comparison: dict, budget: dict | None) -> str:
         cut = (f' · sent {c["sent_chars"]:,} of {c["chars"]:,} characters' if c["omitted_chars"]
                else (f' · {c["chars"]:,} characters' if c["chars"] else ""))
         note = f'<div class="irt-note" style="margin:2px 0 0 0">{esc(c["note"])}</div>' if c["note"] and c["status"] != "found" else ""
-        label, tone = _STATUS_LABEL.get(c["status"], c["status"]), _STATUS_TONE.get(c["status"], "neutral")
+        label = _STATUS_LABEL.get(c["status"], c["status"])
         if c.get("compared"):
-            label, tone = "Compared in code, not sent", "neutral"
+            label = "Compared in code, not sent"
         elif c["id"] == "R_CMP":
             label = "Changes sent"
-        rows.append(f'<li><span class="sid">{esc(c["id"] or "–")}</span> {esc(c["role"])} {chip(label, tone)}'
+        status = f'<span class="ev-status{" problem" if c["status"] in _PROBLEM and not c.get("compared") else ""}">{esc(label)}</span>'
+        rows.append(f'<li><span class="sid">{esc(c["id"] or "–")}</span> {esc(c["role"])} · {status}'
                     f'<div class="irt-note" style="margin:2px 0 0 0">{link}{esc(cut)}</div>{note}</li>')
     if comparison["status"] == "available" and comparison["removed"]:
         removed = "".join(f"<li>{esc(t)}</li>" for t in comparison["removed"])
@@ -348,32 +418,35 @@ def section_state(sec: dict, name: str) -> str:
     }.get(status, "")
     if status == "complete" and dropped:
         msg = f"{dropped} item{'s' * (dropped != 1)} rejected by validation and not shown."
-    tone = "neutral" if status in ("empty", "no_input", "complete") else "caution"
-    return f'<p class="irt-note irt-state tone-{tone}">{esc(msg)}</p>' if msg else ""
+    return f'<p class="irt-note irt-state">{esc(msg)}</p>' if msg else ""
 
 
-EXCERPT_NOTE = {"matched": "The quoted words appear in this filing. That does not confirm the interpretation above.",
-                "not_matched": "The code couldn't find these words in the cited filing."}
+EXCERPT_NOTE = {"matched": "Excerpt check: matched. The quoted words appear in this filing. That does not confirm the "
+                           "interpretation above.",
+                "not_matched": "Excerpt check: not matched. The code couldn't find these words in the cited filing.",
+                "too_short": "Excerpt check: too short to check.",
+                "no_quote": "No excerpt given."}
+
+
+def _section(label: str, inner: str) -> str:
+    """A labeled block inside an expanded row: a small heading on its own line, its content indented below."""
+    return f'<div class="irt-sub"><div class="sub-label">{esc(label)}</div><div class="sub-body">{inner}</div></div>'
 
 
 def _excerpt_block(item: dict) -> str:
-    """Quote, its check, the caveat, and the source links, shown inside an expanded row."""
+    """Quote, its check, the caveat, and the source links, shown inside an expanded row. All plain text."""
     src, ex = item.get("source", {}), item.get("excerpt", {})
-    label = {"matched": ("Excerpt matched", "positive"),
-             "not_matched": ("Excerpt not matched in the cited source", "caution"),
-             "too_short": ("Excerpt too short to check", "neutral"),
-             "no_quote": ("No excerpt given", "neutral")}.get(ex.get("status"), ("Excerpt not checked", "neutral"))
     elsewhere = f' Found instead in {", ".join(ex["found_in"])}.' if ex.get("found_in") else ""
     link = (f'<a href="{esc(src["url"])}" target="_blank" rel="noopener">{esc(src.get("label", "filing"))}</a>'
             if src.get("url") else esc(src.get("label", "")))
-    others = "".join(f'<p class="irt-note" style="margin:2px 0 0 0">Figures also from {esc(o.get("role", ""))}: '
+    others = "".join(f'<p class="irt-note">Figures also from {esc(o.get("role", ""))}: '
                      f'<a href="{esc(o["url"])}" target="_blank" rel="noopener">{esc(o.get("label", ""))}</a></p>'
                      for o in item.get("other_sources", []) if o.get("url"))
-    note = (f'<p class="irt-note" style="margin:6px 0 0 0">{esc(EXCERPT_NOTE[ex["status"]] + elsewhere)}</p>'
-            if ex.get("status") in EXCERPT_NOTE else "")
-    return (f'<blockquote>{esc(item.get("quote", ""))}</blockquote>'
-            f'<div class="irt-chips">{chip(label[0], label[1])}</div>{note}'
-            f'<p class="irt-note" style="margin:4px 0 0 0">{esc(src.get("role", ""))}: {link}</p>{others}')
+    check = EXCERPT_NOTE.get(ex.get("status"), "Excerpt not checked.") + elsewhere
+    return _section("Filing excerpt",
+                    f'<blockquote>{esc(item.get("quote", ""))}</blockquote>'
+                    f'<p class="irt-note excerpt-check">{esc(check)}</p>'
+                    f'<p class="irt-note">{esc(src.get("role", ""))}: {link}</p>{others}')
 
 
 CATEGORY_LABELS = {"DEMAND": "Demand", "PRICING_MARGINS": "Pricing and margins", "COSTS_SUPPLY_CHAIN": "Costs and supply chain",
@@ -387,18 +460,41 @@ CATEGORY_LABELS = {"DEMAND": "Demand", "PRICING_MARGINS": "Pricing and margins",
 
 def _wording(item: dict) -> str:
     flags = item.get("wording_flags") or []
-    return (f'<p class="irt-note" style="margin:6px 0 0 0">Wording check: {esc(", ".join(flags))} '
-            "(words the quality standard bans; left as Claude wrote them).</p>" if flags else "")
+    return _section("Wording check", f'<p>{esc(", ".join(flags))} (words the quality standard bans; left as Claude '
+                                     'wrote them).</p>') if flags else ""
 
 
 def _figures_flag(item: dict) -> str:
-    """Figures in the finding that the code couldn't find in the cited source. Shown on the card, not hidden:
+    """Figures in the finding that the code couldn't find in the cited source. Shown on the row, not hidden:
     some are fair calculations (a percent change), others mean the finding rests on another source."""
     missing = item.get("unsupported_figures") or []
     if not missing:
         return ""
-    return (f'<div class="irt-chips">{chip("Figures not found in the cited source: " + ", ".join(missing), "caution")}</div>'
-            '<p class="irt-note" style="margin:4px 0 0 0">Some may be calculations from the source, such as a percent change. Check them against the filing.</p>')
+    return _section("Figures to check", f'<p>Not found in the cited source: {esc(", ".join(missing))}.</p>'
+                    '<p class="irt-note">Some may be calculations from the source, such as a percent change. '
+                    'Check them against the filing.</p>')
+
+
+_ABBREV = re.compile(r"(\b[A-Z]\.|\b(?:Inc|Corp|Co|Ltd|No|vs|approx|e\.g|i\.e|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)\.)$")
+
+
+def sentences(text: str) -> list[str]:
+    """Split AI text into sentences without changing a word. A break after "U.S." or "Inc." is not a sentence end."""
+    parts, out = re.split(r"(?<=[.!?])\s+(?=[A-Z0-9$(\"“])", (text or "").strip()), []
+    for p in parts:
+        if out and _ABBREV.search(out[-1]):
+            out[-1] += " " + p
+        else:
+            out.append(p)
+    return [p for p in out if p]
+
+
+def _paragraphs(text: str) -> str:
+    """One sentence: a paragraph. Several: one short point per sentence, so the detail isn't a block of text."""
+    parts = sentences(text)
+    if len(parts) <= 1:
+        return f'<p>{esc(text)}</p>'
+    return '<ul class="irt-points">' + "".join(f"<li>{esc(p)}</li>" for p in parts) + "</ul>"
 
 
 def source_short(src: dict) -> str:
@@ -413,33 +509,36 @@ def source_short(src: dict) -> str:
     return f"{form} · filed {fmt(src.get('filed'))}" if form else ""
 
 
-def _row(badges: str, headline: str, text_html: str, src: dict, body: str, kind: str) -> str:
-    return (f'<details class="irt-row" data-kind="{kind}"><summary><div><div class="badges">{badges}</div>'
+def _row(meta: str, headline: str, text_html: str, src: dict, body: str, kind: str) -> str:
+    """meta: one line of plain text above the headline (impact, change label, checks). No pills or badges."""
+    return (f'<details class="irt-row" data-kind="{kind}"><summary><div><div class="row-meta">{meta}</div>'
             f'<div class="row-head">{esc(headline)}</div><div class="desk-only">{text_html}</div></div>'
-            f'<div class="row-src">{esc(source_short(src))}<span class="chev" aria-hidden="true">›</span></div></summary>'
+            f'<div class="row-src"><span>{esc(source_short(src))}</span><span class="toggle" aria-hidden="true"></span></div></summary>'
             f'<div class="row-body"><div class="phone-only">{text_html}</div>{body}</div></details>')
 
 
 IMPACT_TEXT = {"HIGH": "High", "MEDIUM": "Medium", "LOW": "Low", "NOT_ASSESSED": "Not assessed"}
 
 
-# Chips are only for facts the code determined (the change label, "Figures to check"). AI judgments, such as
-# impact, are plain text, so a model's opinion never looks like a verified result.
+def _meta(parts: list) -> str:
+    return " · ".join(esc(p) for p in parts if p)
+
+
 def finding_row(item: dict, kind: str) -> str:
-    """kind: catalyst, risk (risk-factor change) or other_risk. Collapsed: impact, chips, headline, summary and
-    potential implication (desktop). Expanded: detail, impact basis, checks, quote and source links."""
-    badges = f'<span class="irt-impact">Impact: {IMPACT_TEXT[item["impact"]]}</span>'
-    if "trend" in item:
-        badges += chip(trend_text(item), T.TREND_CHIP[item["trend"]][0])
-    if item.get("unsupported_figures"):
-        badges += chip("Figures to check", "caution")
+    """kind: catalyst, risk (risk-factor change) or other_risk. Collapsed: a plain meta line, headline, summary and
+    the potential implication as its own labeled block (desktop). Expanded: detail as short points, impact basis,
+    checks, quote and source links, each under its own small heading."""
+    meta = _meta([f"Impact: {IMPACT_TEXT[item['impact']]}", trend_text(item) if "trend" in item else "",
+                  "Figures to check" if item.get("unsupported_figures") else ""])
     text = (f'<div class="row-text">{esc(item["summary"])}</div>'
-            f'<div class="row-text"><span class="impl-label">Potential implication:</span> {esc(item["implication"])}</div>')
-    body = (f'<p>{esc(item["detail"])}</p>'
-            f'<p class="irt-note" style="margin:6px 0 0 0">{esc(CATEGORY_LABELS.get(item["category"], item["category"]))} · '
-            f'Impact basis: {esc(item["impact_basis"])}</p>'
-            f'{_figures_flag(item)}{_wording(item)}{_excerpt_block(item)}')
-    return _row(badges, item["headline"], text, item.get("source", {}), body, kind)
+            f'<div class="impl"><div class="sub-label">Potential implication</div>'
+            f'<div class="impl-body">{esc(item["implication"])}</div></div>')
+    body = (_section("Detail", _paragraphs(item["detail"]))
+            + _section("Impact basis (AI assessment)",
+                       f'<p>{esc(item["impact_basis"])}</p>'
+                       f'<p class="irt-note">Category: {esc(CATEGORY_LABELS.get(item["category"], item["category"]))}</p>')
+            + f'{_figures_flag(item)}{_wording(item)}{_excerpt_block(item)}')
+    return _row(meta, item["headline"], text, item.get("source", {}), body, kind)
 
 
 def findings_list(items: list, kind: str) -> str:
@@ -456,25 +555,46 @@ def impact_criteria() -> str:
             '<li>Not assessed: the source doesn\'t give enough to judge. A dollar figure alone doesn\'t make an item High.</li></ul></details>')
 
 
+# Form 8-K item names, from the SEC's Form 8-K instructions. EDGAR lists each filing's items, so this label is a
+# fact about the filing, not a judgment by Claude. 9.01 (exhibits) accompanies most 8-Ks and is shown only when alone.
+EIGHT_K_ITEMS = {
+    "1.01": "Material agreement entered", "1.02": "Material agreement terminated", "1.03": "Bankruptcy or receivership",
+    "1.05": "Cybersecurity incident", "2.01": "Acquisition or disposition completed", "2.02": "Results of operations",
+    "2.03": "New financial obligation", "2.04": "Obligation accelerated", "2.05": "Exit or disposal costs",
+    "2.06": "Material impairment", "3.01": "Delisting notice", "3.02": "Unregistered sale of equity",
+    "3.03": "Change to shareholder rights", "4.01": "Auditor change", "4.02": "Prior financial statements not to be relied on",
+    "5.01": "Change in control", "5.02": "Director or officer change", "5.03": "Bylaw or fiscal-year change",
+    "5.07": "Shareholder vote results", "7.01": "Regulation FD disclosure", "8.01": "Other events",
+    "9.01": "Financial statements and exhibits"}
+
+
+def eight_k_items(items: str) -> str:
+    """'5.02,9.01' -> 'Item 5.02 · Director or officer change'. Empty when EDGAR lists no items."""
+    codes = [c.strip() for c in (items or "").split(",") if c.strip()]
+    shown = [c for c in codes if c != "9.01"] or codes
+    return " · ".join(f"Item {c} {EIGHT_K_ITEMS[c]}" if c in EIGHT_K_ITEMS else f"Item {c}" for c in shown)
+
+
 def event_list(events: list) -> str:
-    """8-K events, newest first, dated by EDGAR's filing date."""
+    """8-K events, newest first, dated by EDGAR's filing date. The label above each headline is the 8-K item from
+    EDGAR. Claude's category (one of five fixed choices) isn't shown: it repeated the headline and looked like a fact
+    the code had checked. It stays in the Excel export."""
     rows = []
     for e in sorted(events, key=lambda e: e["source"].get("filed", ""), reverse=True):
-        badges = chip(CATEGORY_LABELS.get(e["category"], e["category"]), "info")
-        if e.get("unsupported_figures"):
-            badges += chip("Figures to check", "caution")
+        meta = _meta([eight_k_items(e["source"].get("items", "")), "Figures to check" if e.get("unsupported_figures") else ""])
         text = f'<div class="row-text">{esc(e["summary"])}</div>'
-        rows.append(_row(badges, e["headline"], text, e["source"], f'{_figures_flag(e)}{_wording(e)}{_excerpt_block(e)}', "event"))
+        rows.append(_row(meta, e["headline"], text, e["source"], f'{_figures_flag(e)}{_wording(e)}{_excerpt_block(e)}', "event"))
     return f'<div class="irt-list">{"".join(rows)}</div>' if rows else ""
 
 
 def progress_strip(statuses: dict) -> str:
-    """statuses: {ticker: (state, detail)}, state in queued / working / done / partial / failed."""
-    tones = {"queued": "neutral", "working": "info", "done": "positive", "partial": "caution", "failed": "negative"}
-    chips = []
+    """statuses: {ticker: (state, detail)}, state in queued / working / done / partial / failed. One line of plain
+    text; a failed or partial ticker is in stronger text, not a colored pill."""
+    parts = []
     for ticker, (state, detail) in statuses.items():
-        chips.append(chip(f"{ticker} · {detail or state}", tones[state]))
-    return f'<div class="irt-progress" role="status" aria-live="polite">{"".join(chips)}</div>'
+        strong = " problem" if state in ("failed", "partial") else ""
+        parts.append(f'<span class="prog{strong}"><b>{esc(ticker)}</b> {esc(detail or state)}</span>')
+    return f'<div class="irt-progress" role="status" aria-live="polite">{"".join(parts)}</div>'
 
 
 def skeleton(ticker: str, status: str) -> str:

@@ -310,9 +310,9 @@ def generate_excel(profiles):
 
 # --- HEADER ---
 st.markdown(
-    "<div class='irt-header'><h1 class='irt-title'>SEC Filing Research Terminal</h1>"
-    "<span class='irt-sub'>SEC filings, market data and AI summaries for up to five stocks. "
-    "A research tool, not investment advice.</span></div>",
+    "<div class='irt-header'><div class='irt-title' role='heading' aria-level='1'>SEC Filing Research Terminal</div>"
+    "<div class='irt-sub'>SEC filings, market data and AI summaries for up to five stocks. "
+    "A research tool, not investment advice.</div></div>",
     unsafe_allow_html=True,
 )
 
@@ -342,9 +342,11 @@ with col_pick:
 with col_run:
     run_btn = st.button("Run analysis", type="primary", use_container_width=True)
 
-col_ex1, col_ex2, _ = st.columns([1.2, 1.5, 5.3])
-col_ex1.button("Example: AAPL", on_click=apply_preset, args=(["AAPL"],), use_container_width=True)
-col_ex2.button("Example: FAST + STRL", on_click=apply_preset, args=(["FAST", "STRL"],), use_container_width=True)
+# The marker span lets ui.py's CSS size these columns to their content (see "Rows of compact buttons")
+col_lbl, col_ex1, col_ex2 = st.columns(3)
+col_lbl.markdown("<span class='irt-mark-examples'>Examples</span>", unsafe_allow_html=True)
+col_ex1.button("AAPL", on_click=apply_preset, args=(["AAPL"],), help="Fill the picker with AAPL")
+col_ex2.button("FAST + STRL", on_click=apply_preset, args=(["FAST", "STRL"],), help="Fill the picker with FAST and STRL")
 
 if used_fallback:
     st.warning("Couldn't reach the SEC ticker list, so only 6 tickers are available. Reload the page to retry.")
@@ -405,7 +407,7 @@ def render_profile(p: dict) -> None:
         html += (ui.section_header("Other risks from management's discussion (not compared to last year)", counts["Other risks"])
                  + ui.section_state(secs["other_risks"], "other_risks")
                  + ui.findings_list(secs["other_risks"]["items"], "other_risk"))
-    html += (ui.section_header("8-K events", len(secs["events"]["items"]), f"Last {sec_data.EIGHT_K_WINDOW_DAYS} days · dates from EDGAR")
+    html += (ui.section_header("8-K events", len(secs["events"]["items"]), f"Last {sec_data.EIGHT_K_WINDOW_DAYS} days · dates and item numbers from EDGAR; headlines and summaries by Claude")
              + ui.section_state(secs["events"], "events") + ui.event_list(secs["events"]["items"]))
     st.markdown(html, unsafe_allow_html=True)
 
@@ -480,14 +482,13 @@ if results:
 
     col_sum, col_dl = st.columns([4, 1])
     col_sum.markdown(
-        f"<p class='irt-subtitle'>Results for {ui.esc(', '.join(results['tickers']))} · "
+        f"<p class='irt-subtitle irt-mark-results'>Results for {ui.esc(', '.join(results['tickers']))} · "
         f"run {results['run_at']:%b %d, %I:%M %p} ET · {len(done)} of {len(results['tickers'])} succeeded"
         + (f" ({len(partial)} with partial results)" if partial else "") + "</p>",
         unsafe_allow_html=True)
     if profiles:
         col_dl.download_button("Download Excel", data=generate_excel([profiles[t] for t in done]),
                                file_name=f"Research_Record_{'_'.join(done)}_{results['run_at']:%Y-%m-%d}.xlsx",
-                               use_container_width=True,
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     if sorted(st.session_state.ticker_select) != sorted(results["tickers"]):
         st.caption("Your ticker selection changed. Click Run analysis to update these results.")

@@ -30,7 +30,7 @@ class Components(unittest.TestCase):
                 + ui.unchanged_list(self.r["comparison"]) + ui.analysis_banner(self.r) + ui.skeleton("AAPL", "Queued"))
         self.assertIn("Figures to check", html)
         self.assertIn("Changed since the prior 10-K: edited", html)
-        self.assertIn("Potential implication:", html)
+        self.assertIn("Potential implication</div>", html)
 
     def test_ai_text_is_escaped_and_kept_in_one_block(self):
         row = ui.finding_row(self.r["sections"]["catalysts"]["items"][0], "catalyst")
@@ -43,9 +43,9 @@ class Components(unittest.TestCase):
         for n, it in enumerate(items):
             it["headline"] = f"Row {n}"
         html = ui.findings_list(items, "catalyst")
-        self.assertIn('<span class="irt-impact">Impact: High</span>', html)
-        badge_lines = re.findall(r'<div class="badges">(.*?)</div>', html)
-        self.assertTrue(all("tone-positive" not in b and "tone-negative" not in b for b in badge_lines))   # no colored impact pill
+        self.assertIn('<div class="row-meta">Impact: High', html)
+        self.assertNotIn("irt-chip", html)                       # no pills or badges anywhere in a row
+        self.assertIn('<div class="sub-label">Potential implication</div>', html)   # its own labeled block
         order = [html.index(f"Row {n}") for n in (1, 3, 0, 2)]                       # High, High, Low, Not assessed
         self.assertEqual(order, sorted(order))
 
@@ -54,9 +54,40 @@ class Components(unittest.TestCase):
                                  [("Price", "$254.32", "Quote as of Oct 9, 2026, 4:00 PM ET")]),
                                 ("Profitability", "Yahoo Finance · retrieved Oct 10, 2026, 2:04 PM ET",
                                  [("Gross margin", "48.65%", "Period not stated")])])
-        self.assertEqual(html.count('class="irt-group"'), 2)
+        self.assertEqual(html.count('class="irt-group '), 2)
+        # Column counts are classes, not inline CSS variables (Streamlit drops those), so every tile gets equal width
+        self.assertIn('class="irt-metrics irt-cols-2"', html)
+        self.assertEqual(html.count("irt-span-1"), 2)
+        self.assertNotIn("--tiles", html)
         self.assertIn("Period not stated", html)
         self.assertEqual(ui.metric_tiles([]), "")
+
+    def test_sentences_keep_every_word(self):
+        text = "Beginning in 2025, new U.S. tariffs applied to imports. Apple Inc. expects costs to rise. Timing is uncertain."
+        parts = ui.sentences(text)
+        self.assertEqual(parts, ["Beginning in 2025, new U.S. tariffs applied to imports.", "Apple Inc. expects costs to rise.",
+                                 "Timing is uncertain."])
+        self.assertEqual(" ".join(parts), text)
+        self.assertEqual(ui.sentences("One sentence only."), ["One sentence only."])
+
+    def test_metrics_panel_states_source_once(self):
+        cap = "Yahoo Finance · retrieved Oct 10, 2026, 2:04 PM ET"
+        html = ui.metric_tiles([("Price and valuation", cap, [("Price", "$1.00", "p")]), ("Profitability", cap, [("Gross margin", "48.7%", "p")])])
+        self.assertEqual(html.count("Yahoo Finance"), 1)
+        self.assertIn('class="irt-metrics-foot">Source: Yahoo Finance', html)
+        self.assertEqual(ui.format_metric(0.48651, "fraction"), "48.7%")
+
+    def test_eight_k_items_come_from_edgar(self):
+        self.assertEqual(ui.eight_k_items("5.02,9.01"), "Item 5.02 Director or officer change")
+        self.assertEqual(ui.eight_k_items("2.02,7.01,9.01"), "Item 2.02 Results of operations · Item 7.01 Regulation FD disclosure")
+        self.assertEqual(ui.eight_k_items("9.01"), "Item 9.01 Financial statements and exhibits")   # shown when it's the only item
+        self.assertEqual(ui.eight_k_items("6.99"), "Item 6.99")                                       # unknown code: number only
+        self.assertEqual(ui.eight_k_items(""), "")
+
+    def test_rows_say_what_a_click_does(self):
+        html = ui.findings_list(self.r["sections"]["risks"]["items"][:1], "risk")
+        self.assertIn('class="toggle"', html)
+        self.assertNotIn('class="chev"', html)
 
     def test_excerpt_note_depends_on_the_check(self):
         item = self.r["sections"]["risks"]["items"][0]
