@@ -92,8 +92,6 @@ In priority order. Delete a line once it's fixed.
 5. **"No close match" is a text test.** Joining one-sentence titles to their body text fixed STRL's contract-termination title. A heavily rewritten paragraph can land there (MSFT's FY2026 "We may experience outages…" rewrites last year's "We may have excessive outages…"). The closest prior paragraph is sent as context when word overlap is at least 0.20, and the label says "no close match", not "new risk".
 6. **8-K exhibits aren't read.** Only each 8-K's primary document is sent; press releases usually sit in exhibit EX-99.1.
 7. **Section extraction is tested on seven filers** (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM) plus synthetic cases. Other formats may fail; they show "Section not found", not wrong text.
-8. **Hidden ticker on phones.** On Streamlit 1.65 the ticker picker keeps its tags on one row that scrolls sideways, so at 390 px a third selected ticker is hidden inside the box.
-9. **`use_container_width` is deprecated in Streamlit 1.65.** The server log warns on every rerun (the Run analysis button and both price charts); a future release removes it.
 
 ## Excel export standard
 

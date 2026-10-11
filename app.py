@@ -412,7 +412,7 @@ with col_pick:
         label_visibility="collapsed",  # the placeholder explains it; screen readers still get the label
     )
 with col_run:
-    run_btn = st.button("Run analysis", type="primary", use_container_width=True)
+    run_btn = st.button("Run analysis", type="primary", width="stretch")
 
 st.markdown("<p class='irt-note'>Live analysis is limited to about one ticker a day. The saved sample is always available.</p>",
             unsafe_allow_html=True)
@@ -463,7 +463,7 @@ def render_profile(p: dict) -> None:
 
     try:
         hist = sample_prices(p["sample_prices"]) if p.get("sample_prices") else get_price_history(p["ticker"])
-        st.plotly_chart(build_price_chart(hist, p["event_markers"]), use_container_width=True, theme=None, config=CHART_CONFIG)
+        st.plotly_chart(build_price_chart(hist, p["event_markers"]), width="stretch", theme=None, config=CHART_CONFIG)
         st.caption(f"Daily bars through {hist.index[-1]:%Y-%m-%d}, adjusted for splits and dividends. "
                    "Source: Yahoo Finance via yfinance. Diamonds: SEC filing dates from EDGAR.")
     except TickerFailure as e:

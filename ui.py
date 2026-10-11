@@ -89,6 +89,10 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 /* A clicked button keeps focus, and Streamlit draws a heavy ring on it (the outlined Download box). Keep the ring
    for keyboard users only. */
 .stButton button:focus:not(:focus-visible), .stDownloadButton button:focus:not(:focus-visible) {{ box-shadow: none; outline: none; }}
+/* Ticker picker: Streamlit 1.65 keeps the selected tags on one row that scrolls sideways, so at 390 px a third
+   ticker was hidden inside the box. Wrap them onto more lines so every selected ticker shows. */
+[data-testid="stMultiSelectTagsContainer"] {{ flex-wrap: wrap; overflow: visible; height: auto; row-gap: 4px; }}
+[data-testid="stMultiSelect"] [role="group"]:has(> [data-testid="stMultiSelectTagsContainer"]) {{ max-height: none; height: auto; }}
 /* Toolbar: the picker takes the free width and the button column fits its label, so "Run analysis" is never cut off
    (a 5:1 column split left the button about 80 px wide at 1000 px with the sidebar open). From 640 px down
    Streamlit stacks the columns, so the rule stops there. */
