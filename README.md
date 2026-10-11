@@ -39,6 +39,7 @@ For up to five tickers:
 - The wording check can flag financial uses it doesn't recognize, such as "subject to a leverage test".
 - A first run takes about a minute per ticker (131 seconds for AAPL and STRL on Oct 10, 2026).
 - Public live runs fit about one ticker a day. A worst-case call costs $0.248 against the $0.25 daily cap.
+- A skipped ticker still downloads its filings first, because the cost check needs the measured size of the request. The skip message can take 20 to 30 seconds to appear.
 - The daily spending counter is kept in memory and resets when the app restarts, so a restart allows another day's worth. The Anthropic account's monthly limit is the hard stop.
 - The saved sample is frozen: the analysis is from Oct 10, 2026 and the price history ends at the Oct 9 close (retrieved Oct 11). It doesn't update.
 
