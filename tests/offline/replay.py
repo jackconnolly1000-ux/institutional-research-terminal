@@ -44,7 +44,10 @@ class ReplayAnthropic:
         return self
 
 
-anthropic.Anthropic = ReplayAnthropic
 app_path = Path(sys.argv[1] if len(sys.argv) > 1 else "app.py").resolve()
 sys.path.insert(0, str(app_path.parent))
+anthropic.Anthropic = ReplayAnthropic
+# Replayed answers cost nothing, so the daily spending cap is lifted here; the offline harness tests the cap itself.
+import budget  # noqa: E402
+budget.DAILY_CAP_USD = float("inf")
 exec(compile(app_path.read_text(), str(app_path), "exec"), {"__name__": "__main__", "__file__": str(app_path)})

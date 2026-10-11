@@ -1,0 +1,944 @@
+{
+ "ticker": "STRL",
+ "company_name": "Sterling Infrastructure, Inc.",
+ "industry": "Heavy Construction Other Than Bldg Const - Contractors",
+ "financials": {
+  "status": "ok",
+  "source": "Yahoo Finance via yfinance (Ticker.info)",
+  "retrieved_at": "2026-10-10T13:49:50-04:00",
+  "metrics": {
+   "price": {
+    "label": "Price",
+    "value": 513,
+    "unit": "USD",
+    "field": "currentPrice",
+    "period": "Quote as of Oct 9, 2026, 4:00 PM ET"
+   },
+   "market_cap": {
+    "label": "Market cap",
+    "value": 15691910144,
+    "unit": "USD",
+    "field": "marketCap",
+    "period": null
+   },
+   "forward_pe": {
+    "label": "Forward P/E",
+    "value": 20.191881,
+    "unit": "multiple",
+    "field": "forwardPE",
+    "period": null
+   },
+   "gross_margin": {
+    "label": "Gross margin",
+    "value": 0.23807,
+    "unit": "fraction",
+    "field": "grossMargins",
+    "period": null
+   },
+   "operating_margin": {
+    "label": "Operating margin",
+    "value": 0.20055,
+    "unit": "fraction",
+    "field": "operatingMargins",
+    "period": null
+   },
+   "profit_margin": {
+    "label": "Net margin",
+    "value": 0.12549,
+    "unit": "fraction",
+    "field": "profitMargins",
+    "period": null
+   },
+   "revenue_growth": {
+    "label": "Revenue growth",
+    "value": 0.901,
+    "unit": "fraction",
+    "field": "revenueGrowth",
+    "period": null
+   },
+   "roe": {
+    "label": "Return on equity",
+    "value": 0.40005,
+    "unit": "fraction",
+    "field": "returnOnEquity",
+    "period": null
+   },
+   "free_cash_flow": {
+    "label": "Free cash flow",
+    "value": 349384384,
+    "unit": "USD",
+    "field": "freeCashflow",
+    "period": null
+   },
+   "ebitda": {
+    "label": "EBITDA",
+    "value": 714009984,
+    "unit": "USD",
+    "field": "ebitda",
+    "period": null
+   }
+  }
+ },
+ "evidence": [
+  {
+   "id": "R_CUR",
+   "role": "Risk factors, latest annual report",
+   "status": "found",
+   "note": "Heading at character 60,232; ends at Item 1B. Compared paragraph by paragraph in code; only new, changed and removed paragraphs are sent (R_CMP).",
+   "compared": true,
+   "form": "10-K",
+   "filed": "2026-02-26",
+   "period": "2025-12-31",
+   "accession": "0000874238-26-000024",
+   "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/strl-20251231.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/0000874238-26-000024-index.htm",
+   "label": "10-K for the period ended 2025-12-31, filed 2026-02-26",
+   "chars": 67582,
+   "sent_chars": 0,
+   "omitted_chars": 0
+  },
+  {
+   "id": "R_PRIOR",
+   "role": "Risk factors, prior annual report",
+   "status": "found",
+   "note": "Heading at character 57,644; ends at Item 1B. Compared paragraph by paragraph in code; only new, changed and removed paragraphs are sent (R_CMP).",
+   "compared": true,
+   "form": "10-K",
+   "filed": "2025-02-26",
+   "period": "2024-12-31",
+   "accession": "0000874238-25-000025",
+   "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423825000025/strl-20241231.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423825000025/0000874238-25-000025-index.htm",
+   "label": "10-K for the period ended 2024-12-31, filed 2025-02-26",
+   "chars": 65088,
+   "sent_chars": 0,
+   "omitted_chars": 0
+  },
+  {
+   "id": "R_CMP",
+   "role": "Risk factors: changes since the prior 10-K",
+   "status": "found",
+   "note": "",
+   "compared": false,
+   "form": "10-K",
+   "filed": "2026-02-26",
+   "period": "2025-12-31",
+   "accession": "0000874238-26-000024",
+   "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/strl-20251231.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/0000874238-26-000024-index.htm",
+   "label": "10-K for the period ended 2025-12-31, filed 2026-02-26",
+   "chars": 39696,
+   "sent_chars": 39696,
+   "omitted_chars": 0
+  },
+  {
+   "id": "QU1",
+   "role": "Risk factor updates, quarterly report",
+   "status": "no_material_changes",
+   "note": "Heading at character 101,192; ends at Item 2.",
+   "compared": false,
+   "form": "10-Q",
+   "filed": "2026-05-05",
+   "period": "2026-03-31",
+   "accession": "0000874238-26-000055",
+   "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000055/strl-20260331.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000055/0000874238-26-000055-index.htm",
+   "label": "10-Q for the period ended 2026-03-31, filed 2026-05-05",
+   "chars": 288,
+   "sent_chars": 288,
+   "omitted_chars": 0
+  },
+  {
+   "id": "QU2",
+   "role": "Risk factor updates, quarterly report",
+   "status": "no_material_changes",
+   "note": "Heading at character 121,981; ends at Item 2.",
+   "compared": false,
+   "form": "10-Q",
+   "filed": "2026-08-04",
+   "period": "2026-06-30",
+   "accession": "0000874238-26-000103",
+   "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/strl-20260630.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/0000874238-26-000103-index.htm",
+   "label": "10-Q for the period ended 2026-06-30, filed 2026-08-04",
+   "chars": 288,
+   "sent_chars": 288,
+   "omitted_chars": 0
+  },
+  {
+   "id": "MDA",
+   "role": "Management's discussion and analysis",
+   "status": "found",
+   "note": "Heading at character 84,151; ends at Item 3.",
+   "compared": false,
+   "form": "10-Q",
+   "filed": "2026-08-04",
+   "period": "2026-06-30",
+   "accession": "0000874238-26-000103",
+   "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/strl-20260630.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/0000874238-26-000103-index.htm",
+   "label": "10-Q for the period ended 2026-06-30, filed 2026-08-04",
+   "chars": 32292,
+   "sent_chars": 32292,
+   "omitted_chars": 0
+  },
+  {
+   "id": "K8_1",
+   "role": "Current report (8-K)",
+   "status": "found",
+   "note": "",
+   "compared": false,
+   "form": "8-K",
+   "filed": "2026-10-05",
+   "period": "2026-10-05",
+   "accession": "0000874238-26-000110",
+   "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000110/strl-20261005.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000110/0000874238-26-000110-index.htm",
+   "label": "8-K (event date 2026-10-05), filed 2026-10-05",
+   "items": "7.01,9.01",
+   "chars": 3407,
+   "sent_chars": 3407,
+   "omitted_chars": 0
+  },
+  {
+   "id": "K8_2",
+   "role": "Current report (8-K)",
+   "status": "found",
+   "note": "",
+   "compared": false,
+   "form": "8-K",
+   "filed": "2026-08-03",
+   "period": "2026-08-03",
+   "accession": "0000874238-26-000100",
+   "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000100/strl-20260803.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000100/0000874238-26-000100-index.htm",
+   "label": "8-K (event date 2026-08-03), filed 2026-08-03",
+   "items": "2.02,7.01,9.01",
+   "chars": 4483,
+   "sent_chars": 4483,
+   "omitted_chars": 0
+  },
+  {
+   "id": "K8_3",
+   "role": "Current report (8-K)",
+   "status": "found",
+   "note": "",
+   "compared": false,
+   "form": "8-K",
+   "filed": "2026-07-10",
+   "period": "2026-07-06",
+   "accession": "0000874238-26-000095",
+   "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000095/strl-20260706.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000095/0000874238-26-000095-index.htm",
+   "label": "8-K (event date 2026-07-06), filed 2026-07-10",
+   "items": "5.02",
+   "chars": 2741,
+   "sent_chars": 2741,
+   "omitted_chars": 0
+  },
+  {
+   "id": "K8_4",
+   "role": "Current report (8-K)",
+   "status": "found",
+   "note": "",
+   "compared": false,
+   "form": "8-K",
+   "filed": "2026-07-08",
+   "period": "2026-07-02",
+   "accession": "0000874238-26-000093",
+   "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000093/strl-20260702.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000093/0000874238-26-000093-index.htm",
+   "label": "8-K (event date 2026-07-02), filed 2026-07-08",
+   "items": "1.01,2.03,7.01,9.01",
+   "chars": 8983,
+   "sent_chars": 8983,
+   "omitted_chars": 0
+  }
+ ],
+ "analysis": {
+  "response_status": "complete",
+  "stop_reason": "tool_use",
+  "comparison": {
+   "status": "available",
+   "current": "10-K for the period ended 2025-12-31, filed 2026-02-26",
+   "prior": "10-K for the period ended 2024-12-31, filed 2025-02-26",
+   "reason": "",
+   "counts": {
+    "UNCHANGED": 65,
+    "CHANGED (edited)": 13,
+    "CHANGED (rewritten)": 1,
+    "CHANGED (minor edit)": 4,
+    "CHANGED (text removed)": 9,
+    "CHANGED (figures changed)": 4,
+    "NEW": 12,
+    "REMOVED": 1
+   },
+   "unchanged": [
+    "The following discussion of risk factors contains forward-looking statements.",
+    "Our business, financial condition and operating results can be affected by a number of factors, whether currently known or unknown, including but not limited to those described below; any one or more of which could, directly or indirectly, \u2026",
+    "Because of the following factors, as well as other factors affecting our financial condition and operating results, our past financial performance should not be considered to be a reliable indicator of our future performance, and investors \u2026",
+    "Economic, regulatory and market conditions affecting our specific end markets may adversely impact the demand for our services, resulting in the delay, reduction or cancellation of certain projects and these conditions may continue to \u2026",
+    "Our dependence on suppliers of materials and subcontractors could increase our costs and impair our ability to complete contracts on a timely basis or at all.",
+    "If we do not accurately estimate the overall risks, requirements or costs related to a project when we bid for a contract that is ultimately awarded to us, we may achieve a lower than anticipated profit or incur a loss on the contract.",
+    "The majority of our revenues and backlog are derived from fixed-unit price contracts and lump sum contracts.",
+    "The costs incurred and gross profit realized on our contracts can vary, sometimes substantially, from our original estimates due to a variety of factors, that may include, but are not limited to the following:",
+    "\u2022onsite conditions that differ from those assumed in the original bid or contract;",
+    "\u2022failure to include required materials or work in a bid, or the failure to estimate properly the quantities or costs needed to complete a lump sum contract;",
+    "\u2022contract or project modifications creating unanticipated costs not covered by change orders or contract price adjustments;",
+    "\u2022claims or demands from third parties for alleged damages arising from the design, construction or use and operation of a project of which our work is a part.",
+    "Further, in most cases, our contracts require completion by a scheduled acceptance date.",
+    "We may incur higher costs to lease, acquire and maintain equipment necessary for our operations, and the market value of our owned equipment may decline.",
+    "The equipment that we own or lease requires continuous maintenance, for which we maintain our own repair facilities.",
+    "We may not accurately assess and/or estimate the quality, quantity, availability and cost of aggregates we need to complete a project, particularly for projects in rural areas.",
+    "Timing of the award and performance of new contracts may fluctuate.",
+    "The uncertainty of the timing of contract awards may also present difficulties in matching the size of our equipment fleet and work crews with contract needs.",
+    "We rely on information technology systems to conduct our business, which are subject to disruption, failure or security breaches.",
+    "Major public health crises could disrupt our operations and adversely affect our business, results of operations and financial condition.",
+    "Our E-Infrastructure Solutions business, as well as the industries of many of our customers upon whom we are dependent, are susceptible to economic downturns, including periods of slower than anticipated economic growth.",
+    "Demand for our E-Infrastructure Solutions business is cyclical and may be vulnerable to economic downturns, market interest rate fluctuations or other adverse developments in the credit markets, and reductions in private industry spending; \u2026",
+    "In the past, many of the heavy highway contracts on which we bid were awarded through a competitive bid process, with awards generally being made to the lowest bidder, but sometimes recognizing other considerations, such as shorter \u2026",
+    "In addition, if the use of design-build, construction manager/general contractor (CM/GC) and other alternative project delivery methods continues to increase and we are not able to further develop our capabilities and reputation in \u2026",
+    "Our Transportation Solutions business relies on highly competitive and highly regulated state or local government contracts.",
+    "Our Transportation Solutions business depends on our ability to qualify as an eligible bidder under state or local government contract criteria and to compete successfully against other qualified bidders in order to obtain state or local \u2026",
+    "State and local government agencies conduct rigorous competitive processes for awarding many contracts.",
+    "The design-build project delivery method subjects our Transportation Solutions business to the risk of design errors and omissions.",
+    "An inability to obtain bonding could limit the aggregate dollar amount of contracts that we are able to pursue for our Transportation Solutions business.",
+    "Our Transportation Solutions business is susceptible to economic downturns and reductions in state or local government funding of infrastructure projects.",
+    "Refer to our \u201cBusiness\u2014Segments, Markets and Customers\u201d section within Item 1 for a more detailed discussion of our geographic markets, and refer to Item 7 \u201cManagement\u2019s Discussion and Analysis of Financial Condition and Results of \u2026",
+    "A prolonged government shutdown may adversely affect our Transportation Solutions business.",
+    "The homebuilding industry is cyclical and susceptible to downward changes in general economic or other business conditions which could adversely affect our Building Solutions projects, including foundations and plumbing for single-family \u2026",
+    "Our Building Solutions business is sensitive to changes in economic conditions and other factors, such as the level of employment, consumer confidence, consumer income, availability of financing and interest rate levels.",
+    "We cannot predict with certainty whether the decline in the U.S.",
+    "We and our construction joint venture partners are generally jointly and severally liable for all liabilities and obligations of our construction joint ventures.",
+    "Certain counterparties to construction joint venture arrangements, which may include our historical direct competitors, may not desire to continue such arrangements with us and may terminate the joint venture arrangements or not enter into \u2026",
+    "We may not be able to recover on claims or change orders against clients for payment or on claims against subcontractors for performance.",
+    "We are dependent on a limited number of significant customers.",
+    "Our operations are subject to hazards that may cause personal injury or property damage, thereby subjecting us to liabilities and possible losses, which may not be covered by insurance as well as negative reputational impacts relating to \u2026",
+    "Our workers are subject to hazards associated with providing construction and related services.",
+    "We contribute to multiemployer plans that could result in liabilities to us if those plans are terminated or if we withdraw from those plans.",
+    "Tax matters, including changes in corporate tax laws and disagreements with taxing authorities, could impact our results of operations and financial condition.",
+    "Our strategy, which includes expanding into adjacent markets, may not be successful.",
+    "\u2022difficulties in the integration of operations, systems, policies and procedures;",
+    "\u2022enhancements in controls and procedures including those necessary for a public company may make it more difficult to integrate operations and systems;",
+    "\u2022failure to implement proper overall business controls, including those required to support our growth, resulting in inconsistent operating and financial practices at companies we acquire or have acquired;",
+    "\u2022termination of relationships with the key personnel and customers of an acquired company;",
+    "\u2022additional financial and accounting challenges and complexities in areas such as tax planning, treasury management, financial reporting and internal controls;",
+    "\u2022the incurrence of environmental and other liabilities, including liabilities arising from the operation of an acquired business or asset prior to our acquisition for which we are not indemnified or for which the indemnity is inadequate;",
+    "Under this method, estimated contract revenue is recognized by applying the cost-to-cost measure of progress for the period (based on the ratio of costs incurred to total estimated costs of a contract) to the total estimated revenue for \u2026",
+    "We may need to raise additional capital in the future for working capital, capital expenditures and/or acquisitions, and we may not be able to do so on favorable terms or at all, which would impair our ability to operate our business or \u2026",
+    "Our ability to obtain additional financing in the future will depend in part upon prevailing credit and equity market conditions, as well as the condition of our business and our operating results; such factors may adversely affect our \u2026",
+    "If adequate funds are not available, or are not available on acceptable terms, we may not be able to make future investments, take advantage of acquisitions or other opportunities, or respond to competitive challenges.",
+    "Further, our level of indebtedness could have important other consequences to our business, including the following:",
+    "\u2022limiting our flexibility in planning for, or reacting to, changes in the industry in which we operate;",
+    "\u2022increasing our vulnerability to general adverse economic and infrastructure industry conditions;",
+    "\u2022limiting our ability to fund future working capital and capital expenditures because of the need to dedicate a substantial portion of our cash flows from operations to payments on our debt service;",
+    "\u2022placing us at a competitive disadvantage compared to our competitors that have less debt;",
+    "To service our indebtedness and to fund working capital, we will require a significant amount of cash.",
+    "We must manage our liquidity carefully to fund our working capital.",
+    "\u2022the amounts owed to suppliers and subcontractors.",
+    "Failure to maintain adequate financial and management processes and internal controls could lead to errors in reporting our financial results.",
+    "Provisions in our amended and restated certificate of incorporation and in Delaware law may discourage a takeover attempt.",
+    "The price of our common stock has experienced volatility."
+   ],
+   "removed": [
+    "We incurred indebtedness in connection with recent acquisitions, and the agreement governing such indebtedness contains various covenants and other provisions that impose restrictions on our ability to operate and manage our business."
+   ],
+   "prior_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423825000025/strl-20241231.htm"
+  },
+  "sections": {
+   "catalysts": {
+    "status": "complete",
+    "items": [
+     {
+      "headline": "E-Infrastructure Solutions revenue rose 192% in Q2 2026",
+      "summary": "E-Infrastructure Solutions revenue was $905.0 million in Q2 2026 versus $310.4 million in Q2 2025, driven by large mission-critical projects and the CEC acquisition, which contributed $239.9 million of revenue in the quarter.",
+      "implication": "Continued demand from data center and mission-critical customers could support further revenue growth if large projects continue to be awarded and executed on schedule.",
+      "detail": "Six-month E-Infrastructure revenue was $1.50 billion versus $528.7 million a year earlier, an increase of 184%. Segment operating income was $210.8 million (23.3% of revenue) in Q2 2026 versus $83.8 million (27.0%) in Q2 2025.",
+      "category": "DEMAND",
+      "impact": "HIGH",
+      "impact_basis": "This segment is now 78% of consolidated Q2 2026 revenue and drove nearly all of the company-wide revenue increase, making it the dominant determinant of near-term results.",
+      "source_id": "MDA",
+      "quote": "Revenues were $905.0 million for the second quarter of 2026, an increase of $594.6 million, or 192%, compared to the second quarter of 2025.",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-08-04",
+       "period": "2026-06-30",
+       "accession": "0000874238-26-000103",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/strl-20260630.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/0000874238-26-000103-index.htm",
+       "label": "10-Q for the period ended 2026-06-30, filed 2026-08-04",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Total backlog reached $4.33 billion at June 30, 2026",
+      "summary": "Total Backlog (RPOs plus MSAs) was $4.33 billion at June 30, 2026, up from $3.01 billion at December 31, 2025; Combined Backlog including Unsigned Awards was $5.62 billion, with a six-month book-to-burn ratio of 2.3X.",
+      "implication": "A growing backlog and book-to-burn ratio above 1.0 may indicate continued revenue growth over the 6-to-36-month typical contract completion period, though realization is not guaranteed.",
+      "detail": "RPOs were $4.23 billion and MSAs were $100.0 million at June 30, 2026, versus RPOs of $3.01 billion and no MSAs at December 31, 2025. Unsigned Awards were $1.28 billion at June 30, 2026 versus $300.7 million at year-end 2025.",
+      "category": "DEMAND",
+      "impact": "MEDIUM",
+      "impact_basis": "Backlog growth is substantial relative to trailing revenue, but conversion timing and realization are uncertain and backlog is not a GAAP-recognized or guaranteed revenue measure.",
+      "source_id": "MDA",
+      "quote": "At June 30, 2026, our RPOs were $4.23 billion and our MSAs were $100.0 million, resulting in a total Backlog of $4.33 billion.",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-08-04",
+       "period": "2026-06-30",
+       "accession": "0000874238-26-000103",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/strl-20260630.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/0000874238-26-000103-index.htm",
+       "label": "10-Q for the period ended 2026-06-30, filed 2026-08-04",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Credit facility expanded to $1.5 billion, extended to 2031",
+      "summary": "On July 2, 2026, Sterling entered a Second Amended and Restated Credit Agreement increasing revolving borrowing capacity by $1.05 billion to $1.5 billion and extending maturity to July 2, 2031; $90 million was outstanding as of that date.",
+      "implication": "Expanded, longer-dated credit capacity could support further acquisitions, capital expenditures, and share repurchases without near-term refinancing pressure.",
+      "detail": "The agreement includes an incremental facility option of up to the greater of $500 million or 100% of EBITDA, plus additional capacity subject to a leverage test, and eliminates the prior SOFR 10bp credit spread adjustment.",
+      "category": "FINANCING_LIQUIDITY",
+      "impact": "MEDIUM",
+      "impact_basis": "The facility materially increases available liquidity relative to the $292.5 million outstanding under the prior agreement at December 31, 2025, but usage and effect on results depend on future draws and acquisitions.",
+      "source_id": "K8_4",
+      "quote": "The Amended Credit Agreement increases borrowing capacity by $1.05 billion and will initially provide for revolving borrowings up to an aggregate principal amount of $1.5 billion",
+      "source": {
+       "form": "8-K",
+       "filed": "2026-07-08",
+       "period": "2026-07-02",
+       "accession": "0000874238-26-000093",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000093/strl-20260702.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000093/0000874238-26-000093-index.htm",
+       "label": "8-K (event date 2026-07-02), filed 2026-07-08",
+       "items": "1.01,2.03,7.01,9.01",
+       "id": "K8_4",
+       "role": "Current report (8-K)"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [
+       "detail: leverage"
+      ],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Two acquisitions expanded E-Infrastructure Solutions in 2025-2026",
+      "summary": "Sterling acquired CEC Facilities Group for $561.6 million (September 2025) and Stone Ridge Contracting for $178.0 million (June 2026), both placed in the E-Infrastructure Solutions segment, with combined earn-outs of up to $95 million.",
+      "implication": "Successful integration could add scale and electrical/mechanical and site-development capabilities, but acquisition costs and earn-out obligations add near-term expense and integration risk.",
+      "detail": "CEC was funded with $442.9 million cash and $79.5 million stock, with up to $80 million earn-out tied to operating income targets. Stone Ridge was funded with $140.0 million cash and $27.4 million stock, with up to $15 million earn-out tied to EBITDA.",
+      "category": "CAPITAL_ALLOCATION",
+      "impact": "MEDIUM",
+      "impact_basis": "Combined purchase price of roughly $740 million is sizable relative to the company's balance sheet and already contributed $37.5 million of operating income in the first half of 2026, but integration success is not yet proven.",
+      "source_id": "MDA",
+      "quote": "On June 1, 2026, Sterling acquired substantially all of the assets of Pocatello, Idaho-based Stone Ridge Contracting, LLC... The purchase price was $178.0 million",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-08-04",
+       "period": "2026-06-30",
+       "accession": "0000874238-26-000103",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/strl-20260630.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/0000874238-26-000103-index.htm",
+       "label": "10-Q for the period ended 2026-06-30, filed 2026-08-04",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 2,
+       "matched": 2
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Board authorized up to $400 million stock repurchase program",
+      "summary": "Effective November 12, 2025, the Board approved a program to repurchase up to $400 million of common stock over 24 months, to be funded with cash on hand and operating cash flow; $35.3 million was repurchased in the six months ended June 30, 2026.",
+      "implication": "Continued repurchases could reduce share count and return capital to shareholders, though timing and completion are discretionary and not guaranteed.",
+      "detail": "The program replaced a prior $200 million program approved December 5, 2023. Repurchases will diminish cash reserves and the program may be suspended or discontinued at the company's discretion.",
+      "category": "CAPITAL_ALLOCATION",
+      "impact": "LOW",
+      "impact_basis": "Program authorization is sizable but repurchases to date ($35.3 million in H1 2026) are small relative to operating cash flow of $328.0 million for the same period.",
+      "source_id": "R_CMP",
+      "paragraph_id": "P106",
+      "quote": "Effective November 12, 2025, the Board of Directors approved a program authorizing us to repurchase up to $400 million of our outstanding common stock over a 24-month period",
+      "source": {
+       "form": "10-K",
+       "filed": "2026-02-26",
+       "period": "2025-12-31",
+       "accession": "0000874238-26-000024",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/strl-20251231.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/0000874238-26-000024-index.htm",
+       "label": "10-K for the period ended 2025-12-31, filed 2026-02-26",
+       "id": "R_CMP",
+       "role": "Risk factors: changes since the prior 10-K"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": [
+       "$35.3 million"
+      ]
+     }
+    ],
+    "dropped": []
+   },
+   "risks": {
+    "status": "complete",
+    "items": [
+     {
+      "headline": "Backlog realization not guaranteed, grew to $3.01 billion",
+      "summary": "Backlog at December 31, 2025 totaled $3.01 billion, up from $1.69 billion at December 31, 2024; the company states it has no contractual right to backlog revenue if projects are cancelled, terminated, or scope-adjusted.",
+      "implication": "Reported backlog growth may overstate future revenue certainty if customers cancel, delay, or adjust project scope.",
+      "detail": "The filing notes backlog should not be viewed as a stand-alone indicator and that timing of contract awards, duration of large contracts, and service mix can significantly affect backlog reporting.",
+      "category": "DEMAND",
+      "impact": "MEDIUM",
+      "impact_basis": "Backlog nearly doubled year over year and is a key forward indicator for the company, but the company explicitly disclaims assurance that it will convert to revenue or earnings.",
+      "source_id": "R_CMP",
+      "paragraph_id": "P83",
+      "quote": "Backlog as of December 31, 2025 totaled $3.01 billion.",
+      "trend": "CHANGED",
+      "trend_reason": "edited",
+      "source": {
+       "form": "10-K",
+       "filed": "2026-02-26",
+       "period": "2025-12-31",
+       "accession": "0000874238-26-000024",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/strl-20251231.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/0000874238-26-000024-index.htm",
+       "label": "10-K for the period ended 2025-12-31, filed 2026-02-26",
+       "id": "R_CMP",
+       "role": "Risk factors: changes since the prior 10-K"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Goodwill and intangibles rose sharply to $1.14 billion combined",
+      "summary": "Goodwill was approximately $585 million and intangibles approximately $555 million at December 31, 2025, up from $265 million and $316 million, respectively, at December 31, 2024, raising impairment exposure.",
+      "implication": "A decline in market capitalization or acquired business performance could require a goodwill or intangible asset write-down, reducing reported net earnings and equity.",
+      "detail": "The increase reflects recent acquisitions including CEC. The filing states write-downs, if required, may be substantial and could materially adversely affect net earnings and equity.",
+      "category": "CAPITAL_ALLOCATION",
+      "impact": "MEDIUM",
+      "impact_basis": "Combined goodwill and intangibles of $1.14 billion represent a large share of total assets following recent acquisitions, though no impairment has been recorded as of the filing date.",
+      "source_id": "R_CMP",
+      "paragraph_id": "P104",
+      "quote": "We had approximately $585 million of goodwill and $555 million of intangibles recorded on our Consolidated Balance Sheet at December 31, 2025.",
+      "trend": "CHANGED",
+      "trend_reason": "figures changed",
+      "source": {
+       "form": "10-K",
+       "filed": "2026-02-26",
+       "period": "2025-12-31",
+       "accession": "0000874238-26-000024",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/strl-20251231.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/0000874238-26-000024-index.htm",
+       "label": "10-K for the period ended 2025-12-31, filed 2026-02-26",
+       "id": "R_CMP",
+       "role": "Risk factors: changes since the prior 10-K"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": [
+       "$1.14 billion"
+      ]
+     },
+     {
+      "headline": "Credit agreement restricts additional debt, pledges nearly all assets",
+      "summary": "Sterling pledged substantially all assets as collateral under its amended and restated Credit Agreement (originally dated June 5, 2025) with $292.5 million outstanding at December 31, 2025, and must obtain lender consent for most additional debt.",
+      "implication": "Collateral pledges and covenant restrictions could limit financing flexibility for future acquisitions or capital needs if liquidity requirements increase.",
+      "detail": "The Credit Agreement was set to mature June 5, 2028, as of the 10-K; it was later amended and extended per a subsequent 8-K. Covenants restrict liens, additional indebtedness, dividends, and asset sales.",
+      "category": "FINANCING_LIQUIDITY",
+      "impact": "LOW",
+      "impact_basis": "The company states it believes it has resources to meet obligations, and the facility was later expanded and extended, reducing near-term liquidity concern.",
+      "source_id": "R_CMP",
+      "paragraph_id": "P89",
+      "quote": "As of December 31, 2025, our aggregate principal amount outstanding under the Credit Agreement was $292.5 million.",
+      "trend": "CHANGED",
+      "trend_reason": "edited",
+      "source": {
+       "form": "10-K",
+       "filed": "2026-02-26",
+       "period": "2025-12-31",
+       "accession": "0000874238-26-000024",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/strl-20251231.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/0000874238-26-000024-index.htm",
+       "label": "10-K for the period ended 2025-12-31, filed 2026-02-26",
+       "id": "R_CMP",
+       "role": "Risk factors: changes since the prior 10-K"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Joint venture exposure to unconsolidated contracts nearly tripled",
+      "summary": "At December 31, 2025, approximately $371.9 million of construction work remained on unconsolidated joint venture contracts, with Sterling's proportionate share at $148.8 million, versus $150.3 million and $73.6 million, respectively, at December 31, 2024.",
+      "implication": "If a joint venture partner fails to perform, Sterling could be fully liable for the partner's share of remaining work under joint and several liability provisions.",
+      "detail": "The company states it is not currently aware of any situation requiring it to fulfill a partner's responsibilities, but the exposure has grown materially year over year.",
+      "category": "OPERATIONS",
+      "impact": "LOW",
+      "impact_basis": "Proportionate share of $148.8 million is a moderate figure relative to total assets, and the company reports no current instance of partner default.",
+      "source_id": "R_CMP",
+      "paragraph_id": "P45",
+      "quote": "At December 31, 2025, there was approximately $371.9 million of construction work to be completed on unconsolidated construction joint venture contracts, of which $148.8 million represented our proportionate share.",
+      "trend": "CHANGED",
+      "trend_reason": "figures changed",
+      "source": {
+       "form": "10-K",
+       "filed": "2026-02-26",
+       "period": "2025-12-31",
+       "accession": "0000874238-26-000024",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/strl-20251231.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/0000874238-26-000024-index.htm",
+       "label": "10-K for the period ended 2025-12-31, filed 2026-02-26",
+       "id": "R_CMP",
+       "role": "Risk factors: changes since the prior 10-K"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "New risk factors added covering AI, data privacy, and permitting",
+      "summary": "The 10-K added new risk factors on data privacy/cybersecurity law compliance, use of artificial intelligence technologies with unproven commercialization, and the need to obtain and maintain numerous government permits and licenses.",
+      "implication": "Evolving legal and regulatory requirements in these areas could increase compliance costs or disrupt operations if permits are denied or AI investments fail to generate returns.",
+      "detail": "The AI risk factor notes the company uses third-party AI tools and is developing its own AI strategy but faces an evolving market and unproven growth prospects; permitting risk factors are newly detailed as standalone items.",
+      "category": "REGULATORY_LEGAL",
+      "impact": "LOW",
+      "impact_basis": "These are newly articulated risks without disclosed financial impact to date, and the filing frames them as general, forward-looking compliance exposures.",
+      "source_id": "R_CMP",
+      "paragraph_id": "P71",
+      "quote": "We use artificial intelligence (\"AI\") technologies in our business, and the deployment, use, and maintenance of these technologies involve significant technological and legal risks.",
+      "trend": "NEW",
+      "trend_reason": "",
+      "source": {
+       "form": "10-K",
+       "filed": "2026-02-26",
+       "period": "2025-12-31",
+       "accession": "0000874238-26-000024",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/strl-20251231.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000024/0000874238-26-000024-index.htm",
+       "label": "10-K for the period ended 2025-12-31, filed 2026-02-26",
+       "id": "R_CMP",
+       "role": "Risk factors: changes since the prior 10-K"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [
+       "headline: 'New risk factors' (the code found only no close match in the prior 10-K's text)",
+       "summary: 'new risk factors' (the code found only no close match in the prior 10-K's text)"
+      ],
+      "other_sources": [],
+      "unsupported_figures": []
+     }
+    ],
+    "dropped": []
+   },
+   "other_risks": {
+    "status": "complete",
+    "items": [
+     {
+      "headline": "Building Solutions operating income fell on residential downturn",
+      "summary": "Building Solutions operating income was $14.7 million (7.3% of revenue) for the six months ended June 30, 2026, down $7.5 million from $22.2 million (11.1% of revenue) in the same period of 2025, due to continued residential market weakness.",
+      "implication": "Continued affordability pressure on homebuyers may keep this segment's margins below prior-year levels for an extended period.",
+      "detail": "Revenue in the segment was roughly flat (up $2.3 million for the six months) while operating income declined, indicating margin compression rather than a revenue problem specifically.",
+      "category": "DEMAND",
+      "impact": "LOW",
+      "impact_basis": "The segment is about 10% of consolidated H1 2026 revenue, so the decline has a contained effect on overall company results even though the percentage decline is meaningful.",
+      "source_id": "MDA",
+      "quote": "Operating income was $14.7 million, or 7.3% of revenue, for the six months ended June 30, 2026, a decrease of $7.5 million, compared to $22.2 million, or 11.1% of revenue, for the six months ended June 30, 2025.",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-08-04",
+       "period": "2026-06-30",
+       "accession": "0000874238-26-000103",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/strl-20260630.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/0000874238-26-000103-index.htm",
+       "label": "10-Q for the period ended 2026-06-30, filed 2026-08-04",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Transportation Solutions revenue declined on lower heavy highway work",
+      "summary": "Transportation Solutions revenue was $289.6 million for the six months ended June 30, 2026, down $27.9 million, or 9%, from the same period in 2025, driven by lower heavy highway and other revenue.",
+      "implication": "A continued shift away from low-bid heavy highway work could pressure segment revenue even as operating margin improves on project mix.",
+      "detail": "Despite the revenue decline, operating income increased to $42.9 million (14.8% of revenue) from $37.2 million (11.7% of revenue), reflecting improved project margin mix.",
+      "category": "DEMAND",
+      "impact": "LOW",
+      "impact_basis": "Revenue decline is modest in dollar terms and offset by margin improvement, and the company describes this as a deliberate strategic shift rather than a demand problem.",
+      "source_id": "MDA",
+      "quote": "Revenues were $289.6 million for the six months ended June 30, 2026, a decrease of $27.9 million, or 9%, compared to the six months ended June 30, 2025.",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-08-04",
+       "period": "2026-06-30",
+       "accession": "0000874238-26-000103",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/strl-20260630.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/0000874238-26-000103-index.htm",
+       "label": "10-Q for the period ended 2026-06-30, filed 2026-08-04",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Investing cash outflows nearly tripled on acquisitions and capex",
+      "summary": "Net cash used in investing activities was $206.5 million for the six months ended June 30, 2026, versus $66.5 million a year earlier, driven by $140.0 million for acquisitions (Stone Ridge) and $69.6 million for capital equipment purchases.",
+      "implication": "Higher acquisition and capex spending reduces cash on hand, which could affect flexibility for further acquisitions or repurchases if operating cash flow growth slows.",
+      "detail": "The outflow was partly offset by $3.1 million of proceeds from asset sales; generally available cash was $306.9 million at June 30, 2026, down slightly from $314.6 million at December 31, 2025.",
+      "category": "CAPITAL_ALLOCATION",
+      "impact": "LOW",
+      "impact_basis": "Operating cash flow of $328.0 million for the same six-month period comfortably covered investing outflows, limiting near-term liquidity concern.",
+      "source_id": "MDA",
+      "quote": "During the six months ended June 30, 2026, net cash used in investing activities was $206.5 million, compared to net cash used of $66.5 million in the six months ended June 30, 2025.",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-08-04",
+       "period": "2026-06-30",
+       "accession": "0000874238-26-000103",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/strl-20260630.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000103/0000874238-26-000103-index.htm",
+       "label": "10-Q for the period ended 2026-06-30, filed 2026-08-04",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     }
+    ],
+    "dropped": []
+   },
+   "events": {
+    "status": "complete",
+    "items": [
+     {
+      "source_id": "K8_4",
+      "category": "FINANCIAL",
+      "headline": "Sterling expanded and extended credit facility to $1.5 billion",
+      "summary": "On July 2, 2026, Sterling entered a Second Amended and Restated Credit Agreement increasing revolving capacity by $1.05 billion to $1.5 billion and extending maturity to July 2, 2031, with $90 million outstanding at closing.",
+      "quote": "The Amended Credit Agreement increases borrowing capacity by $1.05 billion and will initially provide for revolving borrowings up to an aggregate principal amount of $1.5 billion",
+      "source": {
+       "form": "8-K",
+       "filed": "2026-07-08",
+       "period": "2026-07-02",
+       "accession": "0000874238-26-000093",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000093/strl-20260702.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000093/0000874238-26-000093-index.htm",
+       "label": "8-K (event date 2026-07-02), filed 2026-07-08",
+       "items": "1.01,2.03,7.01,9.01",
+       "id": "K8_4",
+       "role": "Current report (8-K)"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "unsupported_figures": []
+     },
+     {
+      "source_id": "K8_3",
+      "category": "LEADERSHIP",
+      "headline": "General Counsel Mark D. Wolf to retire later in 2026",
+      "summary": "On July 6, 2026, Mark D. Wolf, General Counsel, Chief Compliance Officer and Corporate Secretary, notified the company of his intention to retire later in the year and is expected to assist in the transition.",
+      "quote": "Mark D. Wolf, General Counsel, Chief Compliance Officer and Corporate Secretary of Sterling Infrastructure, Inc. (the \u201cCompany\u201d), notified the Company of his intention to retire later this year.",
+      "source": {
+       "form": "8-K",
+       "filed": "2026-07-10",
+       "period": "2026-07-06",
+       "accession": "0000874238-26-000095",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000095/strl-20260706.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000095/0000874238-26-000095-index.htm",
+       "label": "8-K (event date 2026-07-06), filed 2026-07-10",
+       "items": "5.02",
+       "id": "K8_3",
+       "role": "Current report (8-K)"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "unsupported_figures": []
+     },
+     {
+      "source_id": "K8_1",
+      "category": "LEADERSHIP",
+      "headline": "Katherine Hargis appointed Senior Vice President, General Counsel",
+      "summary": "On October 5, 2026, Sterling announced the appointment of Katherine Hargis as Senior Vice President, General Counsel, Chief Compliance Officer, and Corporate Secretary, succeeding the retiring Mark D. Wolf.",
+      "quote": "On October 5, 2026, the Company issued a press release announcing the appointment of Katherine Hargis as Senior Vice President, General Counsel, Chief Compliance Officer, and Corporate Secretary",
+      "source": {
+       "form": "8-K",
+       "filed": "2026-10-05",
+       "period": "2026-10-05",
+       "accession": "0000874238-26-000110",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000110/strl-20261005.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000110/0000874238-26-000110-index.htm",
+       "label": "8-K (event date 2026-10-05), filed 2026-10-05",
+       "items": "7.01,9.01",
+       "id": "K8_1",
+       "role": "Current report (8-K)"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "unsupported_figures": []
+     },
+     {
+      "source_id": "K8_2",
+      "category": "FINANCIAL",
+      "headline": "Sterling reported Q2 2026 results and updated full-year guidance",
+      "summary": "On August 3, 2026, Sterling issued a press release announcing financial results for the three and six months ended June 30, 2026 and providing updated full year 2026 guidance.",
+      "quote": "On August 3, 2026, Sterling Infrastructure, Inc. (the \u201cCompany\u201d) issued a press release announcing financial results for the three and six months ended June 30, 2026 and providing updated full year 2026 guidance.",
+      "source": {
+       "form": "8-K",
+       "filed": "2026-08-03",
+       "period": "2026-08-03",
+       "accession": "0000874238-26-000100",
+       "url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000100/strl-20260803.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/874238/000087423826000100/0000874238-26-000100-index.htm",
+       "label": "8-K (event date 2026-08-03), filed 2026-08-03",
+       "items": "2.02,7.01,9.01",
+       "id": "K8_2",
+       "role": "Current report (8-K)"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "unsupported_figures": []
+     }
+    ],
+    "dropped": []
+   }
+  },
+  "usage": {
+   "input_tokens": 34501,
+   "output_tokens": 6765
+  },
+  "from_cache": false,
+  "budget": {
+   "input_tokens": 34501,
+   "limit": 80000,
+   "output_reserve": 16000,
+   "count": "measured"
+  }
+ },
+ "event_markers": [
+  [
+   "2026-02-26",
+   "10-K"
+  ],
+  [
+   "2025-02-26",
+   "10-K"
+  ],
+  [
+   "2026-08-04",
+   "10-Q"
+  ],
+  [
+   "2026-05-05",
+   "10-Q"
+  ],
+  [
+   "2026-08-04",
+   "10-Q"
+  ],
+  [
+   "2026-10-05",
+   "8-K"
+  ],
+  [
+   "2026-08-03",
+   "8-K"
+  ],
+  [
+   "2026-07-10",
+   "8-K"
+  ],
+  [
+   "2026-07-08",
+   "8-K"
+  ]
+ ]
+}

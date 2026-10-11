@@ -23,6 +23,12 @@ import numpy as np
 import pandas as pd
 
 DELAY = float(os.environ.get("MOCK_DELAY", "0"))
+# Spending-guard scenarios: real-size token counts (one ticker uses most of a day's cap), and the documented
+# HTTP 400 for an account spend limit (https://platform.claude.com/docs/en/api/rate-limits, checked 2026-10-11)
+REAL_USAGE = os.environ.get("MOCK_USAGE") == "real"
+# MOCK_NO_NETWORK=1: every SEC, Yahoo and Anthropic call raises, to prove the saved sample needs none of them
+NO_NETWORK = os.environ.get("MOCK_NO_NETWORK") == "1"
+MONTHLY_LIMIT = {x.strip().upper() for x in os.environ.get("MOCK_MONTHLY_LIMIT", "").split(",") if x.strip()}
 _env = lambda name: {x.strip().upper() for x in os.environ.get(name, "").split(",") if x.strip()}
 CUTOFF, FAIL_ONCE, ONE_10K, NO_8K, EMPTY_EVENTS = (_env(n) for n in
     ("MOCK_CUTOFF", "MOCK_FAIL_ONCE", "MOCK_ONE_10K", "MOCK_NO_8K", "MOCK_EMPTY_EVENTS"))
@@ -116,6 +122,8 @@ def _fail_once(component, attempts=1):
 
 
 def fake_get(url, headers=None, timeout=None, **kw):
+    if NO_NETWORK:
+        raise ConnectionError(f"network call during a no-network test: {url}")
     if url.endswith("company_tickers.json"):
         return FakeResponse(payload={str(i): {"cik_str": c[0], "ticker": t, "title": c[1]}
                                      for i, (t, c) in enumerate(COMPANIES.items())})
@@ -159,6 +167,8 @@ def _history(ticker, period="6mo", interval="1d", **kw):
 
 class FakeTicker:
     def __init__(self, ticker):
+        if NO_NETWORK:
+            raise ConnectionError(f"Yahoo call during a no-network test: {ticker}")
         self.ticker = ticker
 
     @property
@@ -222,17 +232,29 @@ def _source_ids(tools, section="catalysts"):
 
 class FakeMessages:
     def create(self, **kw):
+        if NO_NETWORK:
+            raise ConnectionError("Anthropic call during a no-network test")
         if DELAY:
             time.sleep(DELAY)
         ticker = re.search(r"\(([A-Z.]+)\)", kw["messages"][0]["content"]).group(1)
+        if ticker in MONTHLY_LIMIT:
+            import anthropic
+            import httpx2
+            body = {"type": "error", "error": {"type": "invalid_request_error",
+                    "message": "You have reached your specified API usage limits. You will regain access on 2026-11-01 at 00:00 UTC."}}
+            response = httpx2.Response(400, request=httpx2.Request("POST", "https://api.anthropic.com/v1/messages"))
+            raise anthropic.BadRequestError(message=str(body), response=response, body=body)
         payload = _ai_payload(ticker, _source_ids(kw["tools"]), _source_ids(kw["tools"], "risks"), kw["messages"][0]["content"])
         stop = "tool_use"
         if ticker in CUTOFF:
             payload, stop = {"catalysts": payload["catalysts"][:2]}, "max_tokens"
         return SimpleNamespace(content=[SimpleNamespace(type="tool_use", input=payload)], stop_reason=stop,
-                               usage=SimpleNamespace(input_tokens=len(kw["messages"][0]["content"]) // 4, output_tokens=3100))
+                               usage=SimpleNamespace(input_tokens=50_000 if REAL_USAGE else len(kw["messages"][0]["content"]) // 4,
+                                                     output_tokens=6_000 if REAL_USAGE else 3100))
 
     def count_tokens(self, **kw):
+        if REAL_USAGE:
+            return SimpleNamespace(input_tokens=50_000)
         return SimpleNamespace(input_tokens=(len(kw["messages"][0]["content"]) + len(json.dumps(kw["tools"]))) // 4)
 
 

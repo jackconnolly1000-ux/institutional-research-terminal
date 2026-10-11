@@ -17,8 +17,8 @@ import compare
 import sec_data
 
 MODEL = "claude-sonnet-5"
-MAX_OUTPUT_TOKENS = 16000      # Jack's call, Oct 10. Non-streaming: the SDK refuses above ~21,333 (10-minute rule)
-REQUEST_TOKEN_BUDGET = 80_000  # whole request: prompt + tool schema + evidence + MAX_OUTPUT_TOKENS (64K input)
+MAX_OUTPUT_TOKENS = 12000      # sized so a worst-case call fits the $0.25/day cap (budget.py); real answers used 4,867-6,765
+REQUEST_TOKEN_BUDGET = 76_000  # whole request: prompt + tool schema + evidence + MAX_OUTPUT_TOKENS (64K input)
 TOOL_NAME = "record_filing_findings"
 
 IMPACTS = ["HIGH", "MEDIUM", "LOW", "NOT_ASSESSED"]

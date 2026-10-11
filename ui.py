@@ -87,24 +87,17 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 /* A clicked button keeps focus, and Streamlit draws a heavy ring on it (the outlined Download box). Keep the ring
    for keyboard users only. */
 .stButton button:focus:not(:focus-visible), .stDownloadButton button:focus:not(:focus-visible) {{ box-shadow: none; outline: none; }}
-/* Rows of compact buttons (examples) and the results bar: Streamlit columns have fixed widths, so a long label
-   wrapped inside its column. A marker span in the row lets CSS size these columns to their content instead. */
-[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) {{ flex-wrap: wrap; gap: 8px; align-items: center; }}
-[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) > [data-testid="column"] {{ flex: 0 0 auto !important; width: auto !important; min-width: 0; }}
-.irt-mark-examples {{ color: var(--text-muted); font-size: 0.85rem; }}
+/* The results bar: Streamlit columns have fixed widths, so a long label wrapped inside its column. A marker span
+   in the row lets CSS size these columns to their content instead. */
 [data-testid="stHorizontalBlock"]:has(.irt-mark-results) {{ align-items: center; flex-wrap: wrap; gap: 8px 16px;
   padding: 10px 0; margin-top: 6px; border-top: 1px solid var(--border); }}
 [data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"]:first-child {{ flex: 1 1 260px !important; width: auto !important; }}
 [data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"]:last-child {{ flex: 0 0 auto !important; width: auto !important; }}
 /* Streamlit gives each element inside a column a fixed pixel width and gives markdown a negative bottom margin;
-   in these two rows that kept the text column full width and made the button overlap it */
-[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"],
-[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) > [data-testid="column"] {{ min-width: 0 !important; }}
-[data-testid="stHorizontalBlock"]:has(.irt-mark-results) [data-testid="element-container"],
-[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) [data-testid="element-container"] {{ width: auto !important; }}
-[data-testid="stHorizontalBlock"]:has(.irt-mark-results) [data-testid="stMarkdownContainer"],
-[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
-[data-testid="stHorizontalBlock"]:has(.irt-mark-examples) [data-testid="stMarkdownContainer"] p {{ margin: 0; }}
+   in this row that kept the text column full width and made the button overlap it */
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) > [data-testid="column"] {{ min-width: 0 !important; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) [data-testid="element-container"] {{ width: auto !important; }}
+[data-testid="stHorizontalBlock"]:has(.irt-mark-results) [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
 
 /* Tabs */
 .stTabs [data-baseweb="tab"] {{ font-weight: 600; }}
@@ -587,9 +580,17 @@ def event_list(events: list) -> str:
     return f'<div class="irt-list">{"".join(rows)}</div>' if rows else ""
 
 
+# The spending guard skips a ticker without anything having gone wrong, so it isn't shown as failed
+SKIP_MESSAGES = {
+    "daily": "Today's limit for live analyses is reached. It resets at midnight ET. The saved AAPL and STRL sample works now.",
+    "monthly": "The monthly AI budget for this demo is used up.",
+}
+SKIP_LABELS = {"daily": "skipped, daily limit reached", "monthly": "skipped, monthly AI budget used up"}
+
+
 def progress_strip(statuses: dict) -> str:
-    """statuses: {ticker: (state, detail)}, state in queued / working / done / partial / failed. One line of plain
-    text; a failed or partial ticker is in stronger text, not a colored pill."""
+    """statuses: {ticker: (state, detail)}, state in queued / working / done / partial / skipped / failed. One line
+    of plain text; a failed or partial ticker is in stronger text, not a colored pill. Skipped isn't a problem."""
     parts = []
     for ticker, (state, detail) in statuses.items():
         strong = " problem" if state in ("failed", "partial") else ""
