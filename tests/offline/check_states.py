@@ -8,8 +8,9 @@ Then:
 
 Runs AAPL + FAST + STRL twice in one browser session and prints a JSON report per run and tab.
 Expected: run 1 shows the simulated Yahoo and 8-K failures for AAPL, no annual comparison for FAST,
-and an incomplete answer for STRL. Run 2 recovers AAPL's market data and 8-K (they weren't cached)
-and still reports STRL as incomplete (a cut-off answer is never cached as complete).
+and an incomplete answer for STRL. Run 2 recovers AAPL's market data and 8-K (they weren't cached).
+STRL's cut-off answer isn't cached, so run 2 tries it again; with the $0.25 daily cap the three run-1 calls leave
+too little room, so STRL is skipped by the spending limit.
 """
 import json
 import sys
@@ -63,8 +64,12 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     for t in ("FAST", "STRL"):
         page.locator('[data-testid="stMultiSelect"] input').click()
-        page.keyboard.type(t); page.wait_for_timeout(500); page.keyboard.press("Enter"); page.keyboard.press("Escape")
-        page.wait_for_timeout(500)
+        page.keyboard.type(t); page.wait_for_timeout(500); page.keyboard.press("Enter")
+        # On Streamlit 1.65 Escape doesn't close the menu after a pick, and the open menu hides the Run analysis
+        # column from the accessibility tree. Clicking the title closes it on both versions.
+        page.wait_for_timeout(400); page.get_by_text("SEC Filing Research Terminal").first.click()
+        page.wait_for_function("() => !document.querySelector('[data-testid=stMultiSelect] [aria-expanded=true]')", timeout=5000)
+        page.wait_for_timeout(300)
     out = {"run1": run_once(page, 1), "run2": run_once(page, 2)}
 
     with page.expect_download() as dl:
