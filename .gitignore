@@ -12,6 +12,8 @@ venv/
 # Generated files
 *.xlsx
 *.csv
+# The saved sample's frozen price history is part of the app
+!samples/*.csv
 
 # Mac
 .DS_Store

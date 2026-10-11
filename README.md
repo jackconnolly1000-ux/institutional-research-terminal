@@ -15,6 +15,8 @@ For up to five tickers:
 - Checks the answer: whether it was complete, whether every field is valid, whether each quoted excerpt appears word for word in the cited filing, and whether each figure in a finding appears in that filing.
 - Shows market data from Yahoo Finance with its source field and retrieval time, and a five-year price chart.
 - Exports the results to Excel.
+- Limits spending on live AI calls to $0.25 a day (see Spending limit below).
+- Shows a saved AAPL + STRL sample with no live calls, from the "View saved sample" button.
 
 ## What it doesn't do
 
@@ -27,7 +29,7 @@ For up to five tickers:
 
 - "No close match in the prior 10-K" is a text test. A heavily rewritten paragraph can be labeled that way; the closest prior paragraph is shown as context.
 - Section extraction has been checked on seven filers (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM). Other filing layouts may not be recognized.
-- Each request is capped at 80,000 tokens (64,000 of input). When the evidence is larger, the rest is omitted and the omission is shown.
+- Each request is capped at 76,000 tokens (64,000 of input, 12,000 of output). When the evidence is larger, the rest is omitted and the omission is shown.
 - The figures check is a text match. It normalizes formats ($14.7M, 14.7 million, $14,700 thousand) and ignores dates and form names, but a figure written very differently from the filing (for example "2.00 to 1.00" vs "2.00x") is flagged even when it's right, and a fair calculation such as a percent change is always flagged.
 - Claude doesn't always follow the prompt's rules, so the code flags what it can instead of trusting the text. In the Oct 10, 2026 test run (AAPL and STRL) it:
   - did not list a second source for figures taken from one (a $35.3 million buyback figure, flagged as not in the cited source);
@@ -36,6 +38,21 @@ For up to five tickers:
 - The figures check also flags fair sums, such as $86.3 billion of purchase obligations reported as $57.0 billion and $29.3 billion. The card says some flags are calculations.
 - The wording check can flag financial uses it doesn't recognize, such as "subject to a leverage test".
 - A first run takes about a minute per ticker (131 seconds for AAPL and STRL on Oct 10, 2026).
+- Public live runs fit about one ticker a day. A worst-case call costs $0.248 against the $0.25 daily cap.
+- The daily spending counter is kept in memory and resets when the app restarts, so a restart allows another day's worth. The Anthropic account's monthly limit is the hard stop.
+- The saved sample is frozen: the analysis is from Oct 10, 2026 and the price history ends at the Oct 9 close (retrieved Oct 11). It doesn't update.
+
+## Spending limit
+
+Every live Claude call first reserves its worst-case cost (measured input tokens plus the 12,000-token output reserve, at the prices in `budget.py`), then settles at the cost the API reports. If the worst case doesn't fit in what's left of today's $0.25 (America/New_York day), the ticker is skipped and its tab says so. Answers served from the app's cache cost nothing and skip the counter. A request the API rejects (4xx) is released; a timeout, connection error or 5xx is charged at the worst case, since it may have been billed. When the account's monthly limit is reached, the tab says the monthly AI budget is used up.
+
+The owner can run past the daily cap (the spend still counts) by entering a passcode in the sidebar. Set `OWNER_PASSCODE` in Streamlit Secrets and in `.streamlit/secrets.toml`; generate it with:
+
+```
+python3 -c "import secrets; print(secrets.token_urlsafe(24))"
+```
+
+If `OWNER_PASSCODE` isn't set, the sidebar field doesn't appear. The passcode is never read from the URL.
 
 ## Running it
 
@@ -44,7 +61,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/streamlit run app.py
 ```
 
-Streamlit Secrets (`.streamlit/secrets.toml`) needs `ANTHROPIC_API_KEY` and `SEC_CONTACT_EMAIL` (SEC EDGAR asks every automated request to name a contact).
+Streamlit Secrets (`.streamlit/secrets.toml`) needs `ANTHROPIC_API_KEY` and `SEC_CONTACT_EMAIL` (SEC EDGAR asks every automated request to name a contact), and optionally `OWNER_PASSCODE`.
 
 ## Tests
 
@@ -52,4 +69,4 @@ Streamlit Secrets (`.streamlit/secrets.toml`) needs `ANTHROPIC_API_KEY` and `SEC
 .venv/bin/python -m unittest discover -s tests -p "test_*.py"
 ```
 
-Unit tests import the production modules (`sec_data.py`, `compare.py`, `analysis.py`, `market_data.py`) and make no network calls. `tests/offline/` runs the whole app on fake SEC, Yahoo and Anthropic responses; `tests/check_risk_extraction.py` checks section extraction against live EDGAR filings without calling Anthropic.
+Unit tests import the production modules (`sec_data.py`, `compare.py`, `analysis.py`, `market_data.py`, `budget.py`) and make no network calls. `tests/offline/` runs the whole app on fake SEC, Yahoo and Anthropic responses; `tests/check_risk_extraction.py` checks section extraction against live EDGAR filings without calling Anthropic.

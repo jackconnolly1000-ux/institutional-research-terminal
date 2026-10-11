@@ -106,6 +106,14 @@ class Components(unittest.TestCase):
         self.assertIn("(MD&A) wasn't found", state("other_risks"))
         self.assertIn("No 8-Ks filed", state("events"))
 
+    def test_skipped_is_its_own_state(self):
+        self.assertEqual(ui.SKIP_MESSAGES["daily"], "Today's limit for live analyses is reached. It resets at midnight ET. "
+                                                    "The saved AAPL and STRL sample works now.")
+        self.assertEqual(ui.SKIP_MESSAGES["monthly"], "The monthly AI budget for this demo is used up.")
+        strip = ui.progress_strip({"AAPL": ("done", "41s"), "STRL": ("skipped", ui.SKIP_LABELS["daily"])})
+        self.assertIn("skipped, daily limit reached", strip)
+        self.assertNotIn('prog problem"><b>STRL', strip)          # skipped isn't styled as a failure
+
     def test_every_category_has_a_label(self):
         import analysis
         self.assertEqual(set(analysis.CATEGORIES + analysis.EVENT_CATEGORIES) - set(ui.CATEGORY_LABELS), set())

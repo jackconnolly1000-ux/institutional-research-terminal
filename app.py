@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import json
 import os
 import requests
@@ -9,12 +10,14 @@ import yfinance as yf
 import pandas as pd
 from openpyxl.styles import Font, PatternFill
 from io import BytesIO
+from pathlib import Path
 from datetime import datetime
 from anthropic import Anthropic, APIError
 from zoneinfo import ZoneInfo
 import streamlit as st
 
 import analysis
+import budget
 import market_data
 import sec_data
 import ui
@@ -58,6 +61,13 @@ if not SEC_CONTACT:
 # instead of being served from cache. Pure logic lives in sec_data.py, analysis.py and market_data.py.
 class TickerFailure(Exception):
     """A per-ticker failure whose message is safe to show the user."""
+
+class TickerSkipped(Exception):
+    """A ticker not analyzed because of the spending guard: kind is "daily" (this app's cap) or "monthly"
+    (the Anthropic account's limit). Shown as skipped, not failed: nothing went wrong with the data."""
+    def __init__(self, kind: str):
+        super().__init__(kind)
+        self.kind = kind
 
 SEC_HEADERS = {"User-Agent": f"SEC Filing Research Terminal {SEC_CONTACT}"}
 
@@ -162,7 +172,17 @@ def analysis_store() -> dict:
     return {}
 
 ANALYSIS_TTL = 3600
-ANALYSIS_TIMEOUT = 300  # seconds; an answer of up to 16,000 tokens can take minutes
+ANALYSIS_TIMEOUT = 300  # seconds; an answer of up to 12,000 tokens can take minutes
+
+@st.cache_resource(show_spinner=False)
+def spend_ledger() -> budget.Ledger:
+    """One daily spend ledger shared by every visitor (st.cache_resource is per server process, not per
+    session). It lives in memory, so it resets when the app restarts or wakes from sleep; the Anthropic
+    account's monthly limit is the hard stop behind it."""
+    return budget.Ledger(budget.DAILY_CAP_USD)
+
+def is_owner() -> bool:
+    return bool(st.session_state.get("owner"))
 # Local diagnostics only: set SAVE_AI_RESPONSES_DIR to keep each raw Claude answer and the profile built from it
 SAVE_DIR = os.environ.get("SAVE_AI_RESPONSES_DIR")
 
@@ -190,16 +210,34 @@ def run_analysis(ticker: str, evidence: dict) -> dict:
     hit = store.get(key)
     from_cache = bool(hit and time.time() - hit["at"] < ANALYSIS_TTL)
     if from_cache:
-        raw = hit["raw"]
+        raw = hit["raw"]   # costs nothing, so the ledger isn't touched
     else:
+        # Reserve the worst case (measured input + the full output allowance) before calling
+        worst = budget.cost_usd(analysis.MODEL, req["input_tokens"], analysis.MAX_OUTPUT_TOKENS)
+        ledger = spend_ledger()
+        hold = ledger.reserve(worst, enforce=not is_owner())
+        if hold is None:
+            raise TickerSkipped("daily")
         try:
             # One attempt only: an SDK retry after a timeout could bill the same request twice.
             response = client.with_options(timeout=ANALYSIS_TIMEOUT, max_retries=0).messages.create(
                 model=analysis.MODEL, max_tokens=analysis.MAX_OUTPUT_TOKENS, tools=[req["tool"]],
                 tool_choice={"type": "tool", "name": analysis.TOOL_NAME},
                 messages=[{"role": "user", "content": req["prompt"]}])
-        except APIError as e:
-            return analysis.failed_result(sources, f"Anthropic API error ({type(e).__name__}); try again")
+        except Exception as e:
+            # A 4xx means the API refused the request, so it wasn't billed. Anything else (5xx, timeout,
+            # connection error, an unexpected error) may have been billed, so it counts at the worst case.
+            if budget.rejected_before_billing(e):
+                ledger.release(hold)
+            else:
+                ledger.settle(hold, worst)
+            if budget.monthly_limit_error(e):
+                raise TickerSkipped("monthly") from e
+            if isinstance(e, APIError):
+                return analysis.failed_result(sources, f"Anthropic API error ({type(e).__name__}); try again")
+            raise
+        # Every response that comes back is billed for what it used, including a cut-off one (max_tokens)
+        ledger.settle(hold, budget.cost_usd(analysis.MODEL, response.usage.input_tokens, response.usage.output_tokens))
         raw = {"stop_reason": response.stop_reason,
                "tool_input": next((b.input for b in response.content if b.type == "tool_use"), None),
                "usage": {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}}
@@ -221,17 +259,43 @@ def run_analysis(ticker: str, evidence: dict) -> dict:
                       "budget": {"input_tokens": req["input_tokens"], "limit": req["budget"],
                                  "output_reserve": analysis.MAX_OUTPUT_TOKENS, "count": method["method"]}}
 
+# Local only: set SAVE_SAMPLE_DIR to write each finished profile to JSON (tests/offline/build_sample.py uses them)
+SAMPLE_OUT = os.environ.get("SAVE_SAMPLE_DIR")
+
 def analyze_ticker(ticker: str, cik: str, progress) -> dict:
+    # No spending check here: a cached answer costs nothing, and that's only known once the request is built.
+    # run_analysis reserves right before the Claude call.
     progress("Reading SEC filings (step 1 of 3)")
     evidence = gather_evidence(ticker, cik)
     progress("Fetching market data (step 2 of 3)")
     financials = load_financials(ticker)
     progress("Summarizing filings with Claude (step 3 of 3)")
     result = run_analysis(ticker, evidence)
-    return {"ticker": ticker, "company_name": evidence["company_name"], "industry": evidence["industry"],
-            "financials": financials,
-            "evidence": [s.coverage() for s in evidence["sources"]], "analysis": result,
-            "event_markers": evidence["event_markers"]}
+    profile = {"ticker": ticker, "company_name": evidence["company_name"], "industry": evidence["industry"],
+               "financials": financials,
+               "evidence": [s.coverage() for s in evidence["sources"]], "analysis": result,
+               "event_markers": evidence["event_markers"]}
+    if SAMPLE_OUT:
+        os.makedirs(SAMPLE_OUT, exist_ok=True)
+        with open(os.path.join(SAMPLE_OUT, f"{ticker}.json"), "w") as fh:
+            json.dump(profile, fh, indent=1, default=str)
+    return profile
+
+# --- SAVED SAMPLE: a frozen AAPL + STRL run in samples/, rendered with no network calls ---
+SAMPLES = Path(__file__).parent / "samples"
+
+def load_sample() -> None:
+    manifest = json.loads((SAMPLES / "manifest.json").read_text())
+    profiles = {}
+    for t in manifest["tickers"]:
+        p = json.loads((SAMPLES / f"{t}.json").read_text())
+        p["sample_prices"] = str(SAMPLES / f"{t}_prices.csv")
+        profiles[t] = p
+    st.session_state.results = {"tickers": manifest["tickers"], "profiles": profiles, "failures": {}, "skipped": {},
+                                "run_at": datetime.fromisoformat(manifest["run_at"]), "sample": manifest}
+
+def sample_prices(path: str) -> pd.DataFrame:
+    return pd.read_csv(path, index_col=0, parse_dates=True)
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_price_history(ticker: str) -> pd.DataFrame:
@@ -316,14 +380,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- TOOLBAR: TICKER PICKER, ONE PRIMARY ACTION, EXAMPLE PRESETS ---
+# --- TOOLBAR: TICKER PICKER, ONE PRIMARY ACTION, THE SAVED SAMPLE ---
 sec_directory, used_fallback = load_sec_directory()
 ticker_names = dict(zip(sec_directory["ticker"], sec_directory["name"]))
 ticker_ciks = dict(zip(sec_directory["ticker"], sec_directory["cik"]))
-
-def apply_preset(tickers):
-    # on_click callbacks run before the rerun, so the multiselect hasn't been drawn yet: setting its key is allowed
-    st.session_state.ticker_select = [t for t in tickers if t in ticker_names]
 
 # Drop any saved ticker that isn't in today's options (e.g. after a fallback), or the multiselect raises
 st.session_state.ticker_select = [t for t in st.session_state.get("ticker_select", ["AAPL"]) if t in ticker_names]
@@ -342,11 +402,23 @@ with col_pick:
 with col_run:
     run_btn = st.button("Run analysis", type="primary", use_container_width=True)
 
-# The marker span lets ui.py's CSS size these columns to their content (see "Rows of compact buttons")
-col_lbl, col_ex1, col_ex2 = st.columns(3)
-col_lbl.markdown("<span class='irt-mark-examples'>Examples</span>", unsafe_allow_html=True)
-col_ex1.button("AAPL", on_click=apply_preset, args=(["AAPL"],), help="Fill the picker with AAPL")
-col_ex2.button("FAST + STRL", on_click=apply_preset, args=(["FAST", "STRL"],), help="Fill the picker with FAST and STRL")
+st.markdown("<p class='irt-note'>Live analysis is limited to about one ticker a day. The saved sample is always available.</p>",
+            unsafe_allow_html=True)
+st.button("View saved sample", on_click=load_sample, help="AAPL and STRL from a saved run, with no live calls")
+
+# Owner bypass: only when OWNER_PASSCODE is set in Streamlit Secrets. Typed in the sidebar, kept in the
+# session, never in a URL. Owner runs still count against the ledger, so visitors see a true remainder.
+try:
+    OWNER_PASSCODE = st.secrets.get("OWNER_PASSCODE")
+except Exception:
+    OWNER_PASSCODE = None
+if OWNER_PASSCODE:
+    with st.sidebar:
+        typed = st.text_input("Owner passcode", type="password")
+        # Clearing the field turns owner mode off again
+        st.session_state.owner = bool(typed) and hmac.compare_digest(typed.encode(), str(OWNER_PASSCODE).encode())
+        if typed:
+            st.caption("Owner mode: the daily limit is off for this session." if st.session_state.owner else "Passcode not recognized.")
 
 if used_fallback:
     st.warning("Couldn't reach the SEC ticker list, so only 6 tickers are available. Reload the page to retry.")
@@ -378,7 +450,7 @@ def render_profile(p: dict) -> None:
                    if p["financials"]["status"] != "ok" else ""), unsafe_allow_html=True)
 
     try:
-        hist = get_price_history(p["ticker"])
+        hist = sample_prices(p["sample_prices"]) if p.get("sample_prices") else get_price_history(p["ticker"])
         st.plotly_chart(build_price_chart(hist, p["event_markers"]), use_container_width=True, theme=None, config=CHART_CONFIG)
         st.caption(f"Daily bars through {hist.index[-1]:%Y-%m-%d}, adjusted for splits and dividends. "
                    "Source: Yahoo Finance via yfinance. Diamonds: SEC filing dates from EDGAR.")
@@ -412,6 +484,10 @@ def render_profile(p: dict) -> None:
     st.markdown(html, unsafe_allow_html=True)
 
 
+def render_skipped(kind: str) -> None:
+    st.markdown(ui.notice("Not analyzed", ui.SKIP_MESSAGES[kind], "neutral"), unsafe_allow_html=True)
+
+
 def render_failure(ticker: str, reason: str) -> None:
     st.markdown(f"<div class='irt-card tone-negative'><div class='irt-card-title'>Couldn't analyze {ui.esc(ticker)}</div>"
                 f"<p class='irt-card-body'>{ui.esc(reason)}</p></div>", unsafe_allow_html=True)
@@ -438,7 +514,7 @@ elif run_btn:
             slots[t] = st.empty()
             slots[t].markdown(ui.skeleton(t, "Queued"), unsafe_allow_html=True)
 
-    profiles, failures = {}, {}
+    profiles, failures, skipped = {}, {}, {}
     for t in tickers:
         started = time.time()
 
@@ -451,12 +527,18 @@ elif run_btn:
             profiles[t] = analyze_ticker(t, ticker_ciks[t], progress)
             state, label = run_state(profiles[t])
             statuses[t] = (state, f"{label + ', ' if label else ''}{time.time() - started:.0f}s")
+        except TickerSkipped as e:
+            skipped[t] = e.kind
         except TickerFailure as e:
             failures[t] = str(e)
         except Exception as e:
             traceback.print_exc()  # full stack trace to the server log; the user sees only the short message
             failures[t] = f"unexpected error ({type(e).__name__}), try again"
-        if t in failures:
+        if t in skipped:
+            statuses[t] = ("skipped", ui.SKIP_LABELS[skipped[t]])
+            with slots[t].container():
+                render_skipped(skipped[t])
+        elif t in failures:
             statuses[t] = ("failed", "failed")
             with slots[t].container():
                 render_failure(t, failures[t])
@@ -467,7 +549,7 @@ elif run_btn:
 
     # Keep the results so a download, preset click or ticker change doesn't wipe them
     st.session_state.results = {
-        "tickers": tickers, "profiles": profiles, "failures": failures,
+        "tickers": tickers, "profiles": profiles, "failures": failures, "skipped": skipped,
         "run_at": datetime.now(ET),
     }
     st.rerun()  # redraw once from session state: summary row and download button on top
@@ -476,27 +558,32 @@ elif run_btn:
 # st.rerun() above stops this run, so this section only draws on the next run (and every run after)
 results = st.session_state.get("results")
 if results:
-    profiles, failures = results["profiles"], results["failures"]
+    profiles, failures, skipped = results["profiles"], results["failures"], results.get("skipped", {})
     done = [t for t in results["tickers"] if t in profiles]
     partial = [t for t in done if run_state(profiles[t])[0] == "partial"]
 
     col_sum, col_dl = st.columns([4, 1])
-    col_sum.markdown(
-        f"<p class='irt-subtitle irt-mark-results'>Results for {ui.esc(', '.join(results['tickers']))} · "
-        f"run {results['run_at']:%b %d, %I:%M %p} ET · {len(done)} of {len(results['tickers'])} succeeded"
-        + (f" ({len(partial)} with partial results)" if partial else "") + "</p>",
-        unsafe_allow_html=True)
+    if results.get("sample"):
+        summary = results["sample"]["label"]
+    else:
+        summary = (f"Results for {', '.join(results['tickers'])} · run {results['run_at']:%b %d, %I:%M %p} ET · "
+                   f"{len(done)} of {len(results['tickers'])} succeeded"
+                   + (f" ({len(partial)} with partial results)" if partial else "")
+                   + (f" · {len(skipped)} skipped by the spending limit" if skipped else ""))
+    col_sum.markdown(f"<p class='irt-subtitle irt-mark-results'>{ui.esc(summary)}</p>", unsafe_allow_html=True)
     if profiles:
         col_dl.download_button("Download Excel", data=generate_excel([profiles[t] for t in done]),
                                file_name=f"Research_Record_{'_'.join(done)}_{results['run_at']:%Y-%m-%d}.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    if sorted(st.session_state.ticker_select) != sorted(results["tickers"]):
+    if not results.get("sample") and sorted(st.session_state.ticker_select) != sorted(results["tickers"]):
         st.caption("Your ticker selection changed. Click Run analysis to update these results.")
 
     for t, tab in zip(results["tickers"], st.tabs(results["tickers"])):
         with tab:
             if t in profiles:
                 render_profile(profiles[t])
+            elif t in skipped:
+                render_skipped(skipped[t])
             else:
                 render_failure(t, failures.get(t, "unknown error"))
 else:

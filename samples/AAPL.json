@@ -1,0 +1,930 @@
+{
+ "ticker": "AAPL",
+ "company_name": "Apple Inc.",
+ "industry": "Electronic Computers",
+ "financials": {
+  "status": "ok",
+  "source": "Yahoo Finance via yfinance (Ticker.info)",
+  "retrieved_at": "2026-10-10T13:48:47-04:00",
+  "metrics": {
+   "price": {
+    "label": "Price",
+    "value": 336.64,
+    "unit": "USD",
+    "field": "currentPrice",
+    "period": "Quote as of Oct 9, 2026, 4:00 PM ET"
+   },
+   "market_cap": {
+    "label": "Market cap",
+    "value": 4912984883200,
+    "unit": "USD",
+    "field": "marketCap",
+    "period": null
+   },
+   "forward_pe": {
+    "label": "Forward P/E",
+    "value": 35.11173,
+    "unit": "multiple",
+    "field": "forwardPE",
+    "period": null
+   },
+   "gross_margin": {
+    "label": "Gross margin",
+    "value": 0.48653,
+    "unit": "fraction",
+    "field": "grossMargins",
+    "period": null
+   },
+   "operating_margin": {
+    "label": "Operating margin",
+    "value": 0.32623002,
+    "unit": "fraction",
+    "field": "operatingMargins",
+    "period": null
+   },
+   "profit_margin": {
+    "label": "Net margin",
+    "value": 0.27618998,
+    "unit": "fraction",
+    "field": "profitMargins",
+    "period": null
+   },
+   "revenue_growth": {
+    "label": "Revenue growth",
+    "value": 0.164,
+    "unit": "fraction",
+    "field": "revenueGrowth",
+    "period": null
+   },
+   "roe": {
+    "label": "Return on equity",
+    "value": 1.4875101,
+    "unit": "fraction",
+    "field": "returnOnEquity",
+    "period": null
+   },
+   "free_cash_flow": {
+    "label": "Free cash flow",
+    "value": 107721875456,
+    "unit": "USD",
+    "field": "freeCashflow",
+    "period": null
+   },
+   "ebitda": {
+    "label": "EBITDA",
+    "value": 167959003136,
+    "unit": "USD",
+    "field": "ebitda",
+    "period": null
+   }
+  }
+ },
+ "evidence": [
+  {
+   "id": "R_CUR",
+   "role": "Risk factors, latest annual report",
+   "status": "found",
+   "note": "Heading at character 37,628; ends at Item 1B. Compared paragraph by paragraph in code; only new, changed and removed paragraphs are sent (R_CMP).",
+   "compared": true,
+   "form": "10-K",
+   "filed": "2025-10-31",
+   "period": "2025-09-27",
+   "accession": "0000320193-25-000079",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.htm",
+   "label": "10-K for the period ended 2025-09-27, filed 2025-10-31",
+   "chars": 68020,
+   "sent_chars": 0,
+   "omitted_chars": 0
+  },
+  {
+   "id": "R_PRIOR",
+   "role": "Risk factors, prior annual report",
+   "status": "found",
+   "note": "Heading at character 37,758; ends at Item 1B. Compared paragraph by paragraph in code; only new, changed and removed paragraphs are sent (R_CMP).",
+   "compared": true,
+   "form": "10-K",
+   "filed": "2024-11-01",
+   "period": "2024-09-28",
+   "accession": "0000320193-24-000123",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm",
+   "label": "10-K for the period ended 2024-09-28, filed 2024-11-01",
+   "chars": 68735,
+   "sent_chars": 0,
+   "omitted_chars": 0
+  },
+  {
+   "id": "R_CMP",
+   "role": "Risk factors: changes since the prior 10-K",
+   "status": "found",
+   "note": "",
+   "compared": false,
+   "form": "10-K",
+   "filed": "2025-10-31",
+   "period": "2025-09-27",
+   "accession": "0000320193-25-000079",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.htm",
+   "label": "10-K for the period ended 2025-09-27, filed 2025-10-31",
+   "chars": 73390,
+   "sent_chars": 73390,
+   "omitted_chars": 0
+  },
+  {
+   "id": "QU1",
+   "role": "Risk factor updates, quarterly report",
+   "status": "no_material_changes",
+   "note": "Heading at character 60,334; ends at Item 2.",
+   "compared": false,
+   "form": "10-Q",
+   "filed": "2026-01-30",
+   "period": "2025-12-27",
+   "accession": "0000320193-26-000006",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000006/aapl-20251227.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000006/0000320193-26-000006-index.htm",
+   "label": "10-Q for the period ended 2025-12-27, filed 2026-01-30",
+   "chars": 388,
+   "sent_chars": 388,
+   "omitted_chars": 0
+  },
+  {
+   "id": "QU2",
+   "role": "Risk factor updates, quarterly report",
+   "status": "found",
+   "note": "Heading at character 69,746; ends at Item 2.",
+   "compared": false,
+   "form": "10-Q",
+   "filed": "2026-05-01",
+   "period": "2026-03-28",
+   "accession": "0000320193-26-000013",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000013/aapl-20260328.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000013/0000320193-26-000013-index.htm",
+   "label": "10-Q for the period ended 2026-03-28, filed 2026-05-01",
+   "chars": 22070,
+   "sent_chars": 22070,
+   "omitted_chars": 0
+  },
+  {
+   "id": "QU3",
+   "role": "Risk factor updates, quarterly report",
+   "status": "found",
+   "note": "Heading at character 70,083; ends at Item 2. Incorporates an earlier 10-Q by reference; earlier 10-Qs since the 10-K are included.",
+   "compared": false,
+   "form": "10-Q",
+   "filed": "2026-07-31",
+   "period": "2026-06-27",
+   "accession": "0000320193-26-000020",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+   "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+   "chars": 19057,
+   "sent_chars": 19057,
+   "omitted_chars": 0
+  },
+  {
+   "id": "MDA",
+   "role": "Management's discussion and analysis",
+   "status": "found",
+   "note": "Heading at character 41,219; ends at Item 3.",
+   "compared": false,
+   "form": "10-Q",
+   "filed": "2026-07-31",
+   "period": "2026-06-27",
+   "accession": "0000320193-26-000020",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+   "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+   "chars": 21433,
+   "sent_chars": 21433,
+   "omitted_chars": 0
+  },
+  {
+   "id": "K8_1",
+   "role": "Current report (8-K)",
+   "status": "found",
+   "note": "",
+   "compared": false,
+   "form": "8-K/A",
+   "filed": "2026-09-01",
+   "period": "2026-04-17",
+   "accession": "0001140361-26-035325",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035325/ef20081427_8ka.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035325/0001140361-26-035325-index.htm",
+   "label": "8-K/A (event date 2026-04-17), filed 2026-09-01",
+   "items": "5.02",
+   "chars": 5689,
+   "sent_chars": 5689,
+   "omitted_chars": 0
+  },
+  {
+   "id": "K8_2",
+   "role": "Current report (8-K)",
+   "status": "found",
+   "note": "",
+   "compared": false,
+   "form": "8-K",
+   "filed": "2026-07-30",
+   "period": "2026-07-30",
+   "accession": "0000320193-26-000018",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000018/aapl-20260730.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000018/0000320193-26-000018-index.htm",
+   "label": "8-K (event date 2026-07-30), filed 2026-07-30",
+   "items": "2.02,9.01",
+   "chars": 3922,
+   "sent_chars": 3922,
+   "omitted_chars": 0
+  },
+  {
+   "id": "K8_3",
+   "role": "Current report (8-K)",
+   "status": "found",
+   "note": "",
+   "compared": false,
+   "form": "8-K",
+   "filed": "2026-04-30",
+   "period": "2026-04-30",
+   "accession": "0000320193-26-000011",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000011/aapl-20260430.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000011/0000320193-26-000011-index.htm",
+   "label": "8-K (event date 2026-04-30), filed 2026-04-30",
+   "items": "2.02,9.01",
+   "chars": 3928,
+   "sent_chars": 3928,
+   "omitted_chars": 0
+  },
+  {
+   "id": "K8_4",
+   "role": "Current report (8-K)",
+   "status": "found",
+   "note": "",
+   "compared": false,
+   "form": "8-K",
+   "filed": "2026-04-20",
+   "period": "2026-04-17",
+   "accession": "0001140361-26-015711",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126015711/ef20071035_8k.htm",
+   "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126015711/0001140361-26-015711-index.htm",
+   "label": "8-K (event date 2026-04-17), filed 2026-04-20",
+   "items": "5.02",
+   "chars": 4864,
+   "sent_chars": 4864,
+   "omitted_chars": 0
+  }
+ ],
+ "analysis": {
+  "response_status": "complete",
+  "stop_reason": "tool_use",
+  "comparison": {
+   "status": "available",
+   "current": "10-K for the period ended 2025-09-27, filed 2025-10-31",
+   "prior": "10-K for the period ended 2024-09-28, filed 2024-11-01",
+   "reason": "",
+   "counts": {
+    "NEW": 4,
+    "UNCHANGED": 34,
+    "CHANGED (rewritten)": 3,
+    "CHANGED (text removed)": 1,
+    "CHANGED (edited)": 38,
+    "CHANGED (minor edit)": 4,
+    "REMOVED": 11
+   },
+   "unchanged": [
+    "This section should be read in conjunction with Part II, Item 7, \u201cManagement\u2019s Discussion and Analysis of Financial Condition and Results of Operations\u201d and the consolidated financial statements and accompanying notes in Part II, Item 8, \u2026",
+    "Adverse macroeconomic conditions, including slow growth or recession, high unemployment, inflation, tighter credit, higher interest rates, and currency fluctuations, can adversely impact consumer confidence and spending and materially \u2026",
+    "Adverse economic conditions can also lead to increased credit and collectibility risk on the Company\u2019s trade receivables; the failure of derivative counterparties and other financial institutions; limitations on the Company\u2019s ability to \u2026",
+    "The Company\u2019s business can be impacted by political events, trade and other international disputes, geopolitical tensions, conflict, terrorism, natural disasters, public health issues, industrial accidents and other business interruptions.",
+    "Such events can make it difficult or impossible for the Company to manufacture and deliver products to its customers, create delays and inefficiencies in the Company\u2019s supply and manufacturing chain, result in slowdowns and outages to the \u2026",
+    "The Company\u2019s operations are also subject to the risks of industrial accidents at its suppliers and contract manufacturers.",
+    "The Company currently holds a significant number of patents, trademarks and copyrights and has registered, and applied to register, additional patents, trademarks and copyrights.",
+    "Changes or additions to the Company\u2019s supply chain require considerable time and resources and involve significant risks and uncertainties, including exposure to additional regulatory and operational risks.",
+    "The Company\u2019s products and services may be affected from time to time by design and manufacturing defects that could materially adversely affect the Company\u2019s business and result in harm to the Company\u2019s reputation.",
+    "The Company offers complex hardware and software products and services that can be affected by design and manufacturing defects.",
+    "The Company\u2019s minority market share in the global smartphone, personal computer, tablet and wearables markets can make developers less inclined to develop or upgrade software for the Company\u2019s products and more inclined to devote their \u2026",
+    "The Company relies on the continued availability and development of compelling and innovative software applications for its products.",
+    "Failure to obtain or create digital content that appeals to the Company\u2019s customers, or to make such content available on commercially reasonable terms, could have a material adverse impact on the Company\u2019s business, results of operations \u2026",
+    "The Company contracts with numerous third parties to offer their digital content to customers.",
+    "The Company also produces its own digital content, which can be costly to produce due to intense and increasing competition for talent, content and subscribers, and may fail to appeal to the Company\u2019s customers.",
+    "The Company\u2019s success depends largely on the talents and efforts of its team members, the continued service and availability of highly skilled employees, including key personnel, and the Company\u2019s ability to nurture its distinctive and \u2026",
+    "The Company\u2019s business and reputation are impacted by information technology system failures and network disruptions.",
+    "The Company\u2019s business also requires it to share confidential information with suppliers and other third parties.",
+    "Although malicious attacks perpetrated to gain access to confidential information, including personal information, affect many companies across various industries, the Company is at a relatively greater risk of being targeted because of \u2026",
+    "While the Company maintains insurance coverage that is intended to address certain aspects of data security risks, such insurance coverage may be insufficient to cover all losses or all types of claims that may arise.",
+    "Investment in new business strategies, commercial relationships and acquisitions could disrupt the Company\u2019s ongoing business, present risks not originally contemplated, and materially adversely affect the Company\u2019s business, reputation, \u2026",
+    "While the Company maintains insurance coverage for certain types of claims, such insurance coverage may be insufficient to cover all losses or all types of claims that may arise.",
+    "The technology industry, including, in some instances, the Company, is subject to intense media, political and regulatory scrutiny, which exposes the Company to increasing regulation, government investigations, legal actions and penalties.",
+    "The Company is subject to an increasing number of federal, state and international laws relating to the collection, use, retention, protection and transfer of various types of personal data.",
+    "The Company\u2019s financial performance is subject to risks associated with changes in the value of the U.S.",
+    "The Company\u2019s primary exposure to movements in foreign exchange rates relates to non\u2013U.S.",
+    "The weakening of foreign currencies relative to the U.S.",
+    "Conversely, a strengthening of foreign currencies relative to the U.S.",
+    "The Company uses derivative instruments, such as foreign currency forward and option contracts, to hedge certain exposures to fluctuations in foreign exchange rates.",
+    "The Company is exposed to credit risk and fluctuations in the values of its investment portfolio.",
+    "The Company is exposed to credit risk on its trade accounts receivable, vendor non-trade receivables and prepayments related to long-term supply agreements, and this risk is heightened during periods when economic conditions worsen.",
+    "The Company is subject to changes in tax rates, the adoption of new U.S.",
+    "The Company is subject to taxes in the U.S.",
+    "The price of the Company\u2019s stock is subject to volatility."
+   ],
+   "removed": [
+    "The Company\u2019s business, reputation, results of operations, financial condition and stock price can be affected by a number of factors, whether currently known or unknown, including those described below.",
+    "Because of the following factors, as well as other factors affecting the Company\u2019s results of operations and financial condition, past financial performance should not be considered to be a reliable indicator of future performance, and \u2026",
+    "Additionally, the Company faces significant competition as competitors imitate the Company\u2019s product features and applications within their products or collaborate to offer solutions that are more competitive than those they currently \u2026",
+    "The Company\u2019s services also face substantial competition, including from companies that have significant resources and experience and have established service offerings with large customer bases.",
+    "The Company\u2019s business, results of operations and financial condition depend substantially on the Company\u2019s ability to continually improve its products and services to maintain their functional and design advantages.",
+    "The Company relies on single-source outsourcing partners in the U.S., Asia and Europe to supply and manufacture many components, and on outsourcing partners primarily located in Asia, for final assembly of substantially all of the \u2026",
+    "The Company has invested in manufacturing process equipment, much of which is held at certain of its outsourcing partners, and has made prepayments to certain of its suppliers associated with long-term supply agreements.",
+    "Some third-party digital content providers require the Company to provide digital rights management and other security solutions.",
+    "The Company\u2019s retail stores are subject to numerous risks and uncertainties.",
+    "Payment card data is also subject to additional requirements.",
+    "The Company has historically experienced higher net sales in its first quarter compared to other quarters in its fiscal year due in part to seasonal holiday demand."
+   ],
+   "prior_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240928.htm"
+  },
+  "sections": {
+   "catalysts": {
+    "status": "complete",
+    "items": [
+     {
+      "headline": "Net sales rose 16% to $109.4 billion in Q3 2026",
+      "summary": "Total net sales were $109.417 billion for the three months ended June 27, 2026, up 16% from $94.036 billion in Q3 2025, led by iPhone (+22%) and Services (+12%).",
+      "implication": "Continued demand strength across iPhone, Mac and Services could support revenue growth if trends persist, though component cost pressures may offset gains.",
+      "detail": "iPhone net sales were $54.252 billion (+22%), Mac $10.352 billion (+29%), Services $30.739 billion (+12%), driven by Pro model iPhones, laptop Macs, and advertising/cloud services growth.",
+      "category": "DEMAND",
+      "impact": "MEDIUM",
+      "impact_basis": "A double-digit revenue increase across most categories in one quarter is meaningful but a single-quarter trend; durability depends on product cycle and macro factors.",
+      "source_id": "MDA",
+      "quote": "Total net sales $109,417 ... 16%",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "too_short",
+       "fragments": 2,
+       "matched": 0
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Total gross margin percentage rose to 50.1% in Q3 2026",
+      "summary": "Total gross margin percentage was 50.1% for Q3 2026, up from 46.5% in Q3 2025, driven by product mix and tariff refunds, partly offset by higher memory costs.",
+      "implication": "Margin expansion, if sustained, could support profitability, but is partly due to one-time tariff refunds rather than structural improvement.",
+      "detail": "Products gross margin percentage rose to 40.1% from 34.5%; Services gross margin percentage was flat at 75.6%. Products gross margin benefited from product mix and tariff refunds.",
+      "category": "PRICING_MARGINS",
+      "impact": "MEDIUM",
+      "impact_basis": "A nearly 4-point margin improvement is financially significant but partly attributable to non-recurring tariff refunds, making the sustainable portion uncertain.",
+      "source_id": "MDA",
+      "quote": "Products gross margin and gross margin percentage increased ... primarily due to a different mix of products and tariff refunds, partially offset by higher costs, including memory",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 2,
+       "matched": 2
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Services net sales grew 14% to $91.7 billion over nine months",
+      "summary": "Services net sales were $91.728 billion for the first nine months of 2026, up 14% from $80.408 billion in the same period of 2025, driven by advertising and cloud services.",
+      "implication": "Growth in higher-margin Services could continue to support overall profitability if advertising and cloud revenue trends persist.",
+      "detail": "Services gross margin percentage increased to 76.3% for the first nine months of 2026 from 75.5% a year earlier, due to a different mix of services, partly offset by higher costs.",
+      "category": "DEMAND",
+      "impact": "MEDIUM",
+      "impact_basis": "Services is a high-margin, growing segment representing roughly a quarter of total net sales; continued double-digit growth could meaningfully affect blended margins over time.",
+      "source_id": "MDA",
+      "quote": "Services net sales increased during the third quarter and first nine months of 2026 compared to the same periods in 2025 primarily due to higher net sales from advertising and cloud services",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Company repurchased $25.8 billion of stock in Q3 2026",
+      "summary": "During the third quarter of 2026, Apple repurchased $25.8 billion of common stock and paid $4.0 billion in dividends and dividend equivalents; quarterly dividend was $0.27 per share.",
+      "implication": "Continued large-scale buybacks could support per-share metrics and reflect confidence in cash generation, though they reduce cash reserves available for other uses.",
+      "detail": "The company stated it intends to increase its dividend annually, subject to Board declaration, and believes cash and access to debt markets will be sufficient for its capital return program over the next 12 months and beyond.",
+      "category": "CAPITAL_ALLOCATION",
+      "impact": "MEDIUM",
+      "impact_basis": "A quarterly buyback of this size is a recurring, material use of cash but does not by itself change operating fundamentals.",
+      "source_id": "MDA",
+      "quote": "During the third quarter of 2026, the Company repurchased $25.8 billion of its common stock and paid dividends and dividend equivalents of $4.0 billion",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "R&D expense rose 32% in Q3 2026 on AI infrastructure investment",
+      "summary": "Research and development expense was $11.729 billion in Q3 2026, up 32% from $8.866 billion in Q3 2025, due to higher infrastructure costs including AI investments and headcount.",
+      "implication": "Increased AI-related spending could position the company for future product features but raises near-term operating expense as a share of sales.",
+      "detail": "R&D as a percentage of total net sales rose to 11% in Q3 2026 from 9% in Q3 2025; for the first nine months, R&D rose 33% to $34.035 billion.",
+      "category": "CAPEX_CAPACITY",
+      "impact": "LOW",
+      "impact_basis": "A rise in R&D spend is a known and controlled expense increase, not yet shown to produce new revenue, limiting near-term company-level impact.",
+      "source_id": "MDA",
+      "quote": "Research and development (\u201cR&D\u201d) expense increased during the third quarter and first nine months of 2026 compared to the same periods in 2025 primarily due to higher infrastructure-related costs, including investments in artificial intelligence, and headcount-related expenses",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     }
+    ],
+    "dropped": []
+   },
+   "risks": {
+    "status": "complete",
+    "items": [
+     {
+      "headline": "Supply constraints and rising costs for semiconductors, NAND, DRAM",
+      "summary": "QU3 states the company is experiencing supply constraints and increasing costs for advanced semiconductors, NAND storage and DRAM memory, which it expects to intensify and could materially adversely affect revenue, costs, gross margin and results of operations.",
+      "implication": "Component shortages or price increases could compress margins or constrain product availability if the trend intensifies as described.",
+      "detail": "Price increases taken in response may not effectively mitigate negative impacts and could also reduce demand for products, according to the filing.",
+      "category": "COSTS_SUPPLY_CHAIN",
+      "impact": "HIGH",
+      "impact_basis": "The company states it expects the trend to intensify and that it may materially adversely affect revenue, costs, gross margin and financial condition, a company-level effect described as already underway.",
+      "source_id": "QU3",
+      "quote": "The Company is experiencing a period of supply constraints and increasing costs for components driven by factors such as industry supply-demand imbalances for components, including advanced semiconductors, storage (NAND) and memory (DRAM).",
+      "trend": "QUARTERLY_UPDATE",
+      "trend_reason": "",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "QU3",
+       "role": "Risk factor updates, quarterly report"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Tariffs and trade restrictions pose material adverse risk to supply chain",
+      "summary": "R_CMP risk factor describes new U.S. tariffs since Q2 2025 on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the EU, with retaliatory measures from other countries and an ongoing Section 232 investigation into semiconductors.",
+      "implication": "Further tariff escalation or retaliatory trade measures could raise costs, disrupt the supply chain, or reduce demand, with the ultimate scope still undetermined.",
+      "detail": "The company states restrictive measures could increase costs or limit availability of products, components and rare earths, and could require restructuring of supplier relationships; impact depends on magnitude and duration of measures.",
+      "category": "COSTS_SUPPLY_CHAIN",
+      "impact": "HIGH",
+      "impact_basis": "Tariffs already imposed on a majority of Apple's international manufacturing base are a current, ongoing condition with potentially broad effect on cost of goods and margins.",
+      "source_id": "R_CMP",
+      "paragraph_id": "P9",
+      "quote": "Beginning in the second quarter of 2025, new tariffs were announced on imports to the U.S. (\u201cU.S. Tariffs\u201d), including additional tariffs on imports from China, India, Japan, South Korea, Taiwan, Vietnam and the European Union (\u201cEU\u201d), among others.",
+      "trend": "CHANGED",
+      "trend_reason": "edited",
+      "source": {
+       "form": "10-K",
+       "filed": "2025-10-31",
+       "period": "2025-09-27",
+       "accession": "0000320193-25-000079",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.htm",
+       "label": "10-K for the period ended 2025-09-27, filed 2025-10-31",
+       "id": "R_CMP",
+       "role": "Risk factors: changes since the prior 10-K"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Google antitrust remedies could affect search licensing revenue",
+      "summary": "QU3 and R_CMP describe a September 2, 2025 court order on Google remedies following an antitrust finding against Google, with proceedings and appeals pending; a reversal on appeal could impose remedies prohibiting Google from paying Apple for search distribution.",
+      "implication": "Loss of Google search licensing payments, a notable revenue source, could materially reduce Services revenue if adverse remedies are ultimately imposed.",
+      "detail": "The court's order is subject to further proceedings and was appealed by both the DOJ and Google as of QU3; the scope and timing of any final remedy remains uncertain.",
+      "category": "REGULATORY_LEGAL",
+      "impact": "MEDIUM",
+      "impact_basis": "The licensing arrangement is understood to be a significant contributor to Services revenue, but any adverse outcome is contingent on further litigation and appeal, not yet determined.",
+      "source_id": "QU3",
+      "quote": "A reversal of the order on appeal could result in imposition of certain remedies initially proposed by the DOJ, such as those prohibiting Google from offering the Company commercial terms for search distribution.",
+      "trend": "QUARTERLY_UPDATE",
+      "trend_reason": "",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "QU3",
+       "role": "Risk factor updates, quarterly report"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Court order and possible App Store commission restrictions",
+      "summary": "QU3 states Apple is subject to a U.S. court order preventing it from imposing any commission on certain purchases, and the Ninth Circuit instructed the district court to consider allowing a commission; outcome of defense of commission structure is uncertain.",
+      "implication": "If Apple's App Store commission is permanently narrowed or eliminated in more jurisdictions, Services revenue tied to App Store commissions could decline.",
+      "detail": "Similar restrictions could be imposed or expanded in other jurisdictions, according to the filing, with financial condition effects described as possible if commission is narrowed or eliminated.",
+      "category": "REGULATORY_LEGAL",
+      "impact": "MEDIUM",
+      "impact_basis": "App Store commissions are a meaningful contributor to Services revenue, but the ultimate legal outcome and scope of any restriction remain unresolved.",
+      "source_id": "QU3",
+      "quote": "If the Company is ultimately unsuccessful in defending its commission structure or if similar restrictions are imposed or expanded in other jurisdictions, and as a result the Company's commission is narrowed or eliminated, the Company's business, results of operations, and financial condition could be materially and adversely affected.",
+      "trend": "QUARTERLY_UPDATE",
+      "trend_reason": "",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "QU3",
+       "role": "Risk factor updates, quarterly report"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "DMA interoperability rules could delay or block product launches in EU",
+      "summary": "QU3 states DMA interoperability obligations require Apple to make technologies and features available to third parties for free, which has in the past, and may in the future, cause Apple to not launch or maintain products such as Siri AI in certain jurisdictions.",
+      "implication": "Delayed or withheld product and feature launches in the EU could limit revenue growth or competitive positioning in that region.",
+      "detail": "The filing states these requirements increase security and privacy risks, require significant engineering resources, and can adversely affect functionality, competitiveness and user experience.",
+      "category": "REGULATORY_LEGAL",
+      "impact": "MEDIUM",
+      "impact_basis": "Europe accounted for $95.6 billion of nine-month 2026 net sales per MDA; regulatory-driven product restrictions there could have a noticeable but geographically limited effect.",
+      "source_id": "QU3",
+      "quote": "Interoperability and other requirements have in the past, and may in the future, cause the Company to not launch or maintain products, services and features, such as Siri AI, in certain jurisdictions.",
+      "trend": "QUARTERLY_UPDATE",
+      "trend_reason": "",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "QU3",
+       "role": "Risk factor updates, quarterly report"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     }
+    ],
+    "dropped": []
+   },
+   "other_risks": {
+    "status": "complete",
+    "items": [
+     {
+      "headline": "Effective tax rate rose due to foreign earnings and prior tax impacts",
+      "summary": "The effective tax rate was 17.9% in Q3 2026 versus 16.4% in Q3 2025, and 17.6% for the first nine months of 2026 versus 15.4% a year earlier, due to a higher effective tax rate on foreign earnings.",
+      "implication": "A continued rise in the effective tax rate could reduce net income growth relative to revenue growth, even as pre-tax performance improves.",
+      "detail": "The nine-month increase also reflected foreign currency loss regulations issued by the U.S. Treasury in December 2024 and a prior-year tax impact from the State Aid Decision.",
+      "category": "OTHER",
+      "impact": "LOW",
+      "impact_basis": "A roughly 2-point increase in effective tax rate affects net income but is a known, already-realized change rather than an emerging threat.",
+      "source_id": "MDA",
+      "quote": "The Company's effective tax rate for the third quarter of 2026 was higher compared to the third quarter of 2025 primarily due to a higher effective tax rate on foreign earnings",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     },
+     {
+      "headline": "Manufacturing and other purchase obligations total $86.3 billion",
+      "summary": "As of June 27, 2026, Apple had manufacturing purchase obligations of $57.0 billion ($56.2 billion due within 12 months) and other purchase obligations of $29.3 billion ($9.2 billion due within 12 months).",
+      "implication": "Large near-term obligations represent committed cash outflows that could pressure liquidity if combined with other cash needs such as buybacks and dividends.",
+      "detail": "Other purchase obligations relate to supplier arrangements, licensed intellectual property, content, distribution rights and capital asset acquisition for manufacturing.",
+      "category": "FINANCING_LIQUIDITY",
+      "impact": "LOW",
+      "impact_basis": "These are routine, previously planned obligations disclosed as part of normal operations, and the company states its cash and debt access are expected to be sufficient.",
+      "source_id": "MDA",
+      "quote": "As of June 27, 2026, the Company had manufacturing purchase obligations of $57.0 billion, with $56.2 billion payable within 12 months.",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": [
+       "$86.3 billion"
+      ]
+     },
+     {
+      "headline": "Company paid final $8.8 billion of deemed repatriation tax in 2026",
+      "summary": "During the first nine months of 2026, Apple paid the remaining $8.8 billion balance of the deemed repatriation tax payable imposed by the 2017 Tax Cuts and Jobs Act.",
+      "implication": "Completion of this obligation removes a recurring cash outflow item from future contractual cash requirements going forward.",
+      "detail": "This was listed among contractual cash requirements that changed materially since the 2025 Form 10-K, alongside manufacturing and other purchase obligations.",
+      "category": "FINANCING_LIQUIDITY",
+      "impact": "LOW",
+      "impact_basis": "This is a one-time, already-completed cash payment with no forward-looking uncertainty.",
+      "source_id": "MDA",
+      "quote": "During the first nine months of 2026, the Company paid the remaining $8.8 billion balance of the deemed repatriation tax payable imposed by the U.S. Tax Cuts and Jobs Act of 2017.",
+      "source": {
+       "form": "10-Q",
+       "filed": "2026-07-31",
+       "period": "2026-06-27",
+       "accession": "0000320193-26-000020",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/aapl-20260627.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.htm",
+       "label": "10-Q for the period ended 2026-06-27, filed 2026-07-31",
+       "id": "MDA",
+       "role": "Management's discussion and analysis"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "other_sources": [],
+      "unsupported_figures": []
+     }
+    ],
+    "dropped": []
+   },
+   "events": {
+    "status": "complete",
+    "items": [
+     {
+      "source_id": "K8_4",
+      "category": "LEADERSHIP",
+      "headline": "Tim Cook to become Executive Chair; John Ternus named CEO",
+      "summary": "Apple announced Tim Cook will transition from CEO to Executive Chair of the Board effective September 1, 2026, and the Board appointed John Ternus, SVP of Hardware Engineering, as CEO and board member effective the same date.",
+      "quote": "Tim Cook will transition from his role as Chief Executive Officer to Executive Chair of Apple's Board of Directors (the \u201cBoard\u201d), effective September 1, 2026 (the \u201cTransition Date\u201d).",
+      "source": {
+       "form": "8-K",
+       "filed": "2026-04-20",
+       "period": "2026-04-17",
+       "accession": "0001140361-26-015711",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126015711/ef20071035_8k.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126015711/0001140361-26-015711-index.htm",
+       "label": "8-K (event date 2026-04-17), filed 2026-04-20",
+       "items": "5.02",
+       "id": "K8_4",
+       "role": "Current report (8-K)"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "unsupported_figures": []
+     },
+     {
+      "source_id": "K8_1",
+      "category": "LEADERSHIP",
+      "headline": "New CEO and Executive Chair compensation arrangements disclosed",
+      "summary": "Apple disclosed Ternus's salary raised to $3 million with a $55 million fiscal 2027 equity award target, and Cook's new $2 million salary with a $45 million equity award target, effective at the September 1, 2026 transition.",
+      "quote": "Mr. Ternus' annual salary was increased to $3 million on the Transition Date. ... The People and Compensation Committee also approved an annual equity award for Mr. Ternus with a target value of $55 million to be granted in fiscal 2027.",
+      "source": {
+       "form": "8-K/A",
+       "filed": "2026-09-01",
+       "period": "2026-04-17",
+       "accession": "0001140361-26-035325",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035325/ef20081427_8ka.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035325/0001140361-26-035325-index.htm",
+       "label": "8-K/A (event date 2026-04-17), filed 2026-09-01",
+       "items": "5.02",
+       "id": "K8_1",
+       "role": "Current report (8-K)"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 2,
+       "matched": 2
+      },
+      "wording_flags": [],
+      "unsupported_figures": []
+     },
+     {
+      "source_id": "K8_2",
+      "category": "FINANCIAL",
+      "headline": "Apple reported Q3 fiscal 2026 results on July 30, 2026",
+      "summary": "Apple issued a press release on July 30, 2026 regarding financial results for its third fiscal quarter ended June 27, 2026.",
+      "quote": "On July 30, 2026, Apple Inc. (\u201cApple\u201d) issued a press release regarding Apple's financial results for its third fiscal quarter ended June 27, 2026.",
+      "source": {
+       "form": "8-K",
+       "filed": "2026-07-30",
+       "period": "2026-07-30",
+       "accession": "0000320193-26-000018",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000018/aapl-20260730.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000018/0000320193-26-000018-index.htm",
+       "label": "8-K (event date 2026-07-30), filed 2026-07-30",
+       "items": "2.02,9.01",
+       "id": "K8_2",
+       "role": "Current report (8-K)"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "unsupported_figures": []
+     },
+     {
+      "source_id": "K8_3",
+      "category": "FINANCIAL",
+      "headline": "Apple reported Q2 fiscal 2026 results on April 30, 2026",
+      "summary": "Apple issued a press release on April 30, 2026 regarding financial results for its second fiscal quarter ended March 28, 2026.",
+      "quote": "On April 30, 2026, Apple Inc. (\u201cApple\u201d) issued a press release regarding Apple's financial results for its second fiscal quarter ended March 28, 2026.",
+      "source": {
+       "form": "8-K",
+       "filed": "2026-04-30",
+       "period": "2026-04-30",
+       "accession": "0000320193-26-000011",
+       "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000011/aapl-20260430.htm",
+       "index_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000011/0000320193-26-000011-index.htm",
+       "label": "8-K (event date 2026-04-30), filed 2026-04-30",
+       "items": "2.02,9.01",
+       "id": "K8_3",
+       "role": "Current report (8-K)"
+      },
+      "excerpt": {
+       "status": "matched",
+       "fragments": 1,
+       "matched": 1
+      },
+      "wording_flags": [],
+      "unsupported_figures": []
+     }
+    ],
+    "dropped": []
+   }
+  },
+  "usage": {
+   "input_tokens": 51515,
+   "output_tokens": 6043
+  },
+  "from_cache": false,
+  "budget": {
+   "input_tokens": 51515,
+   "limit": 80000,
+   "output_reserve": 16000,
+   "count": "measured"
+  }
+ },
+ "event_markers": [
+  [
+   "2025-10-31",
+   "10-K"
+  ],
+  [
+   "2024-11-01",
+   "10-K"
+  ],
+  [
+   "2026-07-31",
+   "10-Q"
+  ],
+  [
+   "2026-01-30",
+   "10-Q"
+  ],
+  [
+   "2026-05-01",
+   "10-Q"
+  ],
+  [
+   "2026-07-31",
+   "10-Q"
+  ],
+  [
+   "2026-09-01",
+   "8-K/A"
+  ],
+  [
+   "2026-07-30",
+   "8-K"
+  ],
+  [
+   "2026-04-30",
+   "8-K"
+  ],
+  [
+   "2026-04-20",
+   "8-K"
+  ]
+ ]
+}
