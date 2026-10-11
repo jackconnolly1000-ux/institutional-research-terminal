@@ -63,8 +63,12 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     for t in ("FAST", "STRL"):
         page.locator('[data-testid="stMultiSelect"] input').click()
-        page.keyboard.type(t); page.wait_for_timeout(500); page.keyboard.press("Enter"); page.keyboard.press("Escape")
-        page.wait_for_timeout(500)
+        page.keyboard.type(t); page.wait_for_timeout(500); page.keyboard.press("Enter")
+        # On Streamlit 1.65 Escape doesn't close the menu after a pick, and the open menu hides the Run analysis
+        # column from the accessibility tree. Clicking the title closes it on both versions.
+        page.wait_for_timeout(400); page.get_by_text("SEC Filing Research Terminal").first.click()
+        page.wait_for_function("() => !document.querySelector('[data-testid=stMultiSelect] [aria-expanded=true]')", timeout=5000)
+        page.wait_for_timeout(300)
     out = {"run1": run_once(page, 1), "run2": run_once(page, 2)}
 
     with page.expect_download() as dl:

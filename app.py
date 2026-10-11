@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import os
+import platform
 import requests
 import time
 import traceback
@@ -32,6 +33,17 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 ui.inject_css()
+
+
+@st.cache_resource(show_spinner=False)
+def log_versions() -> None:
+    """Print the versions actually running, once per server process, to the server log (not the page). On Oct 11
+    the live site ran Streamlit 1.65.0 while requirements.txt pinned 1.32.0; this line makes that checkable in the
+    Cloud log after every deploy."""
+    print(f"[versions] Python {platform.python_version()}, streamlit {st.__version__}, pandas {pd.__version__}", flush=True)
+
+
+log_versions()
 
 # --- API KEY AND SEC CONTACT (from Streamlit Secrets) ---
 try:
