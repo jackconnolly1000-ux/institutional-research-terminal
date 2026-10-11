@@ -6,6 +6,8 @@ I'm Jack, a sophomore finance student at Villanova School of Business. I'm build
 
 Stack: Python, Streamlit, Plotly, yfinance, BeautifulSoup, and the Anthropic API (Claude). I work in VS Code with Claude Code, and in Google Colab.
 
+Deployment: Streamlit Cloud runs Python 3.12 (set in App settings). After each deploy, the `[versions]` line in the Cloud log confirms the running Python, Streamlit and pandas versions.
+
 My role is product manager and system architect. I decide what the product does, write the business logic and prompts, integrate AI-generated code, fix API connections, and refine the interface.
 
 ## The goal
@@ -92,7 +94,6 @@ In priority order. Delete a line once it's fixed.
 5. **"No close match" is a text test.** Joining one-sentence titles to their body text fixed STRL's contract-termination title. A heavily rewritten paragraph can land there (MSFT's FY2026 "We may experience outages…" rewrites last year's "We may have excessive outages…"). The closest prior paragraph is sent as context when word overlap is at least 0.20, and the label says "no close match", not "new risk".
 6. **8-K exhibits aren't read.** Only each 8-K's primary document is sent; press releases usually sit in exhibit EX-99.1.
 7. **Section extraction is tested on seven filers** (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM) plus synthetic cases. Other formats may fail; they show "Section not found", not wrong text.
-8. **Fixed on branch `version-log` (not merged): the pinned Streamlit wasn't what production ran.** Streamlit Cloud installed streamlit 1.65.0 over the `streamlit==1.32.0` pin (Cloud log, Oct 11: Python 3.11.17, "+ streamlit==1.65.0", "+ pandas==2.2.1"), so production never ran 1.32 and local tests ran a different version. Fixed by pinning `streamlit==1.65.0`. App startup prints `[versions] Python …, streamlit …, pandas …` to the server log so each deploy can be checked. 1.65 warns that `use_container_width` is deprecated, and its ticker picker keeps tags on one row, so at 390 px a third ticker is hidden inside the box.
 
 ## Excel export standard
 
