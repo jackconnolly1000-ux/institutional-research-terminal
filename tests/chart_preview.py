@@ -40,5 +40,5 @@ hist = pd.DataFrame({
 events = [("2026-07-31", "10-Q"), ("2026-07-30", "8-K"), ("2026-06-11", "8-K"), ("2026-04-30", "8-K"),
           ("2026-01-29", "8-K"), ("2019-01-02", "8-K"), ("2026-04-17/2026-04-20", "8-K"), ("2026-10-12", "8-K")]
 
-st.plotly_chart(build_price_chart(hist, events), use_container_width=True, theme=None, config=CHART_CONFIG)
+st.plotly_chart(build_price_chart(hist, events), width="stretch", theme=None, config=CHART_CONFIG)
 st.caption(f"Synthetic data. {len(hist):,} daily bars, {hist.index[0]:%Y-%m-%d} to {hist.index[-1]:%Y-%m-%d}.")
