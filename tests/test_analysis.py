@@ -65,8 +65,7 @@ def answer(**kw):
             "risks": [finding()],
             "other_risks": [finding(source_id="MDA", paragraph_id="", quote="Net sales increased 8% to $5.2 billion in the quarter")],
             "events": [{"source_id": "K8_1", "category": "LEADERSHIP", "headline": "New CFO appointed",
-                        "summary": "s", "quote": "the Board appointed a new Chief Financial Officer"}],
-            "questions": [{"question": "How is supplier risk being reduced?", "source_id": "R_CMP"}]}
+                        "summary": "s", "quote": "the Board appointed a new Chief Financial Officer"}]}
     return base | kw
 
 
@@ -170,7 +169,7 @@ class ResponseChecks(unittest.TestCase):
     def test_complete_with_trend_from_code(self):
         r = check_response("tool_use", answer(), sources())
         self.assertEqual({k: v["status"] for k, v in r["sections"].items()},
-                         {"catalysts": "complete", "risks": "complete", "other_risks": "complete", "events": "complete", "questions": "complete"})
+                         {"catalysts": "complete", "risks": "complete", "other_risks": "complete", "events": "complete"})
         self.assertTrue(is_cacheable(r))
         risk = r["sections"]["risks"]["items"][0]
         self.assertEqual((risk["trend"], risk["trend_reason"]), ("CHANGED", "edited"))
@@ -266,7 +265,7 @@ class Wording(unittest.TestCase):
         self.assertEqual(analysis.wording_flags({"detail": "a 3.50x leverage covenant", "implication": "debt capacity and leverage ratio"}), [])
         self.assertEqual(analysis.wording_flags({"headline": "The company will leverage AI"}), ["headline: leverage"])
         self.assertEqual(analysis.wording_flags({"detail": "unlimited amounts if leverage stays below 2.00x"}), [])
-        self.assertEqual(analysis.wording_flags({"question": "Are any units at elevated risk of impairment?"}), [])
+        self.assertEqual(analysis.wording_flags({"detail": "Some units are at elevated risk of impairment."}), [])
         self.assertEqual(analysis.wording_flags({"headline": "Plans to elevate the brand"}), ["headline: elevate"])
 
     def test_new_risk_claim_flagged(self):

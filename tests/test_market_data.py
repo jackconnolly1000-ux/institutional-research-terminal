@@ -29,7 +29,7 @@ class Financials(unittest.TestCase):
         m = r["metrics"]
         self.assertEqual(m["gross_margin"]["value"], 0.4865)
         self.assertEqual(m["gross_margin"]["unit"], "fraction")
-        self.assertIsNone(m["gross_margin"]["period"])            # shown as "Period unavailable"
+        self.assertIsNone(m["gross_margin"]["period"])            # shown as "Period not stated"
         self.assertTrue(m["price"]["period"].startswith("Quote as of"))
         self.assertEqual(r["retrieved_at"], "2026-10-10T10:42:00-04:00")
 

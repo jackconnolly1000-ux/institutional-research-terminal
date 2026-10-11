@@ -2,7 +2,7 @@
 
 No Streamlit here. Values stay numeric; ui.py formats them for display.
 Yahoo does not document the period behind most Ticker.info fields (margins, free cash flow,
-forward P/E), so their period is None and the page says "Period unavailable" rather than guessing TTM.
+forward P/E), so their period is None and the page says "Period not stated" rather than guessing TTM.
 """
 from __future__ import annotations
 
@@ -48,7 +48,10 @@ def fetch_financials(ticker: str, ticker_factory, now: datetime | None = None) -
         raise MarketDataError("Yahoo Finance returned no price or market cap")
 
     quote_time = _number(info.get("regularMarketTime"))
-    quote_period = (f"Quote as of {datetime.fromtimestamp(quote_time, ET):%b %d, %Y %I:%M %p} ET" if quote_time else None)
+    quote_period = None
+    if quote_time:
+        q = datetime.fromtimestamp(quote_time, ET)
+        quote_period = f"Quote as of {q:%b} {q.day}, {q:%Y}, {q.strftime('%I').lstrip('0')}:{q:%M %p} ET"
     metrics = {}
     for key, (label, fld, unit) in METRICS.items():
         value = _number(info.get(fld))

@@ -21,7 +21,6 @@ from bs4 import BeautifulSoup, NavigableString
 ARCHIVES = "https://www.sec.gov/Archives/edgar/data"
 EIGHT_K_WINDOW_DAYS = 180   # 8-Ks older than this aren't "recent events"
 EIGHT_K_MAX = 4             # most recent 8-Ks read per ticker
-FORM4_WINDOW_DAYS = 90
 
 
 # --- Filings -----------------------------------------------------------------------------------
@@ -82,7 +81,6 @@ class Selection:
     quarterly_updates: list[Filing]      # 10-Qs filed after annual_current, oldest first
     mdna_source: Filing | None           # most recent 10-K or 10-Q
     eight_ks: list[Filing]               # newest first
-    form4_count: int
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -109,10 +107,8 @@ def select_filings(filings: list[Filing], today: date) -> Selection:
     updates = sorted([q for q in tenqs if current is None or q.filed > current.filed], key=lambda f: f.filed)
     periodic = [f for f in filings if f.form in ("10-K", "10-Q")]
     eight_ks = [f for f in filings if f.form in ("8-K", "8-K/A") and _days_between(f.filed, today) <= EIGHT_K_WINDOW_DAYS]
-    form4 = sum(1 for f in filings if f.form in ("4", "4/A") and _days_between(f.filed, today) <= FORM4_WINDOW_DAYS)
     return Selection(annual_current=current, annual_prior=prior, quarterly_updates=updates,
-                     mdna_source=periodic[0] if periodic else None, eight_ks=eight_ks[:EIGHT_K_MAX],
-                     form4_count=form4, notes=notes)
+                     mdna_source=periodic[0] if periodic else None, eight_ks=eight_ks[:EIGHT_K_MAX], notes=notes)
 
 
 def select_with_older_pages(submissions: dict, cik: str, today: date, fetch_json, max_pages: int = 4) -> Selection:

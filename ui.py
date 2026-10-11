@@ -104,11 +104,19 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 10px 0; font-size: 0.8
 .irt-company .meta {{ font-size: 0.85rem; color: var(--text-muted); }}
 
 /* Metric tiles, grouped by what they measure */
-.irt-metrics {{ display: grid; grid-template-columns: 2fr 3fr 1fr; gap: 12px; margin-bottom: 8px; }}
-@media (max-width: 900px) {{ .irt-metrics {{ grid-template-columns: 1fr; }} }}
-.irt-group-label {{ color: var(--text-muted); font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; }}
-.irt-tiles {{ display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }}
-.irt-tile {{ background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; min-width: 0; }}
+/* One panel; groups are split by a divider and headed in body text color, so they read as separate from the
+   tile labels inside them (muted, smaller). Tiles have no card of their own. */
+.irt-metrics {{ display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; }}
+.irt-group {{ flex: var(--tiles, 1) 1 0; min-width: 0; padding: 12px 20px; }}
+.irt-group + .irt-group {{ border-left: 1px solid var(--border); }}
+.irt-group-head {{ color: var(--text); font-size: 0.9rem; font-weight: 600; }}
+.irt-group-caption {{ color: var(--text-muted); font-size: 0.72rem; margin: 2px 0 10px 0; }}
+@media (max-width: 900px) {{
+  .irt-metrics {{ flex-direction: column; }}
+  .irt-group + .irt-group {{ border-left: 0; border-top: 1px solid var(--border); }}
+}}
+.irt-tiles {{ display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 16px; }}
+.irt-tile {{ min-width: 0; }}
 .irt-tile .lbl {{ color: var(--text-muted); font-size: 0.78rem; }}
 .irt-tile .val {{ color: var(--text-strong); font-size: 1.2rem; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }}
 .irt-tile .src {{ color: var(--text-muted); font-size: 0.7rem; margin-top: 4px; line-height: 1.35; }}  /* wraps: periods and sources are never clipped */
@@ -126,7 +134,8 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 10px 0; font-size: 0.8
 .irt-row > summary {{ display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 10px 14px; cursor: pointer; list-style: none; }}
 .irt-row > summary::-webkit-details-marker {{ display: none; }}
 .irt-row > summary:hover {{ background: var(--surface-hover); }}
-.irt-row .badges {{ display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }}
+.irt-row .badges {{ display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }}
+.irt-impact {{ color: var(--text-muted); font-size: 0.75rem; font-weight: 600; margin-right: 2px; }}
 .irt-row .row-head {{ color: var(--text-strong); font-weight: 600; font-size: 0.95rem; line-height: 1.35; }}
 .irt-row .row-text {{ color: var(--text); font-size: 0.86rem; line-height: 1.45; margin-top: 3px; }}
 .irt-row .impl-label {{ color: var(--text-muted); font-weight: 600; }}
@@ -162,9 +171,9 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 2px 0 10px 0; font-size: 0.8
 .irt-card a, .irt-evidence a {{ color: var(--accent-text, #7aa2ff); }}
 .irt-state.tone-caution {{ color: var(--tone-text); }}
 
-/* Questions for management */
-ol.irt-questions {{ margin: 0; padding-left: 1.3rem; }}
-ol.irt-questions li {{ color: var(--text); font-size: 0.92rem; line-height: 1.5; margin: 0 0 8px 0; padding-left: 4px; }}
+/* Numbered lists: unchanged and removed risk-factor paragraphs */
+ol.irt-ol {{ margin: 0; padding-left: 1.3rem; }}
+ol.irt-ol li {{ color: var(--text); font-size: 0.92rem; line-height: 1.5; margin: 0 0 8px 0; padding-left: 4px; }}
 
 /* Ticker chips in the picker: show the full company name instead of cutting it off */
 .stMultiSelect [data-baseweb="tag"] {{ max-width: none; }}
@@ -213,13 +222,16 @@ def format_metric(value, unit: str) -> str:
 
 
 def metric_tiles(groups: list) -> str:
-    """groups: [(group label, [(label, value, source), ...]), ...]"""
+    """groups: [(heading, caption, [(label, value, period line), ...]), ...]. One panel, one section per group."""
+    if not groups:
+        return ""
     out = []
-    for group_label, tiles in groups:
+    for heading, caption, tiles in groups:
         cells = "".join(
             f'<div class="irt-tile"><div class="lbl">{esc(lbl)}</div><div class="val">{esc(val)}</div>'
-            f'<div class="src">{esc(src)}</div></div>' for lbl, val, src in tiles)
-        out.append(f'<section><div class="irt-group-label">{esc(group_label)}</div><div class="irt-tiles">{cells}</div></section>')
+            f'<div class="src">{esc(period)}</div></div>' for lbl, val, period in tiles)
+        out.append(f'<section class="irt-group" style="--tiles:{len(tiles)}"><div class="irt-group-head">{esc(heading)}</div>'
+                   f'<div class="irt-group-caption">{esc(caption)}</div><div class="irt-tiles">{cells}</div></section>')
     return f'<div class="irt-metrics">{"".join(out)}</div>'
 
 
@@ -258,7 +270,7 @@ def unchanged_list(comparison: dict) -> str:
     items = "".join(f"<li>{esc(t)}</li>" for t in comparison["unchanged"])
     return (f'<details class="irt-evidence"><summary>Unchanged since the prior 10-K ({len(comparison["unchanged"])})</summary>'
             f'<p class="irt-note">Opening sentences of paragraphs the code found unchanged. They were not sent to Claude.</p>'
-            f'<ol class="irt-questions">{items}</ol></details>')
+            f'<ol class="irt-ol">{items}</ol></details>')
 
 
 def analysis_banner(a: dict) -> str:
@@ -309,7 +321,7 @@ def evidence_list(coverage: list, comparison: dict, budget: dict | None) -> str:
     if comparison["status"] == "available" and comparison["removed"]:
         removed = "".join(f"<li>{esc(t)}</li>" for t in comparison["removed"])
         rows.append(f'<li><span class="sid">R#</span> Removed since the prior 10-K ({len(comparison["removed"])}), opening sentences'
-                    f'<ol class="irt-questions">{removed}</ol></li>')
+                    f'<ol class="irt-ol">{removed}</ol></li>')
     tokens = (f'<p class="irt-note">Request: {budget["input_tokens"]:,} input tokens ({budget["count"]}) plus up to '
               f'{budget["output_reserve"]:,} output tokens, within a {budget["limit"]:,}-token budget.</p>' if budget else "")
     return (f'<details class="irt-evidence panel"><summary>Evidence: {esc(" · ".join(summary))}</summary>'
@@ -390,12 +402,6 @@ def source_short(src: dict) -> str:
     return f"{form} · filed {fmt(src.get('filed'))}" if form else ""
 
 
-def _impact_chip(item: dict, kind: str) -> str:
-    tones = T.CATALYST_IMPACT_TONE if kind == "catalyst" else T.IMPACT_TONE
-    label = "Not assessed" if item["impact"] == "NOT_ASSESSED" else f"{item['impact'].title()} impact"
-    return chip(f"{label} · AI assessment", tones.get(item["impact"], "neutral"))
-
-
 def _row(badges: str, headline: str, text_html: str, src: dict, body: str, kind: str) -> str:
     return (f'<details class="irt-row" data-kind="{kind}"><summary><div><div class="badges">{badges}</div>'
             f'<div class="row-head">{esc(headline)}</div><div class="desk-only">{text_html}</div></div>'
@@ -403,10 +409,15 @@ def _row(badges: str, headline: str, text_html: str, src: dict, body: str, kind:
             f'<div class="row-body"><div class="phone-only">{text_html}</div>{body}</div></details>')
 
 
+IMPACT_TEXT = {"HIGH": "High", "MEDIUM": "Medium", "LOW": "Low", "NOT_ASSESSED": "Not assessed"}
+
+
+# Chips are only for facts the code determined (the change label, "Figures to check"). AI judgments, such as
+# impact, are plain text, so a model's opinion never looks like a verified result.
 def finding_row(item: dict, kind: str) -> str:
-    """kind: catalyst, risk (risk-factor change) or other_risk. Collapsed: badges, headline, summary and
+    """kind: catalyst, risk (risk-factor change) or other_risk. Collapsed: impact, chips, headline, summary and
     potential implication (desktop). Expanded: detail, impact basis, checks, quote and source links."""
-    badges = _impact_chip(item, kind)
+    badges = f'<span class="irt-impact">Impact: {IMPACT_TEXT[item["impact"]]}</span>'
     if "trend" in item:
         badges += chip(trend_text(item), T.TREND_CHIP[item["trend"]][0])
     if item.get("unsupported_figures"):
@@ -415,13 +426,15 @@ def finding_row(item: dict, kind: str) -> str:
             f'<div class="row-text"><span class="impl-label">Potential implication:</span> {esc(item["implication"])}</div>')
     body = (f'<p>{esc(item["detail"])}</p>'
             f'<p class="irt-note" style="margin:6px 0 0 0">{esc(CATEGORY_LABELS.get(item["category"], item["category"]))} · '
-            f'Impact basis (AI assessment): {esc(item["impact_basis"])}</p>'
+            f'Impact basis: {esc(item["impact_basis"])}</p>'
             f'{_figures_flag(item)}{_wording(item)}{_excerpt_block(item)}')
     return _row(badges, item["headline"], text, item.get("source", {}), body, kind)
 
 
 def findings_list(items: list, kind: str) -> str:
-    return f'<div class="irt-list">{"".join(finding_row(i, kind) for i in items)}</div>' if items else ""
+    """Rows ordered High, Medium, Low, Not assessed; within a level, the order the model gave."""
+    ordered = sorted(items, key=lambda i: list(IMPACT_TEXT).index(i["impact"]))
+    return f'<div class="irt-list">{"".join(finding_row(i, kind) for i in ordered)}</div>' if items else ""
 
 
 def impact_criteria() -> str:
@@ -444,12 +457,6 @@ def event_list(events: list) -> str:
     return f'<div class="irt-list">{"".join(rows)}</div>' if rows else ""
 
 
-def question_list(questions: list) -> str:
-    items = "".join(f'<li>{esc(q["question"])} <span class="irt-note">{esc(source_short(q.get("source", {})))}</span></li>'
-                    for q in questions)
-    return f"<ol class='irt-questions'>{items}</ol>" if items else ""
-
-
 def progress_strip(statuses: dict) -> str:
     """statuses: {ticker: (state, detail)}, state in queued / working / done / partial / failed."""
     tones = {"queued": "neutral", "working": "info", "done": "positive", "partial": "caution", "failed": "negative"}
@@ -460,12 +467,11 @@ def progress_strip(statuses: dict) -> str:
 
 
 def skeleton(ticker: str, status: str) -> str:
-    """Placeholder shaped like one ticker's results: header, metric tiles, chart, evidence bar, finding rows.
+    """Placeholder shaped like one ticker's results: header, metrics panel, chart, evidence bar, finding rows.
     The status line is real text (screen readers announce it); the gray blocks are aria-hidden."""
     def block(h, w="100%", mt=0):
         return f'<div class="sk" style="height:{h}px;width:{w};margin-top:{mt}px"></div>'
-    tiles = '<div class="sk-row" style="grid-template-columns:2fr 3fr 1fr;gap:12px">' + "".join(
-        block(78) for _ in range(3)) + "</div>"
+    tiles = block(104)   # the metrics panel: one block, like the panel itself
     rows = "".join(block(64, mt=6) for _ in range(6))
     return (f'<div role="status" aria-live="polite" aria-busy="true">'
             f'<p class="sk-status">{esc(ticker)} · {esc(status)}</p>'

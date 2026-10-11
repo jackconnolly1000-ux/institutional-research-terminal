@@ -32,7 +32,6 @@ class SelectFilings(unittest.TestCase):
         self.assertEqual([q.filed for q in s.quarterly_updates], ["2026-05-01", "2026-08-01"])  # oldest first
         self.assertEqual(s.mdna_source.filed, "2026-08-01")
         self.assertEqual([k.filed for k in s.eight_ks], ["2026-09-18"])  # 2025-01-02 is outside the window
-        self.assertEqual(s.form4_count, 1)
 
     def test_one_10k_means_no_comparison_with_a_reason(self):
         s = select_filings([f("10-Q", "2026-08-01"), f("10-K", "2026-02-26")], self.TODAY)

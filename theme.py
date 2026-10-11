@@ -42,10 +42,6 @@ SERIES_SMA_SLOW = "#b2b5be"   # 200-day moving average (drawn dotted, so it diff
 FONT_STACK = ('-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, '
               '"Apple Color Emoji", "Segoe UI Emoji"')
 
-# Meaning maps used by ui.py. Keys are the values the AI tool schema returns (analysis.py).
-# Low and Not assessed stay neutral: only High and Medium carry color.
-IMPACT_TONE = {"HIGH": "negative", "MEDIUM": "caution", "LOW": "neutral", "NOT_ASSESSED": "neutral"}   # for risks
-CATALYST_IMPACT_TONE = {"HIGH": "positive", "MEDIUM": "neutral", "LOW": "neutral", "NOT_ASSESSED": "neutral"}
 # Change labels come from code (compare.py), not the model. Only "new" carries color; the rest are context.
 TREND_CHIP = {"NEW": ("info", "No close match in the prior 10-K"), "CHANGED": ("neutral", "Changed since the prior 10-K"),
               "REMOVED": ("neutral", "Removed since the prior 10-K"), "QUARTERLY_UPDATE": ("neutral", "Updated in a 10-Q"),

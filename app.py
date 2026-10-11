@@ -229,7 +229,7 @@ def analyze_ticker(ticker: str, cik: str, progress) -> dict:
     progress("Summarizing filings with Claude (step 3 of 3)")
     result = run_analysis(ticker, evidence)
     return {"ticker": ticker, "company_name": evidence["company_name"], "industry": evidence["industry"],
-            "financials": financials, "form4_count": evidence["selection"].form4_count,
+            "financials": financials,
             "evidence": [s.coverage() for s in evidence["sources"]], "analysis": result,
             "event_markers": evidence["event_markers"]}
 
@@ -263,7 +263,7 @@ def generate_excel(profiles):
             ws.append([p["ticker"], "All metrics", None, None, None, f"Failed: {f['reason']}", None])
             continue
         for m in f["metrics"].values():
-            ws.append([p["ticker"], m["label"], m["value"], m["unit"], m["period"] or "Period unavailable",
+            ws.append([p["ticker"], m["label"], m["value"], m["unit"], m["period"] or "Period not stated",
                        f"{f['source']}: {m['field']}", f["retrieved_at"]])
             if m["value"] is not None:
                 ws.cell(ws.max_row, 3).number_format = '"$"#,##0.00' if m["field"] in ("currentPrice", "regularMarketPrice") else formats[m["unit"]]
@@ -352,16 +352,17 @@ if used_fallback:
 
 # --- RESULTS RENDERING ---
 def metric_groups(p: dict) -> list:
+    """[(heading, caption, [(label, value, period line), ...]), ...]; empty when market data failed."""
     f = p["financials"]
-    insider = ("Insider filings", [("Form 4, last 90 days", str(p["form4_count"]), "SEC EDGAR · count of filings, not transactions")])
     if f["status"] != "ok":
-        return [insider]
+        return []
     m = f["metrics"]
-    tile = lambda k: (m[k]["label"], ui.format_metric(m[k]["value"], m[k]["unit"]),
-                      f"Yahoo Finance · {m[k]['period'] or 'Period unavailable'}")
-    return [("Market", [tile("price"), tile("market_cap")]),
-            ("Valuation and profitability", [tile("forward_pe"), tile("gross_margin"), tile("free_cash_flow")]),
-            insider]
+    retrieved = datetime.fromisoformat(f["retrieved_at"])
+    hour = retrieved.strftime("%I").lstrip("0")
+    caption = f"Yahoo Finance · retrieved {retrieved:%b} {retrieved.day}, {retrieved:%Y}, {hour}:{retrieved:%M %p} ET"
+    tile = lambda k: (m[k]["label"], ui.format_metric(m[k]["value"], m[k]["unit"]), m[k]["period"] or "Period not stated")
+    return [("Price and valuation", caption, [tile("price"), tile("market_cap"), tile("forward_pe")]),
+            ("Profitability", caption, [tile("gross_margin"), tile("free_cash_flow")])]
 
 
 SHOW = ["All", "Catalysts", "Risk factor changes", "Other risks"]
@@ -405,9 +406,7 @@ def render_profile(p: dict) -> None:
                  + ui.section_state(secs["other_risks"], "other_risks")
                  + ui.findings_list(secs["other_risks"]["items"], "other_risk"))
     html += (ui.section_header("8-K events", len(secs["events"]["items"]), f"Last {sec_data.EIGHT_K_WINDOW_DAYS} days · dates from EDGAR")
-             + ui.section_state(secs["events"], "events") + ui.event_list(secs["events"]["items"])
-             + ui.section_header("Questions for management", len(secs["questions"]["items"]))
-             + ui.section_state(secs["questions"], "questions") + ui.question_list(secs["questions"]["items"]))
+             + ui.section_state(secs["events"], "events") + ui.event_list(secs["events"]["items"]))
     st.markdown(html, unsafe_allow_html=True)
 
 
@@ -502,6 +501,6 @@ else:
     st.markdown(
         "<div class='irt-card' style='margin-top:16px'><div class='irt-card-title'>Pick up to five tickers and click Run analysis</div>"
         "<p class='irt-card-body'>For each stock you get price history with SEC filing dates, AI summaries of catalysts and risks "
-        "with the filing excerpts behind them, recent 8-K events, questions for management, and an Excel download. "
+        "with the filing excerpts behind them, and recent 8-K events, and an Excel download. "
         "A first run reads several filings and takes about a minute per ticker.</p></div>",
         unsafe_allow_html=True)

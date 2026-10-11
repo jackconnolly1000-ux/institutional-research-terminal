@@ -211,12 +211,9 @@ def _ai_payload(ticker, ids, risk_ids, prompt):
         {"source_id": k8[0], "category": "LEADERSHIP", "headline": "New Chief Financial Officer appointed",
          "summary": "The Board appointed a new CFO effective October 1, 2026.",
          "quote": "the Board appointed a new Chief Financial Officer, effective October 1, 2026"}] if k8 else []
-    questions = [{"question": "Placeholder question about how supplier concentration is being reduced?", "source_id": risk_ids[0]},
-                 {"question": "Placeholder question about what drove services volume this quarter?", "source_id": "MDA"},
-                 {"question": "Placeholder question about the CFO transition timeline?", "source_id": k8[0] if k8 else "MDA"}]
     other = [_finding("Quarterly volumes depend on services demand", "MDA", MDA_LINE.strip(), "MEDIUM", "DEMAND",
                       summary="Net sales increased 8% to $5.2 billion in the quarter; a 12% services decline would reverse it.")]
-    return {"catalysts": catalysts, "risks": risks, "other_risks": other, "events": events, "questions": questions}
+    return {"catalysts": catalysts, "risks": risks, "other_risks": other, "events": events}
 
 
 def _source_ids(tools, section="catalysts"):

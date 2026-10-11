@@ -30,7 +30,7 @@ EVENT_CATEGORIES = ["LEADERSHIP", "M&A / CONTRACT", "FINANCIAL", "COMPLIANCE", "
 MAX_FINDINGS = 5               # per list; keeps the answer inside MAX_OUTPUT_TOKENS
 MAX_OTHER_RISKS = 3            # risks from management's discussion, not compared to last year
 FINDING_SECTIONS = ("catalysts", "risks", "other_risks")
-SECTIONS = FINDING_SECTIONS + ("events", "questions")
+SECTIONS = FINDING_SECTIONS + ("events",)
 
 
 # --- Evidence ----------------------------------------------------------------------------------
@@ -184,11 +184,8 @@ def tool_schema(sources: list[Source]) -> dict:
                     "headline": text("At most 14 words."), "summary": text("At most 35 words."),
                     "quote": text("Words copied exactly from that 8-K, at most 40 words.")},
                     "required": ["source_id", "category", "headline", "summary", "quote"]}},
-                "questions": {"type": "array", "maxItems": 3, "items": {"type": "object", "properties": {
-                    "question": text("A specific question for management, at most 35 words."),
-                    "source_id": {"type": "string", "enum": ids}}, "required": ["question", "source_id"]}},
             },
-            "required": ["catalysts", "risks", "other_risks", "events", "questions"],
+            "required": ["catalysts", "risks", "other_risks", "events"],
         },
     }
 
@@ -244,7 +241,6 @@ State the reason in impact_basis.
 
 QU sources are risk-factor updates in 10-Qs filed since the 10-K. A source marked "no material changes"
 contains nothing to extract. Events: at most one per 8-K source, only material events; skip an 8-K with none.
-Questions: 3 specific questions for management, each tied to one source.
 
 SOURCES
 
@@ -451,7 +447,7 @@ def unsupported_figures(item: dict, source_texts: list[str]) -> list[str]:
 def wording_flags(item: dict) -> list[str]:
     """Banned words in an AI-written finding. Marked for the reader, not deleted: the text stays as Claude wrote it."""
     flags = []
-    for key in ("headline", "summary", "implication", "detail", "impact_basis", "question"):
+    for key in ("headline", "summary", "implication", "detail", "impact_basis"):
         text = item.get(key) or ""
         for m in _BANNED_RE.finditer(text):
             if m.group(0).lower().startswith("leverag") and _FINANCIAL_LEVERAGE.search(text[max(0, m.start() - 40):m.end() + 40]):
@@ -537,14 +533,6 @@ def _check_event(item, sources_by_id) -> tuple[dict | None, str]:
                 unsupported_figures=unsupported_figures(item, [src.sent_text])), ""
 
 
-def _check_question(item, sources_by_id) -> tuple[dict | None, str]:
-    if not isinstance(item, dict) or not isinstance(item.get("question"), str) or not item["question"].strip():
-        return None, "missing question"
-    src = sources_by_id.get(item.get("source_id"))
-    return dict(item, source=(src.filing | {"id": src.id, "role": src.role}) if src else {},
-                wording_flags=wording_flags(item)), ""
-
-
 def check_response(stop_reason: str | None, tool_input, sources: list[Source]) -> dict:
     """Section-by-section result. Section status:
     complete (items present) | empty (complete answer, genuinely no items) | partial (cut-off answer, some items) |
@@ -572,10 +560,8 @@ def check_response(stop_reason: str | None, tool_input, sources: list[Source]) -
         for i, it in enumerate(raw):
             if name in FINDING_SECTIONS:
                 ok, why = _check_finding(it, name, by_id, all_by_id)
-            elif name == "events":
-                ok, why = _check_event(it, by_id)
             else:
-                ok, why = _check_question(it, by_id)
+                ok, why = _check_event(it, by_id)
             (items.append(ok) if ok else dropped.append({"index": i, "reason": why}))
         if status == "complete":
             sec_status = "complete" if items else ("empty" if not dropped else "invalid")

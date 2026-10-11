@@ -3,6 +3,7 @@ No network. Streamlit is imported by ui.py but no page is drawn.
 
 Run from app/:  .venv/bin/python -m unittest discover -s tests -p "test_*.py"
 """
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -24,7 +25,7 @@ class Components(unittest.TestCase):
         s = self.r["sections"]
         html = (ui.findings_list(s["catalysts"]["items"], "catalyst") + ui.findings_list(s["risks"]["items"], "risk")
                 + ui.findings_list(s["other_risks"]["items"], "other_risk") + ui.event_list(s["events"]["items"])
-                + ui.question_list(s["questions"]["items"]) + ui.impact_criteria() + ui.trend_note(self.r["comparison"])
+                + ui.impact_criteria() + ui.trend_note(self.r["comparison"])
                 + ui.unchanged_list(self.r["comparison"]) + ui.analysis_banner(self.r) + ui.skeleton("AAPL", "Queued"))
         self.assertIn("Figures to check", html)
         self.assertIn("Changed since the prior 10-K: edited", html)
@@ -34,6 +35,27 @@ class Components(unittest.TestCase):
         row = ui.finding_row(self.r["sections"]["catalysts"]["items"][0], "catalyst")
         self.assertIn("&lt;b&gt;after&lt;/b&gt;", row)
         self.assertNotIn("\n", row)                      # a blank line would end st.markdown's HTML block
+
+    def test_impact_is_plain_text_and_rows_are_ordered(self):
+        items = [dict(i, impact=imp) for i, imp in zip(self.r["sections"]["catalysts"]["items"] * 4,
+                                                      ["LOW", "HIGH", "NOT_ASSESSED", "HIGH"])]
+        for n, it in enumerate(items):
+            it["headline"] = f"Row {n}"
+        html = ui.findings_list(items, "catalyst")
+        self.assertIn('<span class="irt-impact">Impact: High</span>', html)
+        badge_lines = re.findall(r'<div class="badges">(.*?)</div>', html)
+        self.assertTrue(all("tone-positive" not in b and "tone-negative" not in b for b in badge_lines))   # no colored impact pill
+        order = [html.index(f"Row {n}") for n in (1, 3, 0, 2)]                       # High, High, Low, Not assessed
+        self.assertEqual(order, sorted(order))
+
+    def test_metrics_panel(self):
+        html = ui.metric_tiles([("Price and valuation", "Yahoo Finance · retrieved Oct 10, 2026, 2:04 PM ET",
+                                 [("Price", "$254.32", "Quote as of Oct 9, 2026, 4:00 PM ET")]),
+                                ("Profitability", "Yahoo Finance · retrieved Oct 10, 2026, 2:04 PM ET",
+                                 [("Gross margin", "48.65%", "Period not stated")])])
+        self.assertEqual(html.count('class="irt-group"'), 2)
+        self.assertIn("Period not stated", html)
+        self.assertEqual(ui.metric_tiles([]), "")
 
     def test_every_category_has_a_label(self):
         import analysis
