@@ -40,6 +40,7 @@ For up to five tickers:
 - A first run takes about a minute per ticker (131 seconds for AAPL and STRL on Oct 10, 2026).
 - Public live runs fit about one ticker a day. A worst-case call costs $0.248 against the $0.25 daily cap.
 - A skipped ticker still downloads its filings first, because the cost check needs the measured size of the request. The skip message appears only after the filings download.
+- A call that runs across midnight ET isn't counted on either day: `settle()` drops a reservation from a previous day, because the new day already started from zero. This affects at most one call, and the Anthropic monthly limit still applies.
 - The daily spending counter is kept in memory and resets when the app restarts, so a restart allows another day's worth. The Anthropic account's monthly limit is the hard stop.
 - The saved sample is frozen: the analysis is from Oct 10, 2026 and the price history ends at the Oct 9 close (retrieved Oct 11). It doesn't update.
 

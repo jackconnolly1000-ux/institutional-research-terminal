@@ -375,7 +375,7 @@ def generate_excel(profiles):
 # --- HEADER ---
 st.markdown(
     "<div class='irt-header'><div class='irt-title' role='heading' aria-level='1'>SEC Filing Research Terminal</div>"
-    "<div class='irt-sub'>SEC filings, market data and AI summaries for up to five stocks. "
+    "<div class='irt-sub'>SEC filings, market data and AI summaries for public companies. "
     "A research tool, not investment advice.</div></div>",
     unsafe_allow_html=True,
 )
@@ -404,7 +404,7 @@ with col_run:
 
 st.markdown("<p class='irt-note'>Live analysis is limited to about one ticker a day. The saved sample is always available.</p>",
             unsafe_allow_html=True)
-st.button("View saved sample", on_click=load_sample, help="AAPL and STRL from a saved run, with no live calls")
+st.button("View saved sample", on_click=load_sample)
 
 # Owner bypass: only when OWNER_PASSCODE is set in Streamlit Secrets. Typed in the sidebar, kept in the
 # session, never in a URL. Owner runs still count against the ledger, so visitors see a true remainder.
