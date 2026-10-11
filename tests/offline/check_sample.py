@@ -25,12 +25,12 @@ with sync_playwright() as p:
     page.locator('[data-testid="stDownloadButton"]').wait_for(timeout=60000)
     page.wait_for_timeout(2500)
     out = {"label": page.locator("p.irt-subtitle", has_text="Saved sample").first.inner_text(), "tabs": {}}
-    tabs = page.locator('[data-baseweb="tab"]')
+    tabs = page.locator('[role="tab"]')
     for i in range(tabs.count()):
         name = tabs.nth(i).inner_text().strip()
         tabs.nth(i).click()
         page.wait_for_timeout(1500)
-        panel = page.locator('[data-baseweb="tab-panel"]:visible').first
+        panel = page.locator('[role="tabpanel"]:visible').first
         out["tabs"][name] = panel.evaluate("""p => ({rows: p.querySelectorAll('.irt-row').length,
             chart: !!p.querySelector('.js-plotly-plot'),
             chart_caption: [...p.querySelectorAll('[data-testid=stCaptionContainer]')].map(c => c.textContent).find(t => t.startsWith('Daily bars')) || null,

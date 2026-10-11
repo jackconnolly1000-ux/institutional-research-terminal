@@ -38,12 +38,12 @@ def run_once(page, n):
     page.locator('[data-testid="stDownloadButton"]').wait_for(timeout=180000)
     page.wait_for_timeout(2500)
     report = {"summary": page.locator("p.irt-subtitle", has_text="Results for").first.inner_text()}
-    tabs = page.locator('[data-baseweb="tab"]')
+    tabs = page.locator('[role="tab"]')
     for i in range(tabs.count()):
         name = tabs.nth(i).inner_text().strip()
         tabs.nth(i).click()
         page.wait_for_timeout(1200)
-        panel = page.locator('[data-baseweb="tab-panel"]:visible').first
+        panel = page.locator('[role="tabpanel"]:visible').first
         report[name] = panel.evaluate(TAB_JS)
         h = page.evaluate("() => Math.max(...[...document.querySelectorAll('*')].map(e => e.scrollHeight))")
         page.set_viewport_size({"width": 1440, "height": min(max(900, h + 40), 7000)})
