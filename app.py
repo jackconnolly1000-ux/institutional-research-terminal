@@ -486,7 +486,8 @@ if results:
         unsafe_allow_html=True)
     if profiles:
         col_dl.download_button("Download Excel", data=generate_excel([profiles[t] for t in done]),
-                               file_name="Institutional_Model.xlsx", use_container_width=True,
+                               file_name=f"Research_Record_{'_'.join(done)}_{results['run_at']:%Y-%m-%d}.xlsx",
+                               use_container_width=True,
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     if sorted(st.session_state.ticker_select) != sorted(results["tickers"]):
         st.caption("Your ticker selection changed. Click Run analysis to update these results.")

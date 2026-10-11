@@ -103,6 +103,19 @@ class FindSection(unittest.TestCase):
         self.assertEqual(s.status, "no_material_changes")
         self.assertTrue(s.text.startswith("There have been no material changes"))
 
+    def test_except_as_set_forth_below_is_an_update_not_no_changes(self):
+        update = ("Supply of advanced memory components has tightened, and prices for these components have increased "
+                  "significantly. If constraints continue, the Company may be unable to meet demand or may face higher costs. ") * 5
+        text = ("Item 1A. Risk Factors Except as set forth below, there have been no material changes to the risk factors "
+                "in the 2025 Form 10-K. " + update + " Item 2. Unregistered Sales of Equity Securities None.")
+        self.assertGreater(len(update), 900)
+        self.assertEqual(find_section(text, "1a", "10-Q").status, "found")
+
+    def test_short_statement_with_exception_word_is_still_no_changes(self):
+        text = ("Item 1A. Risk Factors There have been no material changes other than as previously disclosed. "
+                "Item 2. Unregistered Sales of Equity Securities None.")
+        self.assertEqual(find_section(text, "1a", "10-Q").status, "no_material_changes")
+
     def test_not_applicable_smaller_reporting_company(self):
         text = "Item 1A. Risk Factors Not applicable for smaller reporting companies. Item 1B. Unresolved Staff Comments None."
         self.assertEqual(find_section(text, "1a", "10-K").status, "not_applicable")

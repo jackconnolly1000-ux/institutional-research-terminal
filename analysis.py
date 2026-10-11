@@ -97,7 +97,7 @@ def build_sources(selection: sec_data.Selection, texts: dict) -> list[Source]:
                               "labels": compare.paragraph_labels(comp), "counts": comp.counts(),
                               "unchanged": [compare.first_sentence(p.text) for p in comp.paragraphs if p.label == "UNCHANGED"],
                               "removed": [compare.first_sentence(p.text) for p in comp.removed],
-                              "prior_label": r_prior.filing.get("label"), "prior_url": r_prior.filing.get("url")}))
+                              "prior_filing": dict(r_prior.filing)}))
     if selection.quarterly_updates:
         for i, q in enumerate(selection.quarterly_updates, 1):
             out.append(section_source(f"QU{i}", "Risk factor updates, quarterly report", q, "1a"))
@@ -129,7 +129,7 @@ def comparison_status(sources: list[Source]) -> dict:
     if cmp_:
         x = cmp_.extra
         return {"status": "available", **labels, "reason": "", "counts": x["counts"], "unchanged": x["unchanged"],
-                "removed": x["removed"], "prior_url": x["prior_url"]}
+                "removed": x["removed"], "prior_url": x["prior_filing"].get("url")}
     missing = [s for s in sources if s.role.startswith("Risk factors") and s.status != "found"]
     status = "failed" if any(s.status == "failed" for s in missing) else "missing"
     reason = " ".join(f"{s.role}: {s.status.replace('_', ' ')}. {s.note}".strip() for s in missing)
@@ -503,7 +503,7 @@ def _check_finding(item, kind, sources_by_id, all_by_id) -> tuple[dict | None, s
             out["trend"], out["trend_reason"] = ("QUARTERLY_UPDATE" if src.id.startswith("QU") else "NOT_COMPARED"), ""
     out["source"] = src.filing | {"id": src.id, "role": src.role}
     if src.id == "R_CMP" and out.get("trend") == "REMOVED":
-        out["source"] = out["source"] | {"label": src.extra["prior_label"], "url": src.extra["prior_url"]}
+        out["source"] = src.extra["prior_filing"] | {"id": src.id, "role": src.role}
     out["excerpt"] = match_excerpt(item["quote"], _excerpt_haystack(src, item, all_by_id))
     if out["excerpt"]["status"] == "not_matched":
         elsewhere = [s.id for s in sources_by_id.values() if s.id != src.id

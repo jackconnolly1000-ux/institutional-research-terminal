@@ -36,8 +36,7 @@ def sources(prior=True, eight_k=True, quarterly=False):
                                  f"[R1] REMOVED (in the prior 10-K, no counterpart now): {OLD_LEGAL}",
                             extra={"labels": {"P1": ("CHANGED", "edited"), "P2": ("NEW", ""), "R1": ("REMOVED", "")},
                                    "counts": {"CHANGED (edited)": 1, "NEW": 1, "REMOVED": 1}, "unchanged": [],
-                                   "removed": [OLD_LEGAL], "prior_label": meta("R_PRIOR", filed="2025-02-27")["label"],
-                                   "prior_url": "https://sec/R_PRIOR"})]
+                                   "removed": [OLD_LEGAL], "prior_filing": pri.filing})]
     else:
         out.append(Source("", "Risk factors, prior annual report", "missing", note="Only one 10-K."))
     if quarterly:
@@ -183,7 +182,9 @@ class ResponseChecks(unittest.TestCase):
         r = check_response("tool_use", answer(risks=[finding(paragraph_id="R1", quote="defendant in litigation with a federal agency")]), sources())
         risk = r["sections"]["risks"]["items"][0]
         self.assertEqual((risk["trend"], risk["excerpt"]["status"]), ("REMOVED", "matched"))
-        self.assertIn("filed 2025-02-27", risk["source"]["label"])
+        prior = meta("R_PRIOR", filed="2025-02-27")
+        for key in ("form", "filed", "period", "accession", "url", "index_url", "label"):
+            self.assertEqual(risk["source"][key], prior[key], key)                   # the prior 10-K, not the current one
 
     def test_risks_must_cite_risk_factor_sources(self):
         r = check_response("tool_use", answer(risks=[finding(source_id="MDA", paragraph_id="", quote="Net sales increased 8% to $5.2 billion"),

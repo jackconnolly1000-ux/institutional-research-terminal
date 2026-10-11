@@ -1,6 +1,6 @@
-"""Page styling and HTML components for the Institutional Research Terminal:
-CSS built from theme.py tokens, skeleton loaders, a run-progress strip, metric tiles, and
-catalyst / risk / 8-K cards.
+"""Page styling and HTML components for the SEC Filing Research Terminal:
+CSS built from theme.py tokens, skeleton loaders, a run-progress strip, the metrics panel, and
+finding and 8-K rows.
 
 Every piece of AI or filing text goes through esc() before it reaches HTML. Filings and model
 output can contain "<", "&" or "$", and unsafe_allow_html=True renders whatever it's given.
@@ -328,6 +328,13 @@ def evidence_list(coverage: list, comparison: dict, budget: dict | None) -> str:
             f'<ul>{"".join(rows)}</ul>{tokens}</details>')
 
 
+NO_INPUT = {
+    "risks": "No usable risk-factor section was found (no 10-K comparison and no 10-Q update), so there was nothing to review.",
+    "other_risks": "Management's discussion (MD&A) wasn't found in the latest 10-K or 10-Q, so there was nothing to review.",
+    "events": f"No 8-Ks filed in the last {sec_data.EIGHT_K_WINDOW_DAYS} days, so there was nothing to review.",
+}
+
+
 def section_state(sec: dict, name: str) -> str:
     """A message for every section status except a complete list, so missing output never reads as "none found"."""
     status, dropped = sec["status"], len(sec.get("dropped", []))
@@ -336,13 +343,17 @@ def section_state(sec: dict, name: str) -> str:
         "partial": "Claude's answer was cut off; this list may be incomplete.",
         "missing": "Not available: Claude's answer ended before this section.",
         "invalid": f"Claude's answer for this section didn't pass validation ({dropped} item{'s' * (dropped != 1)} rejected).",
-        "no_input": f"No 8-Ks filed in the last {sec_data.EIGHT_K_WINDOW_DAYS} days, so there was nothing to review.",
+        "no_input": NO_INPUT.get(name, "Nothing was available for this section."),
         "failed": "Not available: the analysis didn't run.",
     }.get(status, "")
     if status == "complete" and dropped:
         msg = f"{dropped} item{'s' * (dropped != 1)} rejected by validation and not shown."
     tone = "neutral" if status in ("empty", "no_input", "complete") else "caution"
     return f'<p class="irt-note irt-state tone-{tone}">{esc(msg)}</p>' if msg else ""
+
+
+EXCERPT_NOTE = {"matched": "The quoted words appear in this filing. That does not confirm the interpretation above.",
+                "not_matched": "The code couldn't find these words in the cited filing."}
 
 
 def _excerpt_block(item: dict) -> str:
@@ -358,10 +369,10 @@ def _excerpt_block(item: dict) -> str:
     others = "".join(f'<p class="irt-note" style="margin:2px 0 0 0">Figures also from {esc(o.get("role", ""))}: '
                      f'<a href="{esc(o["url"])}" target="_blank" rel="noopener">{esc(o.get("label", ""))}</a></p>'
                      for o in item.get("other_sources", []) if o.get("url"))
+    note = (f'<p class="irt-note" style="margin:6px 0 0 0">{esc(EXCERPT_NOTE[ex["status"]] + elsewhere)}</p>'
+            if ex.get("status") in EXCERPT_NOTE else "")
     return (f'<blockquote>{esc(item.get("quote", ""))}</blockquote>'
-            f'<div class="irt-chips">{chip(label[0], label[1])}</div>'
-            f'<p class="irt-note" style="margin:6px 0 0 0">The quoted words appear in this filing. That does not confirm the '
-            f'interpretation above.{esc(elsewhere)}</p>'
+            f'<div class="irt-chips">{chip(label[0], label[1])}</div>{note}'
             f'<p class="irt-note" style="margin:4px 0 0 0">{esc(src.get("role", ""))}: {link}</p>{others}')
 
 

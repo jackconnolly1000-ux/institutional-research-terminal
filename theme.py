@@ -1,22 +1,22 @@
-"""Design tokens for the Institutional Research Terminal.
+"""Design tokens for the SEC Filing Research Terminal.
 
 The one place colors are defined. ui.py turns these into CSS variables, charts.py uses them
 in Plotly, and .streamlit/config.toml repeats the five base colors (TOML can't import Python).
 
 Semantic colors are named by MEANING, not by hue. Use them only when the color carries meaning:
-    POSITIVE  price up, favorable catalyst
-    NEGATIVE  price down, high-impact risk, errors
-    CAUTION   medium-impact risk, escalated trend, warnings
-    INFO      neutral facts: SEC filings, 8-K events, "new" labels
+    POSITIVE  price up, a check that passed ("Excerpt matched"), a finished step
+    NEGATIVE  price down, errors and failures
+    CAUTION   warnings: "Figures to check", incomplete answers, partial results
+    INFO      neutral facts: SEC filing markers, 8-K categories, the "no close match" label
     ACCENT    interactive: primary button, selected state
 Everything else (metrics, body text, cards) stays neutral. Margins and P/E get no color:
-a number isn't good or bad on its own.
+a number isn't good or bad on its own. AI judgments such as impact get no color either; they are plain text.
 
 Each semantic color has two shades:
     *_SOLID  fills, borders, candles, chips' left edge
     *_TEXT   text on dark backgrounds; every one is at least 4.5:1 against SURFACE and against
              its own 16% tint (WCAG AA for normal text). Contrast values checked Oct 10, 2026.
-Color never carries meaning alone: chips always include a word or symbol ("High", "▲ Escalated").
+Color never carries meaning alone: every chip says what it means in words.
 """
 
 # Neutral surfaces and text

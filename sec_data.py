@@ -183,6 +183,9 @@ TITLE_SKIP = {"1a": re.compile(_loose("risk factors") + r"[\s.:]*", re.I), "7": 
 MIN_SECTION_CHARS = 200
 
 NO_CHANGES = re.compile(r"\b(no|not been any|not been)\s+(material\s+)?changes?\b", re.I)
+# "Except as set forth below, there have been no material changes..." introduces an update, not its absence
+EXCEPTION_WORDING = re.compile(r"\b(except|other than|set forth below|the following|supplement)", re.I)
+SHORT_NO_CHANGES_CHARS = 400   # a statement this short has no room for an update, whatever its wording
 NOT_APPLICABLE = re.compile(r"\bnot\s+applicable\b|\bsmaller\s+reporting\s+compan", re.I)
 EARLIER_10Q_REF = re.compile(r"form\s+10-q", re.I)
 
@@ -267,7 +270,8 @@ def find_section(text: str, item: str, form: str) -> Section:
     body = text[body_start:end_m.pos].strip()
 
     status = "found"
-    if len(body) < 1500 and NO_CHANGES.search(body):
+    if (len(body) < 1500 and NO_CHANGES.search(body)
+            and (len(body) < SHORT_NO_CHANGES_CHARS or not EXCEPTION_WORDING.search(body))):
         status = "no_material_changes"
     elif len(body) < 800 and NOT_APPLICABLE.search(body):
         status = "not_applicable"

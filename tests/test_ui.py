@@ -3,6 +3,7 @@ No network. Streamlit is imported by ui.py but no page is drawn.
 
 Run from app/:  .venv/bin/python -m unittest discover -s tests -p "test_*.py"
 """
+import html
 import re
 import sys
 import unittest
@@ -56,6 +57,23 @@ class Components(unittest.TestCase):
         self.assertEqual(html.count('class="irt-group"'), 2)
         self.assertIn("Period not stated", html)
         self.assertEqual(ui.metric_tiles([]), "")
+
+    def test_excerpt_note_depends_on_the_check(self):
+        item = self.r["sections"]["risks"]["items"][0]
+        matched = html.unescape(ui._excerpt_block(item))
+        self.assertIn("The quoted words appear in this filing", matched)
+        missed = html.unescape(ui._excerpt_block(dict(item, excerpt={"status": "not_matched", "found_in": []})))
+        self.assertIn("The code couldn't find these words in the cited filing.", missed)
+        self.assertNotIn("The quoted words appear in this filing", missed)
+        short = html.unescape(ui._excerpt_block(dict(item, excerpt={"status": "too_short"})))
+        self.assertNotIn("The quoted words appear", short)
+
+    def test_no_input_message_per_section(self):
+        none = {"status": "no_input", "items": [], "dropped": []}
+        state = lambda name: html.unescape(ui.section_state(none, name))
+        self.assertIn("No usable risk-factor section", state("risks"))
+        self.assertIn("(MD&A) wasn't found", state("other_risks"))
+        self.assertIn("No 8-Ks filed", state("events"))
 
     def test_every_category_has_a_label(self):
         import analysis
