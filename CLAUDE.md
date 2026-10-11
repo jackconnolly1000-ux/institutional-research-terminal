@@ -63,7 +63,7 @@ Repo: https://github.com/jackconnolly1000-ux/institutional-research-terminal
 
 **Merged to `main` on Oct 11, 2026 (PR #1, merge commit `d5206ee`).** Tested with 77 unit tests (8 of them on real filings cached on this Mac), offline browser scenarios, live EDGAR checks on seven companies, and real-key runs of AAPL + STRL; the latest, Oct 10 at 1:50 PM ET with the code comparison and the 80,000-token budget, took 131 s, cost $0.30, sent all input, and both answers were complete. Limits found in testing are listed in README.md under "Known limits".
 
-**Branch `spend-guard` (Oct 11, 2026, not merged or deployed):** the spending guard and the saved sample below. 96 unit tests pass; offline scenarios checked the daily cap, the monthly-limit error and the sample with every network call blocked. No real-key run yet.
+**Branch `spend-guard` (Oct 11, 2026, not merged or deployed):** the spending guard and the saved sample below. 96 unit tests pass; offline scenarios checked the daily cap, the monthly-limit error and the sample with every network call blocked. One real STRL run on Oct 11: 69 s, 34,325 input and 5,684 output tokens, about $0.125 by the app's prices.
 
 - Home screen: title "SEC Filing Research Terminal", subtitle ("A research tool, not investment advice"), one ticker picker (`st.multiselect`, up to 5), one primary **Run analysis** button, a muted line "Live analysis is limited to about one ticker a day. The saved sample is always available.", one outlined **View saved sample** button. Owner passcode field in the sidebar only when `OWNER_PASSCODE` is set
 - While it runs: a progress strip (queued, working, done, partial, failed, skipped) and a tab per ticker with a skeleton loader and step label
