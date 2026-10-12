@@ -38,11 +38,12 @@ Stock Project/
 │   ├── CLAUDE.md    these instructions, for Claude Code
 │   ├── .streamlit/config.toml   widget theme (repeats the base colors in theme.py)
 │   ├── tests/       tests and diagnostics (no Anthropic calls)
-│   │   ├── test_*.py          unit tests of sec_data, analysis, market_data, budget, ui, the saved sample: .venv/bin/python -m unittest discover -s tests -p "test_*.py"
+│   │   ├── test_*.py          unit tests of sec_data, analysis, market_data, budget, ui, the saved sample (commands under "Running the tests")
 │   │   ├── check_risk_extraction.py   live EDGAR check of filing selection and sections, using the production functions
 │   │   ├── chart_preview.py   price chart on synthetic prices
 │   │   └── offline/           whole app on fake SEC/Yahoo/Anthropic responses; check_states.py drives failure scenarios, check_sample.py the saved sample (shots/ is gitignored)
 │   ├── .venv/       local Python environment (gitignored)
+│   ├── .gitattributes   keeps line endings LF on every machine, matching Streamlit Cloud
 │   └── .gitignore
 ├── docs/            instructions and plans (private)
 ├── course/          VSB 2008 notes (private, never goes in app/)
@@ -60,6 +61,20 @@ Repo: https://github.com/jackconnolly1000-ux/institutional-research-terminal
 - The API key lives in Streamlit Secrets, not in the code. Keep it that way.
 - When you add or move something, update `README.md`.
 - In claude.ai, the project files are copies. If the uploaded code might be older than what's in `app/`, say so.
+
+**Running the tests** (from `app/`; Windows uses `.venv\Scripts\`, Mac/Linux `.venv/bin/`)
+
+| | Windows (PowerShell) | Mac/Linux |
+|---|---|---|
+| Build the environment | `py -3.12 -m venv .venv; .venv\Scripts\python -m pip install -r requirements.txt` | `python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt` |
+| Unit tests | `.venv\Scripts\python -m unittest discover -s tests -p "test_*.py"` | `.venv/bin/python -m unittest discover -s tests -p "test_*.py"` |
+| Browser test setup (once; Playwright isn't in requirements.txt because the live app doesn't need it) | `.venv\Scripts\python -m pip install playwright; .venv\Scripts\python -m playwright install chromium` | `.venv/bin/pip install playwright && .venv/bin/python -m playwright install chromium` |
+| Saved sample: start the app | `$env:MOCK_NO_NETWORK='1'; .venv\Scripts\streamlit run tests/offline/run_offline.py --server.port 8601 -- app.py` | `MOCK_NO_NETWORK=1 .venv/bin/streamlit run tests/offline/run_offline.py --server.port 8601 -- app.py` |
+| Saved sample: check (second terminal) | `.venv\Scripts\python tests/offline/check_sample.py 8601 tests/offline/shots/sample` | `.venv/bin/python tests/offline/check_sample.py 8601 tests/offline/shots/sample` |
+| Failure states: start the app | `$env:MOCK_DELAY='2'; $env:MOCK_CUTOFF='STRL'; $env:MOCK_ONE_10K='FAST'; $env:MOCK_FAIL_ONCE='yahoo,8k'; .venv\Scripts\streamlit run tests/offline/run_offline.py --server.port 8601 -- app.py` | `MOCK_DELAY=2 MOCK_CUTOFF=STRL MOCK_ONE_10K=FAST MOCK_FAIL_ONCE=yahoo,8k .venv/bin/streamlit run tests/offline/run_offline.py --server.port 8601 -- app.py` |
+| Failure states: check (second terminal) | `.venv\Scripts\python tests/offline/check_states.py 8601 tests/offline/shots/states` | `.venv/bin/python tests/offline/check_states.py 8601 tests/offline/shots/states` |
+
+PowerShell's `$env:` settings last for that terminal session, so stop the app and open a fresh terminal before switching scenarios. The 8 real-filing tests skip unless `~/Stock Project/data/raw/sec` holds the cached filings (only the Mac has them now).
 
 ## What the app does today
 
