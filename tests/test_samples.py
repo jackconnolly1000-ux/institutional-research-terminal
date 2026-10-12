@@ -20,7 +20,8 @@ class SavedSample(unittest.TestCase):
     def test_manifest(self):
         self.assertEqual(self.manifest["tickers"], ["AAPL", "STRL"])
         self.assertEqual(self.manifest["label"], "Saved sample. Analysis run Oct 10, 2026. "
-                                                 "Price history through the Oct 9 close, retrieved Oct 11.")
+                                                 "Price history through the Oct 9 close, retrieved Oct 11. "
+                                                 "SEC figures as filed by Oct 10, retrieved Oct 11.")
 
     def test_profiles_are_complete(self):
         for t in self.manifest["tickers"]:
@@ -30,6 +31,16 @@ class SavedSample(unittest.TestCase):
                 self.assertEqual(p["analysis"]["response_status"], "complete")
                 self.assertEqual(p["financials"]["status"], "ok")
                 self.assertNotIn("questions", p["analysis"]["sections"])
+                self.assertEqual(p["sec_metrics"]["status"], "ok")
+
+    def test_sec_figures_were_filed_by_the_run_date(self):
+        for t, end in (("AAPL", "2026-06-27"), ("STRL", "2026-06-30")):
+            with self.subTest(t):
+                sec = json.loads((SAMPLES / f"{t}.json").read_text(encoding="utf-8"))["sec_metrics"]
+                self.assertEqual(sec["period_end"], end)
+                filed = [f["filed"] for m in sec["metrics"].values() for f in m["filings"]]
+                self.assertTrue(filed)
+                self.assertLessEqual(max(filed), self.manifest["sec_filed_by"])
 
     def test_prices_end_at_the_oct_9_close_and_match_the_tile(self):
         for t in self.manifest["tickers"]:

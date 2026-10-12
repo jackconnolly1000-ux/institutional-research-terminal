@@ -940,5 +940,335 @@
    "2026-07-08",
    "8-K"
   ]
- ]
+ ],
+ "sec_metrics": {
+  "status": "ok",
+  "retrieved_at": "2026-10-11T23:59:37-04:00",
+  "source": "SEC XBRL company facts (data.sec.gov)",
+  "period_end": "2026-06-30",
+  "basis": "10-Q",
+  "metrics": {
+   "revenue": {
+    "label": "Revenue",
+    "unit": "USD",
+    "value": 3438486000,
+    "period_end": "2026-06-30",
+    "tags": [
+     "RevenueFromContractWithCustomerExcludingAssessedTax"
+    ],
+    "components": [
+     {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "role": "fiscal year",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "value": 2490049000,
+      "form": "10-K",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "role": "current year to date",
+      "start": "2026-01-01",
+      "end": "2026-06-30",
+      "value": 1993854000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     },
+     {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "role": "prior year to date",
+      "start": "2025-01-01",
+      "end": "2025-06-30",
+      "value": 1045417000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     }
+    ],
+    "filings": [
+     {
+      "form": "10-K",
+      "period": "2025-12-31",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "form": "10-Q",
+      "period": "2026-06-30",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     }
+    ],
+    "note": null,
+    "detail": ""
+   },
+   "gross_margin": {
+    "label": "Gross margin",
+    "unit": "fraction",
+    "value": 0.2380661139815605,
+    "period_end": "2026-06-30",
+    "tags": [
+     "GrossProfit",
+     "RevenueFromContractWithCustomerExcludingAssessedTax"
+    ],
+    "components": [
+     {
+      "tag": "GrossProfit",
+      "role": "fiscal year",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "value": 572314000,
+      "form": "10-K",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "tag": "GrossProfit",
+      "role": "current year to date",
+      "start": "2026-01-01",
+      "end": "2026-06-30",
+      "value": 484253000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     },
+     {
+      "tag": "GrossProfit",
+      "role": "prior year to date",
+      "start": "2025-01-01",
+      "end": "2025-06-30",
+      "value": 237980000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     },
+     {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "role": "fiscal year",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "value": 2490049000,
+      "form": "10-K",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "role": "current year to date",
+      "start": "2026-01-01",
+      "end": "2026-06-30",
+      "value": 1993854000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     },
+     {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "role": "prior year to date",
+      "start": "2025-01-01",
+      "end": "2025-06-30",
+      "value": 1045417000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     }
+    ],
+    "filings": [
+     {
+      "form": "10-K",
+      "period": "2025-12-31",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "form": "10-Q",
+      "period": "2026-06-30",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     }
+    ],
+    "note": null,
+    "detail": ""
+   },
+   "operating_margin": {
+    "label": "Operating margin",
+    "unit": "fraction",
+    "value": 0.17517913407237953,
+    "period_end": "2026-06-30",
+    "tags": [
+     "OperatingIncomeLoss",
+     "RevenueFromContractWithCustomerExcludingAssessedTax"
+    ],
+    "components": [
+     {
+      "tag": "OperatingIncomeLoss",
+      "role": "fiscal year",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "value": 405916000,
+      "form": "10-K",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "tag": "OperatingIncomeLoss",
+      "role": "current year to date",
+      "start": "2026-01-01",
+      "end": "2026-06-30",
+      "value": 357075000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     },
+     {
+      "tag": "OperatingIncomeLoss",
+      "role": "prior year to date",
+      "start": "2025-01-01",
+      "end": "2025-06-30",
+      "value": 160640000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     },
+     {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "role": "fiscal year",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "value": 2490049000,
+      "form": "10-K",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "role": "current year to date",
+      "start": "2026-01-01",
+      "end": "2026-06-30",
+      "value": 1993854000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     },
+     {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "role": "prior year to date",
+      "start": "2025-01-01",
+      "end": "2025-06-30",
+      "value": 1045417000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     }
+    ],
+    "filings": [
+     {
+      "form": "10-K",
+      "period": "2025-12-31",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "form": "10-Q",
+      "period": "2026-06-30",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     }
+    ],
+    "note": null,
+    "detail": ""
+   },
+   "free_cash_flow": {
+    "label": "Free cash flow",
+    "unit": "USD",
+    "value": 482002000,
+    "period_end": "2026-06-30",
+    "tags": [
+     "NetCashProvidedByUsedInOperatingActivities",
+     "PaymentsToAcquirePropertyPlantAndEquipment"
+    ],
+    "components": [
+     {
+      "tag": "NetCashProvidedByUsedInOperatingActivities",
+      "role": "fiscal year",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "value": 439988000,
+      "form": "10-K",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "tag": "NetCashProvidedByUsedInOperatingActivities",
+      "role": "current year to date",
+      "start": "2026-01-01",
+      "end": "2026-06-30",
+      "value": 328021000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     },
+     {
+      "tag": "NetCashProvidedByUsedInOperatingActivities",
+      "role": "prior year to date",
+      "start": "2025-01-01",
+      "end": "2025-06-30",
+      "value": 170311000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     },
+     {
+      "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+      "role": "fiscal year",
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "value": 77312000,
+      "form": "10-K",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+      "role": "current year to date",
+      "start": "2026-01-01",
+      "end": "2026-06-30",
+      "value": 69646000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     },
+     {
+      "tag": "PaymentsToAcquirePropertyPlantAndEquipment",
+      "role": "prior year to date",
+      "start": "2025-01-01",
+      "end": "2025-06-30",
+      "value": 31262000,
+      "form": "10-Q",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     }
+    ],
+    "filings": [
+     {
+      "form": "10-K",
+      "period": "2025-12-31",
+      "filed": "2026-02-26",
+      "accession": "0000874238-26-000024"
+     },
+     {
+      "form": "10-Q",
+      "period": "2026-06-30",
+      "filed": "2026-08-04",
+      "accession": "0000874238-26-000103"
+     }
+    ],
+    "note": null,
+    "detail": ""
+   }
+  }
+ }
 }

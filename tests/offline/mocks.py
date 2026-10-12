@@ -7,12 +7,14 @@ real section headings). It is not real company data.
 Scenarios (environment variables, comma-separated tickers or components):
   MOCK_DELAY=3              each fake Claude call takes 3 seconds, so loading states stay on screen
   MOCK_CUTOFF=STRL          Claude's answer for STRL stops at max_tokens after the catalysts
-  MOCK_FAIL_ONCE=yahoo,8k,prior   the first Yahoo call / first 8-K download / first prior 10-K download
-                            fails, later ones succeed (shows that failures aren't cached)
+  MOCK_FAIL_ONCE=yahoo,8k,prior,xbrl   the first Yahoo call / first 8-K download / first prior 10-K download /
+                            first SEC company facts download fails, later ones succeed (shows that failures aren't cached)
   MOCK_ONE_10K=FAST         FAST has only one 10-K, so there is no annual comparison
   MOCK_NO_8K=STRL           STRL filed no 8-K in the last 180 days
   MOCK_EMPTY_EVENTS=AAPL    a complete answer that genuinely reports no 8-K events
-AAP has no 10-K or 10-Q (foreign-issuer style), to show a whole-ticker failure."""
+AAP has no 10-K or 10-Q (foreign-issuer style), to show a whole-ticker failure.
+SEC company facts are the real, trimmed AAPL and STRL test fixtures (tests/fixtures). FAST is served the JPMorgan
+fixture, which lacks most tags, so the "Not reported" tiles get rendered; other tickers get a 404."""
 import json
 import os
 import re
@@ -21,6 +23,10 @@ from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
+
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
+FACTS = {"AAPL": "AAPL", "STRL": "STRL", "FAST": "JPM"}
 
 DELAY = float(os.environ.get("MOCK_DELAY", "0"))
 # Spending-guard scenarios: real-size token counts (one ticker uses most of a day's cap), and the documented
@@ -137,6 +143,11 @@ def fake_get(url, headers=None, timeout=None, **kw):
                                          "reportDate": [r[2] for r in rows], "items": [r[3] for r in rows],
                                          "accessionNumber": [f"0000{cik:0>6}-26-{i:06d}" for i in range(len(rows))],
                                          "primaryDocument": [f"{r[0].replace('-', '').lower()}_{i}.htm" for i, r in enumerate(rows)]}}})
+    if "/api/xbrl/companyfacts/CIK" in url:
+        ticker = BY_CIK[str(int(url.split("CIK")[1][:10]))]
+        if _fail_once("XBRL", 3) or ticker not in FACTS:
+            return FakeResponse(status=503 if ticker in FACTS else 404)
+        return FakeResponse(content=(FIXTURES / f"{FACTS[ticker]}_companyfacts.json").read_bytes())
     if "/Archives/edgar/data/" in url:
         cik, doc = url.split("/")[-3], url.rsplit("/", 1)[1]
         ticker = BY_CIK[cik]

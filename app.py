@@ -22,6 +22,7 @@ import budget
 import market_data
 import sec_data
 import ui
+import xbrl
 from charts import CHART_CONFIG, build_price_chart
 
 ET = ZoneInfo("America/New_York")
@@ -176,6 +177,21 @@ def load_financials(ticker: str) -> dict:
     except market_data.MarketDataError as e:
         return {"status": "failed", "reason": str(e)}
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def cached_companyfacts(cik: str) -> dict:
+    """SEC XBRL company facts, trimmed to the six tags xbrl.py reads (a full file is 3 to 8 MB). They change only
+    when the company files, so a day is fresh enough. sec_get raises on failure, so a failure is never cached."""
+    return {"retrieved_at": datetime.now(ET).isoformat(timespec="seconds"),
+            **xbrl.trim(json.loads(sec_get(xbrl.companyfacts_url(cik))))}
+
+def load_sec_metrics(cik: str) -> dict:
+    try:
+        facts = cached_companyfacts(cik)
+        return {"status": "ok", "retrieved_at": facts["retrieved_at"], **xbrl.ttm_metrics(facts)}
+    except Exception as e:
+        print(f"[xbrl] CIK {cik}: {e}", flush=True)
+        return {"status": "failed", "reason": f"SEC company facts couldn't be read: {e}"}
+
 @st.cache_resource(show_spinner=False)
 def analysis_store() -> dict:
     """Complete Claude answers, keyed by a hash of the exact request. Written only when
@@ -279,12 +295,13 @@ def analyze_ticker(ticker: str, cik: str, progress) -> dict:
     # run_analysis reserves right before the Claude call.
     progress("Reading SEC filings (step 1 of 3)")
     evidence = gather_evidence(ticker, cik)
-    progress("Fetching market data (step 2 of 3)")
+    progress("Fetching market data and SEC figures (step 2 of 3)")
     financials = load_financials(ticker)
+    sec_metrics = load_sec_metrics(cik)
     progress("Summarizing filings with Claude (step 3 of 3)")
     result = run_analysis(ticker, evidence)
     profile = {"ticker": ticker, "company_name": evidence["company_name"], "industry": evidence["industry"],
-               "financials": financials,
+               "financials": financials, "sec_metrics": sec_metrics,
                "evidence": [s.coverage() for s in evidence["sources"]], "analysis": result,
                "event_markers": evidence["event_markers"]}
     if SAMPLE_OUT:
@@ -332,17 +349,29 @@ def generate_excel(profiles):
 
     ws = wb.active
     ws.title = "Market data"
-    ws.append(["Ticker", "Metric", "Value", "Unit", "Period", "Source", "Retrieved at"])
+    ws.append(["Ticker", "Metric", "Value", "Unit", "Period", "Source", "Retrieved at", "Filings used"])
     for p in profiles:
         f = p["financials"]
         if f["status"] != "ok":
-            ws.append([p["ticker"], "All metrics", None, None, None, f"Failed: {f['reason']}", None])
-            continue
-        for m in f["metrics"].values():
-            ws.append([p["ticker"], m["label"], m["value"], m["unit"], m["period"] or "Period not stated",
-                       f"{f['source']}: {m['field']}", f["retrieved_at"]])
-            if m["value"] is not None:
-                ws.cell(ws.max_row, 3).number_format = '"$"#,##0.00' if m["field"] in ("currentPrice", "regularMarketPrice") else formats[m["unit"]]
+            ws.append([p["ticker"], "All Yahoo metrics", None, None, None, f"Failed: {f['reason']}", None])
+        else:
+            for m in f["metrics"].values():
+                ws.append([p["ticker"], m["label"], m["value"], m["unit"], m["period"] or "Period not stated",
+                           f"{f['source']}: {m['field']}", f["retrieved_at"]])
+                if m["value"] is not None:
+                    ws.cell(ws.max_row, 3).number_format = '"$"#,##0.00' if m["field"] in ("currentPrice", "regularMarketPrice") else formats[m["unit"]]
+        sec = p.get("sec_metrics")
+        if sec and sec["status"] != "ok":
+            ws.append([p["ticker"], "All SEC metrics", None, None, None, f"Failed: {sec['reason']}", None])
+        elif sec:
+            for key, m in sec["metrics"].items():
+                op = " minus " if key == "free_cash_flow" else " / "   # FCF subtracts capex; the margins divide by revenue
+                tags = op.join(m["tags"]) if m["tags"] else f"{xbrl.NOT_REPORTED} ({m['detail']})"
+                ws.append([p["ticker"], m["label"], m["value"], m["unit"], f"TTM to {m['period_end']}",
+                           f"{sec['source']}: {tags}", sec["retrieved_at"],
+                           "; ".join(f"{x['form']} {x['accession']} (period {x['period']}, filed {x['filed']})" for x in m["filings"])])
+                if m["value"] is not None:
+                    ws.cell(ws.max_row, 3).number_format = formats[m["unit"]]
 
     ws = wb.create_sheet("Findings")
     ws.append(["Ticker", "Type", "Headline", "Summary", "Potential implication", "Detail", "Impact (AI assessment)",
@@ -437,18 +466,36 @@ if used_fallback:
 
 
 # --- RESULTS RENDERING ---
+def _when(iso: str) -> str:
+    t = datetime.fromisoformat(iso)
+    return f"{t:%b} {t.day}, {t:%Y}, {t.strftime('%I').lstrip('0')}:{t:%M %p} ET"
+
+def _day(iso_date: str) -> str:
+    d = datetime.fromisoformat(iso_date)
+    return f"{d:%b} {d.day}, {d:%Y}"
+
 def metric_groups(p: dict) -> list:
-    """[(heading, caption, [(label, value, period line), ...]), ...]; empty when market data failed."""
+    """[(heading, caption, [(label, value, period line), ...]), ...]. Yahoo gives price, market cap and forward P/E;
+    revenue, margins and free cash flow come from the company's own SEC filings, so each states its period and filings.
+    A group whose source failed is left out (its notice says why)."""
+    groups = []
     f = p["financials"]
-    if f["status"] != "ok":
-        return []
-    m = f["metrics"]
-    retrieved = datetime.fromisoformat(f["retrieved_at"])
-    hour = retrieved.strftime("%I").lstrip("0")
-    caption = f"Yahoo Finance · retrieved {retrieved:%b} {retrieved.day}, {retrieved:%Y}, {hour}:{retrieved:%M %p} ET"
-    tile = lambda k: (m[k]["label"], ui.format_metric(m[k]["value"], m[k]["unit"]), m[k]["period"] or "Period not stated")
-    return [("Price and valuation", caption, [tile("price"), tile("market_cap"), tile("forward_pe")]),
-            ("Profitability", caption, [tile("gross_margin"), tile("free_cash_flow")])]
+    if f["status"] == "ok":
+        m = f["metrics"]
+        tile = lambda k: (m[k]["label"], ui.format_metric(m[k]["value"], m[k]["unit"]), m[k]["period"] or "Period not stated")
+        groups.append(("Price and valuation", f"Yahoo Finance · retrieved {_when(f['retrieved_at'])}",
+                       [tile("price"), tile("market_cap"), tile("forward_pe")]))
+    sec = p.get("sec_metrics")   # absent in profiles saved before Oct 11, 2026
+    if sec and sec["status"] == "ok":
+        def tile(m):
+            if m["value"] is None:
+                return m["label"], "Not reported", "Not in SEC data for this period"
+            return (m["label"], ui.format_metric(m["value"], m["unit"]),
+                    "\n".join(f"{x['form']} filed {_day(x['filed'])}" for x in m["filings"]))   # one filing per line
+        groups.append((f"From SEC filings · TTM to {_day(sec['period_end'])}",
+                       f"SEC XBRL company facts · retrieved {_when(sec['retrieved_at'])}",
+                       [tile(m) for m in sec["metrics"].values()]))
+    return groups
 
 
 SHOW = ["All", "Catalysts", "Risk factor changes", "Other risks"]
@@ -459,7 +506,9 @@ def render_profile(p: dict) -> None:
     st.markdown(ui.company_header(p["ticker"], p["company_name"], p["industry"])
                 + ui.metric_tiles(metric_groups(p))
                 + (ui.notice("Market data unavailable", f"{p['financials']['reason']}. It is retried on the next run.", "caution")
-                   if p["financials"]["status"] != "ok" else ""), unsafe_allow_html=True)
+                   if p["financials"]["status"] != "ok" else "")
+                + (ui.notice("SEC figures unavailable", f"{p['sec_metrics']['reason']}. They are retried on the next run.", "caution")
+                   if p.get("sec_metrics", {}).get("status") == "failed" else ""), unsafe_allow_html=True)
 
     try:
         hist = sample_prices(p["sample_prices"]) if p.get("sample_prices") else get_price_history(p["ticker"])
@@ -508,6 +557,7 @@ def render_failure(ticker: str, reason: str) -> None:
 def run_state(p: dict) -> tuple:
     """Progress chip for a finished ticker: done, or partial when any piece failed or was cut off."""
     partial = (p["analysis"]["response_status"] != "complete" or p["financials"]["status"] != "ok"
+               or p.get("sec_metrics", {}).get("status") == "failed"
                or any(c["status"] == "failed" for c in p["evidence"]))
     return ("partial", "partial results") if partial else ("done", "")
 

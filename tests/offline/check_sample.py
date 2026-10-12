@@ -33,6 +33,9 @@ with sync_playwright() as p:
         panel = page.locator('[role="tabpanel"]:visible').first
         out["tabs"][name] = panel.evaluate("""p => ({rows: p.querySelectorAll('.irt-row').length,
             chart: !!p.querySelector('.js-plotly-plot'),
+            groups: [...p.querySelectorAll('.irt-group-head')].map(e => e.textContent),
+            tiles: [...p.querySelectorAll('.irt-tile')].map(t => [...t.children].map(c => c.textContent).join(' | ')),
+            metrics_foot: (p.querySelector('.irt-metrics-foot') || {}).textContent || null,
             chart_caption: [...p.querySelectorAll('[data-testid=stCaptionContainer]')].map(c => c.textContent).find(t => t.startsWith('Daily bars')) || null,
             problems: [...p.querySelectorAll('.irt-card[role=status], .irt-state')].map(e => e.textContent.slice(0, 90))})""")
         page.screenshot(path=f"{prefix}_{name}.png", full_page=True)
@@ -40,6 +43,16 @@ with sync_playwright() as p:
         page.locator('[data-testid="stDownloadButton"] button').click()
     out["download"] = dl.value.suggested_filename
     out["exceptions_on_page"] = page.locator('[data-testid="stException"]').count()
+
+    # Phone width: nothing may stick out past the right edge; screenshot the header of the first tab
+    page.set_viewport_size({"width": 390, "height": 844})
+    tabs.nth(0).click()
+    page.wait_for_timeout(1500)
+    out["mobile_overflow"] = page.evaluate("""() => [...document.querySelectorAll('[data-testid=stAppViewContainer] *')]
+        .filter(e => { const r = e.getBoundingClientRect(); return r.right > window.innerWidth + 0.5 && r.width > 0; })
+        .slice(0, 8).map(e => e.tagName + '.' + (typeof e.className === 'string' ? e.className.split(' ')[0] : ''))""")
+    page.locator('.irt-metrics').first.scroll_into_view_if_needed()
+    page.locator('.irt-metrics').first.screenshot(path=f"{prefix}_metrics_390.png")
     out["errors"] = errors
     print(json.dumps(out, indent=1))
     b.close()

@@ -77,6 +77,14 @@ class Components(unittest.TestCase):
         self.assertIn('class="irt-metrics-foot">Source: Yahoo Finance', html)
         self.assertEqual(ui.format_metric(0.48651, "fraction"), "48.7%")
 
+    def test_two_sources_are_each_named_once(self):
+        yahoo, sec = "Yahoo Finance · retrieved Oct 10, 2026, 2:04 PM ET", "SEC XBRL company facts · retrieved Oct 11, 2026"
+        html = ui.metric_tiles([("Price and valuation", yahoo, [("Price", "$1.00", "p")] * 3),
+                                ("From SEC filings · TTM to Jun 27, 2026", sec, [("Revenue", "$466.82B", "10-Q")] * 4)])
+        self.assertIn(f"Source: {yahoo}; {sec}</div>", html)
+        self.assertIn('class="irt-metrics irt-cols-7"', html)
+        self.assertIn(".irt-cols-7 {", ui._GRID_CSS)   # 3 + 4 tiles need a seven-column class
+
     def test_eight_k_items_come_from_edgar(self):
         self.assertEqual(ui.eight_k_items("5.02,9.01"), "Item 5.02 Director or officer change")
         self.assertEqual(ui.eight_k_items("2.02,7.01,9.01"), "Item 2.02 Results of operations · Item 7.01 Regulation FD disclosure")

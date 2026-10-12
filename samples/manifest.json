@@ -6,5 +6,6 @@
  "run_at": "2026-10-10T13:49:44-04:00",
  "prices_through": "2026-10-09",
  "prices_retrieved": "2026-10-11",
- "label": "Saved sample. Analysis run Oct 10, 2026. Price history through the Oct 9 close, retrieved Oct 11."
+ "sec_filed_by": "2026-10-10",
+ "label": "Saved sample. Analysis run Oct 10, 2026. Price history through the Oct 9 close, retrieved Oct 11. SEC figures as filed by Oct 10, retrieved Oct 11."
 }
