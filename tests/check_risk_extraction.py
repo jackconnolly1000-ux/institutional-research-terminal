@@ -1,7 +1,7 @@
 """Diagnostic: which filings the app uses for each ticker, and what each section extraction found.
 
 Runs the production functions in sec_data.py and analysis.py (no copied logic) on live EDGAR data.
-Filing documents are cached on disk by accession number in ~/Stock Project/data/raw/sec/{TICKER}/,
+Filing documents are cached on disk by accession number in Stock Project/data/raw/sec/{TICKER}/ (outside the repo),
 so reruns only fetch the filing list. Never calls the Anthropic API.
 
 Usage (from app/):
@@ -21,7 +21,7 @@ import analysis  # noqa: E402
 import sec_data  # noqa: E402
 
 TICKERS = ["AAPL", "FAST", "STRL"]
-PROJECT = Path(__file__).resolve().parents[2]          # ~/Stock Project
+PROJECT = Path(__file__).resolve().parents[2]          # the Stock Project folder
 RAW_DIR = PROJECT / "data" / "raw" / "sec"
 EXPORT_DIR = PROJECT / "data" / "exports"
 HEADERS = {"User-Agent": "InstitutionalResearch diagnostics@research-terminal.com"}

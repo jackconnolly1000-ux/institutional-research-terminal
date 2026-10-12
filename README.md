@@ -2,7 +2,7 @@
 
 A Streamlit app that reads a company's SEC filings and market data and summarizes them for stock research. It is a research tool, not investment advice.
 
-Live app: https://jack-research-terminal.streamlit.app/ (the `main` branch).
+Live app: https://sec-filing-research-terminal.streamlit.app/ (the `main` branch).
 
 ## What it does
 

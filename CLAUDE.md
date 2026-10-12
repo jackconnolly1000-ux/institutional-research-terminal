@@ -2,7 +2,7 @@
 
 ## What this is
 
-I'm Jack, a sophomore finance student at Villanova School of Business. I'm building the SEC Filing Research Terminal, a Streamlit web app that speeds up stock research by putting market data, SEC filings, and AI summaries in one dashboard. It's live at https://jack-research-terminal.streamlit.app/.
+I'm Jack, a sophomore finance student at Villanova School of Business. I'm building the SEC Filing Research Terminal, a Streamlit web app that speeds up stock research by putting market data, SEC filings, and AI summaries in one dashboard. It's live at https://sec-filing-research-terminal.streamlit.app/.
 
 Stack: Python, Streamlit, Plotly, yfinance, BeautifulSoup, and the Anthropic API (Claude). I work in VS Code with Claude Code, and in Google Colab.
 
@@ -17,7 +17,7 @@ My role is product manager and system architect. I decide what the product does,
 
 ## Where things live
 
-Everything for this project is in one folder on my Mac: `~/Stock Project`.
+Everything for this project is in one folder on my Lenovo laptop (Windows 11): `C:\Users\jackc\Stock Project`. The Mac is retired.
 
 ```
 Stock Project/
@@ -52,7 +52,7 @@ Stock Project/
     └── raw/         downloaded data and filings
 ```
 
-Repo: https://github.com/jackconnolly1000-ux/institutional-research-terminal
+Repo: https://github.com/jackconnolly1000-ux/sec-filing-research-terminal
 
 **Folder rules**
 - Put every new file in the right subfolder. Don't scatter files elsewhere on my computer or leave them loose in the top folder.
@@ -74,11 +74,11 @@ Repo: https://github.com/jackconnolly1000-ux/institutional-research-terminal
 | Failure states: start the app | `$env:MOCK_DELAY='2'; $env:MOCK_CUTOFF='STRL'; $env:MOCK_ONE_10K='FAST'; $env:MOCK_FAIL_ONCE='yahoo,8k'; .venv\Scripts\streamlit run tests/offline/run_offline.py --server.port 8601 -- app.py` | `MOCK_DELAY=2 MOCK_CUTOFF=STRL MOCK_ONE_10K=FAST MOCK_FAIL_ONCE=yahoo,8k .venv/bin/streamlit run tests/offline/run_offline.py --server.port 8601 -- app.py` |
 | Failure states: check (second terminal) | `.venv\Scripts\python tests/offline/check_states.py 8601 tests/offline/shots/states` | `.venv/bin/python tests/offline/check_states.py 8601 tests/offline/shots/states` |
 
-PowerShell's `$env:` settings last for that terminal session, so stop the app and open a fresh terminal before switching scenarios. The 8 real-filing tests skip unless `~/Stock Project/data/raw/sec` holds the cached filings (only the Mac has them now).
+PowerShell's `$env:` settings last for that terminal session, so stop the app and open a fresh terminal before switching scenarios. The 8 real-filing tests read cached filings from `C:\Users\jackc\Stock Project\data\raw\sec` (outside the repo) and skip on a machine without them.
 
 ## What the app does today
 
-**On `main` and live (Oct 11, 2026):** PR #1, SEC evidence pipeline, code risk comparison and new layout (squash-merged as `d5206ee`); PR #2, spending guard and saved sample (merge commit `f91af8a`); PR #3, icon font, Run analysis width and ticker-count copy (`b60a8a3`); PR #4, `streamlit==1.65.0` pin and the startup `[versions]` log line (`2e1a384`); PR #5, docs (`855ad3d`). Tested with 96 unit tests (8 of them on real filings cached on this Mac), offline browser scenarios on Streamlit 1.65.0, live EDGAR checks on seven companies, and real-key runs: AAPL + STRL on Oct 10 at 1:50 PM ET (131 s, $0.30, under the earlier 80,000-token budget, both answers complete) and STRL alone on Oct 11 with the spending guard (69 s, 34,325 input and 5,684 output tokens, about $0.125 by the app's prices). Limits found in testing are listed in README.md under "Known limits".
+**On `main` and live (Oct 11, 2026):** PR #1, SEC evidence pipeline, code risk comparison and new layout (squash-merged as `d5206ee`); PR #2, spending guard and saved sample (merge commit `f91af8a`); PR #3, icon font, Run analysis width and ticker-count copy (`b60a8a3`); PR #4, `streamlit==1.65.0` pin and the startup `[versions]` log line (`2e1a384`); PR #5, docs (`855ad3d`). Tested with 96 unit tests (8 of them on real filings cached on this laptop), offline browser scenarios on Streamlit 1.65.0, live EDGAR checks on seven companies, and real-key runs: AAPL + STRL on Oct 10 at 1:50 PM ET (131 s, $0.30, under the earlier 80,000-token budget, both answers complete) and STRL alone on Oct 11 with the spending guard (69 s, 34,325 input and 5,684 output tokens, about $0.125 by the app's prices). Limits found in testing are listed in README.md under "Known limits".
 
 - Home screen: title "SEC Filing Research Terminal", subtitle "SEC filings, market data and AI summaries for public companies. A research tool, not investment advice.", one ticker picker (`st.multiselect`, up to 5), one primary **Run analysis** button, a muted line "Live analysis is limited to about one ticker a day. The saved sample is always available.", one outlined **View saved sample** button. Owner passcode field in the sidebar only when `OWNER_PASSCODE` is set
 - While it runs: a progress strip (queued, working, done, partial, failed, skipped) and a tab per ticker with a skeleton loader and step label
@@ -122,7 +122,7 @@ In priority order. Delete a line once it's fixed.
 
 ## Quality standard
 
-Full rules: `~/Stock Project/docs/Quality_Standard.md`. Check every change against it before calling it done.
+Full rules: `C:\Users\jackc\Stock Project\docs\Quality_Standard.md`. Check every change against it before calling it done.
 1. Plain words: no hype words, no dramatic verbs without the number, no emoji, exclamation marks or ALL CAPS, sentence case, no investment language.
 2. Every number shows its period and source. Unknowns are stated ("Period not stated", "Not verified"), never guessed.
 3. Color and badges only when they mean something; one primary action; designed loading, empty and error states; checked at 390 px.
@@ -147,7 +147,7 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 **How to pass work between them**
 - **Chat to Claude Code:** when a plan in chat is ready to build, end with a ready-to-paste prompt for Claude Code in a code block. It should start with "Read CLAUDE.md," say what to change, and name anything that needs my OK (see the next rule).
 - **When Claude Code waits for my OK:** only before paid runs, merges to `main`, deleting things, or changes outside a branch. Otherwise it proceeds on a branch and reports what it did.
-- **Claude Code to chat:** after Claude Code finishes something, it should end with a one-line "Take this to chat" note: what changed, and which file and function. The question to ask chat so I learn it goes in `~/Stock Project/docs/Learning_Questions.md` (date, question, file and function), appended as a new entry, not in the reply.
+- **Claude Code to chat:** after Claude Code finishes something, it should end with a one-line "Take this to chat" note: what changed, and which file and function. The question to ask chat so I learn it goes in `C:\Users\jackc\Stock Project\docs\Learning_Questions.md` (date, question, file and function), appended as a new entry, not in the reply.
 - **Keep both in sync:** when the known-problems list changes, Claude Code updates `app/CLAUDE.md` and `docs/Project_Instructions.md`, then reminds me to re-paste the instructions into the claude.ai project.
 - In chat, if I ask for code changes, don't just write the code. Give me the Claude Code prompt instead, plus the explanation. Exception: a short snippet to show a concept is fine.
 
