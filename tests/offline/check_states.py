@@ -1,14 +1,15 @@
 """Browser check of how the app reports missing, failed and incomplete pieces, and that failures aren't cached.
 
 Start the offline app with the scenarios first (from app/):
-    MOCK_DELAY=2 MOCK_CUTOFF=STRL MOCK_ONE_10K=FAST MOCK_FAIL_ONCE=yahoo,8k \\
+    MOCK_DELAY=2 MOCK_CUTOFF=STRL MOCK_ONE_10K=FAST MOCK_FAIL_ONCE=yahoo,8k,xbrl \\
         .venv/bin/streamlit run tests/offline/run_offline.py --server.port 8601 -- app.py
 Then:
     .venv/bin/python tests/offline/check_states.py 8601 tests/offline/shots/states
 
 Runs AAPL + FAST + STRL twice in one browser session and prints a JSON report per run and tab.
-Expected: run 1 shows the simulated Yahoo and 8-K failures for AAPL, no annual comparison for FAST,
-and an incomplete answer for STRL. Run 2 recovers AAPL's market data and 8-K (they weren't cached).
+Expected: run 1 shows the simulated Yahoo, 8-K and SEC company facts failures for AAPL, no annual comparison for FAST
+(whose SEC tiles say "Not reported": the mocks give it a bank's company facts), and an incomplete answer for STRL.
+Run 2 recovers AAPL's market data, SEC figures and 8-K (they weren't cached).
 STRL's cut-off answer isn't cached, so run 2 tries it again; with the $0.25 daily cap the three run-1 calls leave
 too little room, so STRL is skipped by the spending limit.
 """
@@ -29,6 +30,9 @@ TAB_JS = """panel => ({
   trend_note: [...panel.querySelectorAll('.irt-note')].map(e => e.textContent).find(t => /compared paragraph by paragraph|No annual comparison/.test(t)) || null,
   findings: panel.querySelectorAll('.irt-row').length,
   excerpt_labels: [...new Set([...panel.querySelectorAll('.excerpt-check')].map(c => c.textContent.split('.')[0]))],
+  groups: [...panel.querySelectorAll('.irt-group-head')].map(e => e.textContent),
+  tiles: [...panel.querySelectorAll('.irt-tile')].map(t => [...t.children].map(c => c.textContent).join(' | ')),
+  metrics_foot: (panel.querySelector('.irt-metrics-foot') || {}).textContent || null,
   tile_sources: [...panel.querySelectorAll('.irt-tile .src')].map(e => e.textContent),
   clipped: [...panel.querySelectorAll('.irt-tile .src, .row-meta, .irt-card-title, .row-head')].filter(e => e.scrollWidth > e.clientWidth + 1).length,
 })"""

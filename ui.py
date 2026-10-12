@@ -43,9 +43,9 @@ TONES = {  # tone name -> (solid edge, text color, chip background)
 }
 
 
-# Column-count classes for the metrics panel (see the CSS comment there); up to 6 tiles per panel
+# Column-count classes for the metrics panel (see the CSS comment there); up to 8 tiles per panel
 _GRID_CSS = " ".join(f".irt-cols-{n} {{ grid-template-columns: repeat({n}, minmax(0, 1fr)); }} "
-                     f".irt-span-{n} {{ grid-column: span {n}; }}" for n in range(1, 7))
+                     f".irt-span-{n} {{ grid-column: span {n}; }}" for n in range(1, 9))
 
 
 def inject_css() -> None:
@@ -162,7 +162,8 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 .irt-tile .lbl {{ grid-row: 2; color: var(--text-muted); font-size: 0.78rem; }}
 .irt-tile .val {{ grid-row: 3; color: var(--text-strong); font-size: 1.25rem; font-weight: 650; font-variant-numeric: tabular-nums;
   margin-top: 2px; }}
-.irt-tile .src {{ grid-row: 4; color: var(--text-muted); font-size: 0.72rem; margin-top: 2px; line-height: 1.35; }}  /* wraps, never clipped */
+.irt-tile .src {{ grid-row: 4; color: var(--text-muted); font-size: 0.72rem; margin-top: 2px; line-height: 1.35;
+  white-space: pre-line; }}  /* wraps, never clipped; a newline starts a line (one SEC filing per line) */
 .irt-metrics-foot {{ grid-column: 1 / -1; grid-row: 5; border-top: 1px solid var(--border); padding: 8px 20px;
   color: var(--text-muted); font-size: 0.72rem; }}
 {_GRID_CSS}
@@ -302,8 +303,8 @@ def format_metric(value, unit: str) -> str:
 
 def metric_tiles(groups: list) -> str:
     """groups: [(heading, caption, [(label, value, period line), ...]), ...]. One panel; each group spans as many of the
-    panel's equal columns as it has tiles. Captions (source and retrieval time) go once in the panel's foot: one line
-    when every group shares a source, otherwise one per group."""
+    panel's equal columns as it has tiles. Captions (source and retrieval time) go once in the panel's foot, each
+    different one once, so they must name their source."""
     if not groups:
         return ""
     out = []
@@ -312,8 +313,7 @@ def metric_tiles(groups: list) -> str:
             f'<div class="irt-tile"><div class="lbl">{esc(lbl)}</div><div class="val">{esc(val)}</div>'
             f'<div class="src">{esc(period)}</div></div>' for lbl, val, period in tiles)
         out.append(f'<section class="irt-group irt-span-{len(tiles)}"><div class="irt-group-head">{esc(heading)}</div>{cells}</section>')
-    captions = [c for _, c, _ in groups]
-    foot = captions[0] if len(set(captions)) == 1 else " · ".join(f"{h}: {c}" for h, c, _ in groups)
+    foot = "; ".join(dict.fromkeys(c for _, c, _ in groups))
     total = sum(len(t) for _, _, t in groups)
     return (f'<div class="irt-metrics irt-cols-{total}">{"".join(out)}'
             f'<div class="irt-metrics-foot">Source: {esc(foot)}</div></div>')

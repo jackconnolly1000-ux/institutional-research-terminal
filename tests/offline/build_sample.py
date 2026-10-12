@@ -5,11 +5,15 @@ Inputs, all from the Oct 10, 2026 run (1:49 and 1:50 PM ET):
 - the saved raw answers in ~/Stock Project/data/raw/ai_responses/ (for the real token counts of that run)
 - that run's Excel export (for the Yahoo market data as retrieved then)
 Price history is pulled once from Yahoo (free) and cut at the Oct 9 close, the last bar that run had.
+SEC figures come from company facts saved in Stock Project/data/raw/xbrl/ (downloaded Oct 11, 2026), counting only
+what was filed by the run date, so they are what the run would have shown.
 
 Usage (from app/):
     .venv/bin/python tests/offline/build_sample.py <profiles_dir> <export.xlsx>
+    .venv/bin/python tests/offline/build_sample.py sec      (only add the SEC figures to the existing sample)
 """
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -19,14 +23,41 @@ import yfinance as yf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import market_data  # noqa: E402
+import xbrl  # noqa: E402
 
 TICKERS = ["AAPL", "STRL"]
 SAVED = {"AAPL": "AAPL_20261010_134944.json", "STRL": "STRL_20261010_135049.json"}
 RUN_AT = "2026-10-10T13:49:44-04:00"
 PRICES_THROUGH = "2026-10-09"
-LABEL = "Saved sample. Analysis run Oct 10, 2026. Price history through the Oct 9 close, retrieved Oct 11."
+LABEL = ("Saved sample. Analysis run Oct 10, 2026. Price history through the Oct 9 close, retrieved Oct 11. "
+         "SEC figures as filed by Oct 10, retrieved Oct 11.")
 OUT = Path(__file__).resolve().parents[2] / "samples"
 RAW = Path(__file__).resolve().parents[3] / "data" / "raw" / "ai_responses"
+XBRL_RAW = RAW.parent / "xbrl"
+
+
+def sec_metrics(ticker: str) -> dict:
+    """The app's load_sec_metrics result, from the saved company facts as filed by the run date."""
+    path = XBRL_RAW / f"{ticker}_companyfacts.json"
+    retrieved = datetime.fromtimestamp(os.path.getmtime(path), market_data.ET).isoformat(timespec="seconds")
+    facts = xbrl.trim(json.loads(path.read_text(encoding="utf-8")))
+    return {"status": "ok", "retrieved_at": retrieved, **xbrl.ttm_metrics(facts, filed_by=RUN_AT[:10])}
+
+
+def write_manifest() -> None:
+    (OUT / "manifest.json").write_text(json.dumps({
+        "tickers": TICKERS, "run_at": RUN_AT, "prices_through": PRICES_THROUGH, "prices_retrieved": "2026-10-11",
+        "sec_filed_by": RUN_AT[:10], "label": LABEL}, indent=1), encoding="utf-8")
+
+
+def add_sec_only() -> None:
+    for t in TICKERS:
+        path = OUT / f"{t}.json"
+        p = json.loads(path.read_text(encoding="utf-8"))
+        p["sec_metrics"] = sec_metrics(t)
+        path.write_text(json.dumps(p, indent=1, default=str), encoding="utf-8")
+        print(f"{t}: SEC figures TTM to {p['sec_metrics']['period_end']}")
+    write_manifest()
 
 
 def market_from_export(ws, ticker: str) -> dict:
@@ -65,6 +96,7 @@ def main(profiles_dir: str, export_path: str) -> None:
         p["analysis"]["budget"] = {"input_tokens": saved["request"]["input_tokens"], "limit": saved["request"]["budget"],
                                    "output_reserve": saved["max_tokens"], "count": "measured"}
         p["analysis"]["from_cache"] = False
+        p["sec_metrics"] = sec_metrics(t)
         (OUT / f"{t}.json").write_text(json.dumps(p, indent=1, default=str))
         hist = prices(t)
         hist.to_csv(OUT / f"{t}_prices.csv")
@@ -72,10 +104,8 @@ def main(profiles_dir: str, export_path: str) -> None:
         print(f"{t}: price tile {tile:.2f} (Yahoo, retrieved {p['financials']['retrieved_at']}) | "
               f"chart close {hist.index[-1]:%Y-%m-%d} {hist['Close'].iloc[-1]:.2f} | "
               f"{'equal' if round(tile, 2) == round(hist['Close'].iloc[-1], 2) else 'DIFFERENT'}")
-    (OUT / "manifest.json").write_text(json.dumps({
-        "tickers": TICKERS, "run_at": RUN_AT, "prices_through": PRICES_THROUGH, "prices_retrieved": "2026-10-11",
-        "label": LABEL}, indent=1))
+    write_manifest()
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:3])
+    add_sec_only() if sys.argv[1:] == ["sec"] else main(*sys.argv[1:3])
