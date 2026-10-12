@@ -57,8 +57,8 @@ def main(profiles_dir: str, export_path: str) -> None:
     OUT.mkdir(exist_ok=True)
     ws = openpyxl.load_workbook(export_path)["Market data"]
     for t in TICKERS:
-        p = json.loads((Path(profiles_dir) / f"{t}.json").read_text())
-        saved = json.loads((RAW / SAVED[t]).read_text())
+        p = json.loads((Path(profiles_dir) / f"{t}.json").read_text(encoding="utf-8"))
+        saved = json.loads((RAW / SAVED[t]).read_text(encoding="utf-8"))
         p["financials"] = market_from_export(ws, t)
         # The replay counted tokens offline; the sample shows what the real Oct 10 request measured and allowed
         p["analysis"]["usage"] = saved["raw"]["usage"]

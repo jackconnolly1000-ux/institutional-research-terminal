@@ -59,16 +59,19 @@ If `OWNER_PASSCODE` isn't set, the sidebar field doesn't appear. The passcode is
 ## Running it
 
 ```
-python -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/streamlit run app.py
 ```
+
+On Windows, use `py -3.12 -m venv .venv` and `.venv\Scripts\` in place of `.venv/bin/`.
 
 Streamlit Secrets (`.streamlit/secrets.toml`) needs `ANTHROPIC_API_KEY` and `SEC_CONTACT_EMAIL` (SEC EDGAR asks every automated request to name a contact), and optionally `OWNER_PASSCODE`.
 
 ## Tests
 
 ```
-.venv/bin/python -m unittest discover -s tests -p "test_*.py"
+.venv/bin/python -m unittest discover -s tests -p "test_*.py"      # Mac/Linux
+.venv\Scripts\python -m unittest discover -s tests -p "test_*.py"  # Windows
 ```
 
 Unit tests import the production modules (`sec_data.py`, `compare.py`, `analysis.py`, `market_data.py`, `budget.py`) and make no network calls. `tests/offline/` runs the whole app on fake SEC, Yahoo and Anthropic responses; `tests/check_risk_extraction.py` checks section extraction against live EDGAR filings without calling Anthropic.
