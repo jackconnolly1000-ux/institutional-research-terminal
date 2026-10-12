@@ -13,7 +13,8 @@ For up to five tickers:
 - Compares the two 10-Ks' risk factors paragraph by paragraph in code (`compare.py`) and labels each paragraph new, changed, unchanged or removed.
 - Sends the changed and new paragraphs, the 10-Q updates, MD&A and the 8-Ks to Claude (Anthropic API), which returns catalysts, risk-factor changes, other risks from management's discussion and 8-K events, each tied to one source.
 - Checks the answer: whether it was complete, whether every field is valid, whether each quoted excerpt appears word for word in the cited filing, and whether each figure in a finding appears in that filing.
-- Shows market data from Yahoo Finance with its source field and retrieval time, and a five-year price chart.
+- Shows revenue, gross margin, operating margin and free cash flow for the trailing twelve months (TTM) from SEC XBRL company facts (`xbrl.py`): the figures companies tag in their own 10-K and 10-Q filings. Each names its period and the filings it came from.
+- Shows price, market cap and forward P/E from Yahoo Finance with their source field and retrieval time, and a five-year price chart.
 - Exports the results to Excel.
 - Limits spending on live AI calls to $0.25 a day (see Spending limit below).
 - Shows a saved AAPL + STRL sample with no live calls, from the "View saved sample" button.
@@ -23,7 +24,7 @@ For up to five tickers:
 - It doesn't give investment advice, price targets or ratings.
 - It doesn't verify the AI's interpretation. An "Excerpt matched" label means the quoted words are in the filing, not that the summary is right.
 - It doesn't read exhibits: risk factors incorporated by reference from an annual-report exhibit (as JPM does) and 8-K press releases (EX-99.1) are not read.
-- It doesn't know the period behind most Yahoo Finance values; those show "Period not stated".
+- It doesn't know the period behind most Yahoo Finance values; those show "Period not stated". Yahoo's margins and free cash flow are still in the Excel export, labeled that way, next to the SEC figures.
 
 ## Known limits
 
@@ -42,7 +43,9 @@ For up to five tickers:
 - A skipped ticker still downloads its filings first, because the cost check needs the measured size of the request. The skip message appears only after the filings download.
 - A call that runs across midnight ET isn't counted on either day: `settle()` drops a reservation from a previous day, because the new day already started from zero. This affects at most one call, and the Anthropic monthly limit still applies.
 - The daily spending counter is kept in memory and resets when the app restarts, so a restart allows another day's worth. The Anthropic account's monthly limit is the hard stop.
-- The saved sample is frozen: the analysis is from Oct 10, 2026 and the price history ends at the Oct 9 close (retrieved Oct 11). It doesn't update.
+- SEC TTM figures use six US GAAP tags: RevenueFromContractWithCustomerExcludingAssessedTax (then Revenues), GrossProfit, OperatingIncomeLoss, NetCashProvidedByUsedInOperatingActivities and PaymentsToAcquirePropertyPlantAndEquipment. A company that tags these differently shows "Not reported". Banks are the main case: JPMorgan files no gross profit, operating income or capital expenditure tag, and tags Revenues only in its 10-K, so all four of its figures show "Not reported".
+- TTM is the latest fiscal year plus this year to date minus last year to date, or the fiscal year itself when the latest filing is a 10-K. When a period was reported more than once (a restatement, or last year's figures repeated in a 10-Q), the most recently filed value is used.
+- The saved sample is frozen: the analysis is from Oct 10, 2026 and the price history ends at the Oct 9 close (retrieved Oct 11), and its SEC figures count only filings made by Oct 10 (retrieved Oct 11). It doesn't update.
 
 ## Spending limit
 
@@ -74,4 +77,4 @@ Streamlit Secrets (`.streamlit/secrets.toml`) needs `ANTHROPIC_API_KEY` and `SEC
 .venv\Scripts\python -m unittest discover -s tests -p "test_*.py"  # Windows
 ```
 
-Unit tests import the production modules (`sec_data.py`, `compare.py`, `analysis.py`, `market_data.py`, `budget.py`) and make no network calls. `tests/offline/` runs the whole app on fake SEC, Yahoo and Anthropic responses; `tests/check_risk_extraction.py` checks section extraction against live EDGAR filings without calling Anthropic.
+Unit tests import the production modules (`sec_data.py`, `compare.py`, `analysis.py`, `market_data.py`, `budget.py`, `xbrl.py`) and make no network calls. `tests/offline/` runs the whole app on fake SEC, Yahoo and Anthropic responses; `tests/check_risk_extraction.py` checks section extraction against live EDGAR filings without calling Anthropic.
