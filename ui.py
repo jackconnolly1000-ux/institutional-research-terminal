@@ -514,7 +514,12 @@ def _paragraphs(text: str) -> str:
 def source_short(src: dict) -> str:
     """'10-Q · quarter ended Jun 27, 2026' for the right-hand side of a row."""
     from datetime import date
-    fmt = lambda d: date.fromisoformat(d).strftime("%b %-d, %Y") if d else ""
+    def fmt(d):
+        # Day built by hand: strftime's "%-d" (no leading zero) works on Linux and Mac but not Windows.
+        if not d:
+            return ""
+        x = date.fromisoformat(d)
+        return f"{x:%b} {x.day}, {x.year}"
     form = src.get("form", "")
     if form == "10-K":
         return f"10-K · year ended {fmt(src.get('period'))}"

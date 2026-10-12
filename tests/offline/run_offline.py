@@ -23,4 +23,4 @@ if anthropic.Anthropic is not mocks.FakeAnthropic:
 
 app_path = Path(sys.argv[1] if len(sys.argv) > 1 else "app.py").resolve()
 sys.path.insert(0, str(app_path.parent))  # so app.py can import theme.py, ui.py, charts.py
-exec(compile(app_path.read_text(), str(app_path), "exec"), {"__name__": "__main__", "__file__": str(app_path)})
+exec(compile(app_path.read_text(encoding="utf-8"), str(app_path), "exec"), {"__name__": "__main__", "__file__": str(app_path)})

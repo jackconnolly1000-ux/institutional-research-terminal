@@ -1,0 +1,8 @@
+# Keep LF line endings everywhere, matching Streamlit Cloud (Linux) and the Mac,
+# even on Windows, where git's core.autocrlf would otherwise check files out as CRLF.
+* text=auto eol=lf
+
+# Binary files: never touch their bytes
+*.png binary
+*.jpg binary
+*.xlsx binary

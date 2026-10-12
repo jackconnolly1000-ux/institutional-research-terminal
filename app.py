@@ -297,10 +297,10 @@ def analyze_ticker(ticker: str, cik: str, progress) -> dict:
 SAMPLES = Path(__file__).parent / "samples"
 
 def load_sample() -> None:
-    manifest = json.loads((SAMPLES / "manifest.json").read_text())
+    manifest = json.loads((SAMPLES / "manifest.json").read_text(encoding="utf-8"))
     profiles = {}
     for t in manifest["tickers"]:
-        p = json.loads((SAMPLES / f"{t}.json").read_text())
+        p = json.loads((SAMPLES / f"{t}.json").read_text(encoding="utf-8"))
         p["sample_prices"] = str(SAMPLES / f"{t}_prices.csv")
         profiles[t] = p
     st.session_state.results = {"tickers": manifest["tickers"], "profiles": profiles, "failures": {}, "skipped": {},

@@ -22,7 +22,7 @@ def _saved(ticker):
     files = sorted(f for f in glob.glob(str(SAVED / f"{ticker}_2*.json")) if "rechecked" not in f)
     if not files:
         raise SystemExit(f"No saved answer for {ticker} in {SAVED}")
-    return json.load(open(files[-1]))
+    return json.load(open(files[-1], encoding="utf-8"))
 
 
 class _Messages:
@@ -50,4 +50,4 @@ anthropic.Anthropic = ReplayAnthropic
 # Replayed answers cost nothing, so the daily spending cap is lifted here; the offline harness tests the cap itself.
 import budget  # noqa: E402
 budget.DAILY_CAP_USD = float("inf")
-exec(compile(app_path.read_text(), str(app_path), "exec"), {"__name__": "__main__", "__file__": str(app_path)})
+exec(compile(app_path.read_text(encoding="utf-8"), str(app_path), "exec"), {"__name__": "__main__", "__file__": str(app_path)})
