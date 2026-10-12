@@ -140,7 +140,7 @@ class FindSection(unittest.TestCase):
 
 
 RAW = Path(__file__).resolve().parents[2] / "data" / "raw" / "sec"
-# Expected results on real filings cached on Jack's Mac (outside the repo). Checked by eye Oct 10, 2026.
+# Expected results on real filings cached in data/raw/sec (outside the repo). Checked by eye Oct 10, 2026.
 REAL = {
     ("AAPL", "aapl-20250927.htm", "10-K", "1a"): ("found", "The following summarizes factors", "1B"),
     ("AAPL", "aapl-20250927.htm", "10-K", "7"): ("found", "The following discussion should be read", "7A"),
@@ -155,7 +155,7 @@ REAL = {
 }
 
 
-@unittest.skipUnless(RAW.exists(), "real filings are cached only on Jack's Mac")
+@unittest.skipUnless(RAW.exists(), "real filings aren't cached in data/raw/sec on this machine")
 class RealFilings(unittest.TestCase):
     def test_cached_filings(self):
         for (ticker, suffix, form, item), (status, starts, ends_at) in REAL.items():

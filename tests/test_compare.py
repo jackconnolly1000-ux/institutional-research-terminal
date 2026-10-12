@@ -93,7 +93,7 @@ def _compare(ticker, cur, prior):
                                     sec_data.split_paragraphs(_section(ticker, prior).text))
 
 
-@unittest.skipUnless(RAW.exists(), "real filings are cached only on Jack's Mac")
+@unittest.skipUnless(RAW.exists(), "real filings aren't cached in data/raw/sec on this machine")
 class RealFilings(unittest.TestCase):
     """Checked by eye Oct 10, 2026. Counts may move a little if extraction improves; labels of the named cases may not."""
 
