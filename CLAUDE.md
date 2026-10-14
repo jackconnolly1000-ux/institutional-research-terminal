@@ -30,6 +30,7 @@ Stock Project/
 │   ├── market_data.py  Yahoo values as numbers with unit, period, source, retrieval time (tested)
 │   ├── xbrl.py      TTM figures and dated balance-sheet metrics from companyfacts; verified debt can also use filing_xbrl for extension facts (no Streamlit, tested)
 │   ├── filing_xbrl.py   one fact from a filing's own inline XBRL (extension tags companyfacts lacks), with context, unit and checks (no Streamlit, tested)
+│   ├── filing_review.py  display the subsequent-filing index and its review status
 │   ├── budget.py    daily spending ledger for Claude calls, prices, how API errors are charged (no Streamlit, tested)
 │   ├── theme.py     color tokens, named by meaning (the one place colors are defined)
 │   ├── ui.py        CSS built from theme.py, finding rows, metrics panel, skeleton loaders, progress strip
