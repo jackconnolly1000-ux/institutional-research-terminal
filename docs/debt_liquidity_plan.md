@@ -39,7 +39,7 @@ Supported filers: USD, U.S. GAAP, nonfinancial operating companies. Banks (for e
 
 ## Financial definitions (planned)
 
-- **Cash (initial):** cash and cash equivalents, excluding restricted cash, as of the balance-sheet date. Each value carries its source metadata (see source rules). When the supported fact cannot be established from the filing, the result is "Unavailable" with the reason, not zero and not a substitute figure. The tag that represents this fact must be confirmed from the pilot filings; see "Decisions to resolve".
+- **Cash (initial):** cash and cash equivalents, excluding restricted cash, as of the balance-sheet date. Each value carries its source metadata (see source rules). When the supported fact cannot be established from the filing, the result is "Unavailable" with the reason, not zero and not a substitute figure. Tag confirmed for LLY, ORCL and VST: `us-gaap:CashAndCashEquivalentsAtCarryingValue`, which in each pilot's filing excludes restricted cash (see the pilot evidence files). For other filings it is used only when the filing supports that it excludes restricted cash; otherwise the result is Unavailable.
 - **Baseline gross debt:** reported carrying amounts of interest-bearing borrowing, excluding operating and finance leases.
 - **Leases:** operating and finance lease liabilities, shown separately and never added to baseline gross debt.
 - **Net debt:** baseline gross debt minus cash as defined above. Restricted cash and investments are not subtracted automatically. Negative net debt is a valid result and is kept.
@@ -109,7 +109,7 @@ Later phases (not in the first release): debt maturities, financing terms, coven
 
 ## Decisions to resolve
 
-1. **Cash tag:** confirm from the pilot filings which tag reports cash and cash equivalents excluding restricted cash, and what to do when a company reports only a total that includes restricted cash (initial answer: Unavailable).
+1. **Cash tag:** confirmed for LLY, ORCL and VST (`us-gaap:CashAndCashEquivalentsAtCarryingValue`; restricted cash is excluded in each, per the pilot evidence files). Still open for other filers: how the app establishes that the fact excludes restricted cash. When it cannot, or when a company reports only a total that includes restricted cash, the result is Unavailable.
 2. **Debt tags:** which tags make up baseline gross debt for each pilot, and how overlap is detected (for example a total tag alongside its current and noncurrent parts).
 3. **Interest expense tag:** which tag reports interest expense on borrowings for each pilot. The basis is decided (see the coverage definition). Dimensioned facts, such as LLY's segment-tagged 10-Q interest expense, are usable only for a specific company after an extractor checks the inline XBRL context (tag, segment member, no other dimensions, periods, units, accession) and agreement with the printed table. LLY's single reportable segment supports an LLY-specific decision, not a universal rule. Until such an extractor passes those checks, the app's TTM coverage stays Unavailable.
 4. **Unsupported filers:** how the app detects banks, non-USD and non-U.S. GAAP filers.

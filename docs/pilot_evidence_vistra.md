@@ -191,5 +191,5 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 6. Overlap among letters of credit, surety bonds and the reclamation bond, and between the reclamation bond and the recognized asset retirement obligations, is not stated; the P-Caps amount pledged for letters of credit is not stated.
 7. Whether the Series A and B preferred stock redemptions occurred (intended at the October and December 2026 reset dates).
 8. Not fully reviewed: litigation and regulatory proceedings (10-Q pp. 40-43), the rest of Note 15 (asset retirement obligations), Note 13 (derivatives), and the 10-K's full commitments, contingencies, guarantees and litigation text.
-9. Which items appear in the app's short obligations note beyond those listed here.
+9. Possible additions to the obligations note from the sections not yet reviewed (gap 8). The items listed above are the decided first-release scope; this gap does not reopen them.
 10. Vistra-specific limits to state in the app's README "Known limits": borrowing-like lines beyond long-term debt, non-recourse project debt, affiliate collateral financing, a mixed interest line whose borrowing component uses an extension tag.

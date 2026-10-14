@@ -169,4 +169,3 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 4. Confirm by hand the balance-sheet lines that hold current operating lease liabilities and finance lease liabilities.
 5. The overlap between the leases not yet commenced and the unconditional purchase obligations is not stated; keep them separate.
 6. Uncertain tax position amounts not extracted (tax liabilities, outside the financing scope).
-7. Which items count as "major" for the obligations note. The $288 billion lease commitments clearly do; the $3.3 billion guarantee and the purchase obligations are undecided.
