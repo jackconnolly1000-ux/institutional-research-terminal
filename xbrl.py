@@ -41,12 +41,19 @@ CURRENT_LIABILITIES = "LiabilitiesCurrent"
 DEBT_CURRENT = "DebtCurrent"
 LONG_TERM_DEBT_NONCURRENT = "LongTermDebtNoncurrent"
 DEBT_TOTAL = "DebtLongtermAndShorttermCombinedAmount"
-INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES, DEBT_CURRENT, LONG_TERM_DEBT_NONCURRENT, DEBT_TOTAL]
+NOTES_PAYABLE_CURRENT = "NotesPayableCurrent"
+LONG_TERM_NOTES_AND_LOANS = "LongTermNotesAndLoans"
+INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES, DEBT_CURRENT, LONG_TERM_DEBT_NONCURRENT, DEBT_TOTAL,
+                NOTES_PAYABLE_CURRENT, LONG_TERM_NOTES_AND_LOANS]
 
 # Borrowing presentations verified per company from its filings (docs/pilot_evidence_*.md). Debt tags are not
 # universal (plan, source rules), so a company without an entry gets Unavailable, never a guessed set of tags.
 # components: (tag, noun, label) added together; total_check: a filer total that must equal their sum when the
-# same filing reports it at the same date.
+# same filing reports it at the same date; not_added: what is never added, as a rule with no dates in it.
+# checked: {accession: caveats} for the filings reviewed in the evidence file. Findings about a filing (a balance
+# that was Unavailable, a disclosure that overlaps) are stated only with that filing's result. A filing not listed
+# gets no total at all (baseline_gross_debt returns Unavailable), so it can neither inherit findings nor rely on a
+# mapping nobody checked for it.
 BORROWING_PRESENTATIONS = {
     "LLY": {
         "name": "balance sheet: short-term borrowings and current maturities of long-term debt, plus long-term debt",
@@ -54,11 +61,40 @@ BORROWING_PRESENTATIONS = {
                         "Short-term borrowings and current maturities of long-term debt"),
                        (LONG_TERM_DEBT_NONCURRENT, "long-term debt", "Long-term debt")],
         "total_check": DEBT_TOTAL,
-        # The Note 8 fair-value table (CommercialPaper + LongTermDebt carrying amounts) presents the same debt;
-        # adding it would double count
-        "not_added": "Note 8 fair-value table (commercial paper and long-term debt carrying amounts), which presents "
-                     "the same debt",
+        "not_added": "fair-value-table carrying amounts of the same borrowings (commercial paper, long-term debt)",
         "evidence": "docs/pilot_evidence_lly.md",
+        "checked": {
+            "0000059478-26-000081": [   # 10-Q, Jun 30, 2026
+                "In this 10-Q, the Note 8 fair-value table's carrying amounts (commercial paper 5,284M plus long-term "
+                "debt including current portion 49,624M) present the same 54,908M; they are not added."],
+            "0000059478-26-000013": [],   # 10-K, Dec 31, 2025: components match the 10-K's own total
+        },
+    },
+    "ORCL": {
+        "name": "balance sheet: notes payable and other borrowings, current plus non-current",
+        "components": [(NOTES_PAYABLE_CURRENT, "notes payable and other borrowings, current",
+                        "Notes payable and other borrowings, current"),
+                       (LONG_TERM_NOTES_AND_LOANS, "notes payable and other borrowings, non-current",
+                        "Notes payable and other borrowings, non-current")],
+        # The 10-K's Note 6 total; a 10-Q does not report it
+        "total_check": DEBT_TOTAL,
+        "not_added": "rounded fair-value disclosures of borrowings, operating and finance lease liabilities, and "
+                     "cash-flow amounts for short-term financing related to capital expenditures",
+        "evidence": "docs/pilot_evidence_oracle.md",
+        "checked": {
+            "0001193125-26-389274": [   # 10-Q, Aug 31, 2026
+                "This 10-Q does not split the total by instrument: commercial paper at Aug 31, 2026 is Unavailable "
+                "and is not inferred from the total.",
+                "This 10-Q's rounded $125.0 billion of senior notes and other long-term borrowings is a narrower "
+                "subset of the same debt; it is not added.",
+                "Short-term financing related to capital expenditures: no balance is disclosed in this 10-Q "
+                "(Unavailable); its cash-flow amounts are not added."],
+            "0001193125-26-277521": [   # 10-K, May 31, 2026
+                "In this 10-K, Note 6 itemizes the total, including commercial paper notes of 1,468M and term loans "
+                "of 5,137M (principal 130,105M less 564M of unamortized discount and issuance costs).",
+                "Short-term financing related to capital expenditures: no balance is disclosed in the sections of "
+                "this 10-K checked (Unavailable); its cash-flow amounts are not added."],
+        },
     },
 }
 UNAVAILABLE = "Unavailable"
@@ -419,25 +455,29 @@ def _one_filing(gaap: dict, inputs: list[dict], purpose: str, filed_by: str | No
     return out, ""
 
 
-def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None) -> dict:
+def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None,
+                        presentations: dict | None = None) -> dict:
     """Baseline gross debt (plan definition: reported carrying amounts of interest-bearing borrowing, excluding
     leases) at the balance-sheet date of the latest original 10-K or 10-Q, from the company's verified
-    presentation in BORROWING_PRESENTATIONS. filed_by works as in ttm_metrics. The total is derived: it has no
-    XBRL tag; each component carries its own.
+    presentation in BORROWING_PRESENTATIONS (presentations replaces that map, for tests). filed_by works as in
+    ttm_metrics. The total is derived: it has no XBRL tag; each component carries its own.
 
     Each component is selected by _instant_fact (anchor filing's own USD instant at that exact date) and all must
-    come from one filing version (_one_filing). Before adding, overlap is checked: when that filing also reports the
-    filer's own total at the same date, the components must sum to it exactly; a difference means overlap or a
-    missing component, so nothing is calculated. A negative component is refused.
+    come from one filing version (_one_filing). That filing must be one whose presentation was checked (listed in
+    the presentation's checked map): a mapping verified on one filing is not assumed to hold for another, so an
+    unlisted filing returns Unavailable with its components kept for review. Before adding, overlap is checked:
+    when that filing also reports the filer's own total at the same date, the components must sum to it exactly;
+    a difference means overlap or a missing component, so nothing is calculated. A negative component is refused.
 
     Returns label, unit, value (None when unavailable), period_end, formula, tag (None), presentation, inputs
-    (list, each as _instant_fact returns it), not_added, evidence, notes, note and detail."""
+    (list, each as _instant_fact returns it), not_added, evidence, caveats (for the checked filing the inputs came
+    from), notes, note and detail."""
     gaap = facts.get("facts", {}).get("us-gaap", {})
-    presentation = BORROWING_PRESENTATIONS.get(ticker)
+    presentation = (BORROWING_PRESENTATIONS if presentations is None else presentations).get(ticker)
     end = _anchor_filing(_filings(gaap, filed_by))[1]["period"]
     result = {"source": SOURCE, "label": "Baseline gross debt", "unit": "USD", "value": None, "period_end": end,
               "formula": None, "tag": None, "presentation": None, "inputs": [], "not_added": None,
-              "evidence": None, "notes": [], "note": UNAVAILABLE, "detail": ""}
+              "evidence": None, "caveats": [], "notes": [], "note": UNAVAILABLE, "detail": ""}
     if presentation is None:
         return {**result, "detail": f"no verified borrowing presentation for {ticker}; debt components are chosen "
                                     f"per company from its filings, not guessed"}
@@ -456,6 +496,11 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None) -
     if paired is None:
         return unavailable(why)
     inputs = paired
+    acc = inputs[0]["accession"]
+    if acc not in presentation["checked"]:
+        return unavailable(f"presentation not checked for this filing: {inputs[0]['form']} accession {acc} is not "
+                           f"among the filings reviewed in {presentation['evidence']}, so its components are shown "
+                           f"for review but not added")
     negative = [x for x in inputs if x["value"] < 0]
     if negative:
         return unavailable("; ".join(f"{x['label'].lower()} is {x['value']:,} USD; a borrowing balance cannot be "
@@ -465,7 +510,6 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None) -
     notes = []
     check = presentation.get("total_check")
     if check:
-        acc = inputs[0]["accession"]
         rows = [r for r in gaap.get(check, {}).get("units", {}).get("USD", [])
                 if r["accn"] == acc and r["end"] == end and not r.get("start")
                 and (not filed_by or r["filed"] <= filed_by)]
@@ -479,4 +523,5 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None) -
                                    f"reports a total ({check}) of {filer_total:,} USD at {_fmt(end)}; that points "
                                    f"to overlap or a missing component, so nothing is calculated")
             notes.append(f"Matches the filing's own total ({check}) of {filer_total:,} USD")
-    return {**result, "inputs": inputs, "value": total, "notes": notes, "note": None}
+    return {**result, "inputs": inputs, "value": total, "caveats": presentation["checked"][acc], "notes": notes,
+            "note": None}
