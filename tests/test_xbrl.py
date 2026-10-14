@@ -470,15 +470,16 @@ class GrossDebtOracle(unittest.TestCase):
         self.assertFalse(any("commercial paper at" in c for c in r["caveats"]))
         self.assertIn("in the sections of this 10-K checked (Unavailable)", r["caveats"][1])
 
-    def test_unchecked_filing_gets_no_inherited_findings(self):
-        # The Feb 28, 2026 10-Q (filed Mar 11, 2026) is not among the filings reviewed
+    def test_unchecked_filing_is_unavailable_with_components_kept(self):
+        # The Feb 28, 2026 10-Q (filed Mar 11, 2026) is not among the filings reviewed: no total, and no findings
+        # from the checked filings, but the selected component facts stay in the result for review
         r = xbrl.baseline_gross_debt(load("ORCL"), "ORCL", filed_by="2026-04-01")
-        self.assertEqual(r["period_end"], "2026-02-28")
-        self.assertIsNotNone(r["value"])
-        self.assertEqual(len(r["caveats"]), 1)
-        self.assertIn("Not checked: this filing (10-Q, accession 0001193125-26-101045)", r["caveats"][0])
-        self.assertIn("do not carry over", r["caveats"][0])
-        self.assertFalse(any("1,468M" in c or "125.0" in c for c in r["caveats"]))
+        self.assertEqual((r["period_end"], r["value"], r["note"], r["caveats"], r["notes"]),
+                         ("2026-02-28", None, xbrl.UNAVAILABLE, [], []))
+        self.assertIn("presentation not checked for this filing: 10-Q accession 0001193125-26-101045", r["detail"])
+        self.assertEqual([x["tag"] for x in r["inputs"]], ["us-gaap:NotesPayableCurrent", "us-gaap:LongTermNotesAndLoans"])
+        self.assertEqual({x["accession"] for x in r["inputs"]}, {"0001193125-26-101045"})
+        self.assertTrue(all(x["value"] is not None for x in r["inputs"]))
 
     def test_lilly_is_unchanged(self):
         self.assertEqual(xbrl.baseline_gross_debt(load("LLY"), "LLY")["value"], 54_908 * M)
@@ -487,9 +488,14 @@ class GrossDebtOracle(unittest.TestCase):
 NPC, LTNL = xbrl.NOTES_PAYABLE_CURRENT, xbrl.LONG_TERM_NOTES_AND_LOANS
 
 
+def checked(ticker, *accessions):
+    """The company's real presentation, with the synthetic filings listed as checked (no caveats)."""
+    return {ticker: {**xbrl.BORROWING_PRESENTATIONS[ticker], "checked": {a: [] for a in accessions}}}
+
+
 class GrossDebtOracleRules(unittest.TestCase):
     def debt(self, rows):
-        return xbrl.baseline_gross_debt(balance_sheet(rows), "ORCL")
+        return xbrl.baseline_gross_debt(balance_sheet(rows), "ORCL", presentations=checked("ORCL", "q2", "qa"))
 
     def test_rounded_subset_leases_and_capex_financing_are_not_added(self):
         rows = [(NPC, "2026-06-30", 76, "10-Q", "2026-08-01", "q2"), (LTNL, "2026-06-30", 1177, "10-Q", "2026-08-01", "q2"),
@@ -524,8 +530,30 @@ LONG_DEBT = (LTD, "2026-06-30", 480, "10-Q", "2026-08-01", "q2")
 
 
 class GrossDebtRules(unittest.TestCase):
-    def debt(self, rows, ticker="LLY", **kw):
-        return xbrl.baseline_gross_debt(balance_sheet(rows), ticker, **kw)
+    def debt(self, rows, ticker="LLY", checked_accessions=("q2", "qa"), **kw):
+        presentations = (checked(ticker, *checked_accessions) if ticker in xbrl.BORROWING_PRESENTATIONS
+                         else xbrl.BORROWING_PRESENTATIONS)
+        return xbrl.baseline_gross_debt(balance_sheet(rows), ticker, presentations=presentations, **kw)
+
+    def test_unchecked_filing_returns_components_but_no_total(self):
+        r = self.debt([CURRENT_DEBT, LONG_DEBT], checked_accessions=())
+        self.assertEqual((r["value"], r["note"], r["caveats"]), (None, xbrl.UNAVAILABLE, []))
+        self.assertIn("presentation not checked for this filing: 10-Q accession q2", r["detail"])
+        self.assertEqual([x["value"] for x in r["inputs"]], [70, 480])
+
+    def test_amendment_to_a_checked_filing_must_itself_be_checked(self):
+        # q2 was checked, the 10-Q/A that replaces both components was not
+        rows = [CURRENT_DEBT, LONG_DEBT, (DC, "2026-06-30", 90, "10-Q/A", "2026-09-01", "qa"),
+                (LTD, "2026-06-30", 480, "10-Q/A", "2026-09-01", "qa")]
+        r = self.debt(rows, checked_accessions=("q2",))
+        self.assertIsNone(r["value"])
+        self.assertIn("10-Q/A accession qa is not among the filings reviewed", r["detail"])
+        self.assertEqual({x["accession"] for x in r["inputs"]}, {"qa"})
+
+    def test_real_mapping_does_not_check_synthetic_filings(self):
+        r = xbrl.baseline_gross_debt(balance_sheet([CURRENT_DEBT, LONG_DEBT]), "LLY")
+        self.assertIsNone(r["value"])
+        self.assertIn("presentation not checked for this filing", r["detail"])
 
     def test_sum_from_the_anchor_filing(self):
         r = self.debt([CURRENT_DEBT, LONG_DEBT])
