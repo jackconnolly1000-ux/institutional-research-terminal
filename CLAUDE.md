@@ -34,6 +34,7 @@ Stock Project/
 │   ├── ui.py        CSS built from theme.py, finding rows, metrics panel, skeleton loaders, progress strip
 │   ├── charts.py    price chart (drawing only, no network)
 │   ├── samples/     the saved AAPL + STRL sample (profiles, price CSVs, manifest), built by tests/offline/build_sample.py
+│   ├── docs/debt_liquidity_plan.md  debt and liquidity plan (planned work, tracked)
 │   ├── requirements.txt
 │   ├── README.md    public description: what it does, what it doesn't, known limits
 │   ├── CLAUDE.md    these instructions, for Claude Code
@@ -98,6 +99,14 @@ PowerShell's `$env:` settings last for that terminal session, so stop the app an
 These features render. That does not mean they're correct. AI-written findings and Yahoo numbers have not been verified; an excerpt match verifies only the quoted words. Label claims as verified or unverified.
 
 `course_analytics.py` does not exist. Course features have to be built from scratch, starting with the benchmark tests.
+
+## Debt and liquidity project (planned)
+
+**Planned, not built (Oct 14, 2026).** Full plan: [docs/debt_liquidity_plan.md](docs/debt_liquidity_plan.md), covering the goal, scope, definitions, source rules, pilot companies (Eli Lilly, Oracle, Vistra), delivery sequence and acceptance criteria. Goal: show what a nonfinancial company owes, what cash and cash generation support it, what changed, and the SEC evidence for each conclusion.
+
+- **Exists today:** TTM free cash flow in `xbrl.py` (operating cash flow minus purchases of PP&E). It's implemented and unit-tested on fixtures, **but not yet validated against the three pilot companies**.
+- **Planned:** cash (cash and cash equivalents excluding restricted cash, "Unavailable" when the fact can't be established), baseline gross debt, separate leases, net debt, current ratio, OCF/debt, FCF/debt, operating-income interest coverage, findings, two charts, Excel evidence export, reconciliation.
+- **Open:** debt, interest and cash tag mappings are decided from the pilot filings, not guessed.
 
 ## Known problems (as of October 11, 2026)
 
