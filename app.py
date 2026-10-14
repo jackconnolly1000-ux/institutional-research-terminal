@@ -20,6 +20,7 @@ import streamlit as st
 import analysis
 import budget
 import filing_review
+import reviewed_financing
 import market_data
 import sec_data
 import ui
@@ -166,6 +167,7 @@ def gather_evidence(ticker: str, cik: str) -> dict:
         raise TickerFailure("no usable text could be extracted from its SEC filings")
     inventory = sec_data.filing_review_inventory(
         subs, cik, selection.mdna_source.period, datetime.now(ET).date().isoformat(), cached_json)
+    inventory = reviewed_financing.annotate(inventory, ticker)
     return {"company_name": subs.get("name", ticker).title(), "industry": subs.get("sicDescription", "Public issuer").title(),
             "selection": selection, "sources": sources,
             "filing_review": inventory,
@@ -411,7 +413,8 @@ def generate_excel(profiles):
 
     ws = wb.create_sheet("Filing review")
     ws.append(["Ticker", "Balance-sheet date", "Index through", "Index status", "Form", "Filed", "Report date",
-               "8-K items", "Accession", "Content review", "EDGAR index", "Index note"])
+               "8-K items", "Accession", "Content review", "EDGAR index", "Index note",
+               "Event date", "Amount type", "Checked finding", "Source document", "Related documents"])
     for p in profiles:
         inv = p.get("filing_review")
         if not inv:
@@ -420,7 +423,9 @@ def generate_excel(profiles):
             continue
         for f in inv["filings"]:
             ws.append([p["ticker"], inv["since"], inv["through"], inv["status"], f["form"], f["filed"],
-                       f["period"], f["items"], f["accession"], f["review"], f["url"], "; ".join(inv["notes"])])
+                       f["period"], f["items"], f["accession"], f["review"], f["url"], "; ".join(inv["notes"]),
+                       f.get("event_date"), f.get("kind"), f.get("finding"), f.get("source_url"),
+                       "; ".join(url for _, url in f.get("related", []))])
         if not inv["filings"]:
             ws.append([p["ticker"], inv["since"], inv["through"], inv["status"], None, None, None, None, None,
                        "Not checked", None, "; ".join(inv["notes"]) or "No candidate forms indexed; contents not reviewed."])
@@ -545,7 +550,7 @@ def render_profile(p: dict) -> None:
     st.markdown(ui.analysis_banner(a) + ui.evidence_list(p["evidence"], a["comparison"], a.get("budget")), unsafe_allow_html=True)
 
     review = p.get("filing_review")
-    with st.expander("Filings since the balance sheet to review"):
+    with st.expander("Financing filing review since the balance sheet"):
         st.markdown(filing_review.render(review), unsafe_allow_html=True)
 
     counts = {"Catalysts": len(secs["catalysts"]["items"]), "Risk factor changes": len(secs["risks"]["items"]),
