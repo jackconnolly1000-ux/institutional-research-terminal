@@ -272,6 +272,122 @@ class CashRules(unittest.TestCase):
         self.assertIn("more than one cash value", c["detail"])
 
 
+class CurrentRatioPilots(unittest.TestCase):
+    """Expected values from docs/pilot_evidence_*.md (balance sheets of each pilot's latest 10-Q)."""
+
+    def check(self, ticker, assets_m, liabilities_m, ratio_2dp, end, accession):
+        r = xbrl.current_ratio(load(ticker))
+        a, l = r["inputs"]["current_assets"], r["inputs"]["current_liabilities"]
+        self.assertEqual((a["value"], l["value"]), (assets_m * M, liabilities_m * M))
+        self.assertEqual((a["tag"], l["tag"]), ("us-gaap:AssetsCurrent", "us-gaap:LiabilitiesCurrent"))
+        for x in (a, l):
+            self.assertEqual((x["period_end"], x["accession"], x["form"], x["unit"], x["selection_rule"]),
+                             (end, accession, "10-Q", "USD", xbrl.RULE_ANCHOR))
+        self.assertAlmostEqual(r["value"], assets_m / liabilities_m, places=12)
+        self.assertEqual(round(r["value"], 2), ratio_2dp)
+        self.assertEqual((r["tag"], r["unit"], r["formula"], r["note"], r["period_end"]),
+                         (None, "ratio", "AssetsCurrent / LiabilitiesCurrent", None, end))
+
+    def test_lilly(self):
+        self.check("LLY", 64_672, 47_741, 1.35, "2026-06-30", "0000059478-26-000081")
+
+    def test_oracle(self):
+        self.check("ORCL", 55_630, 47_514, 1.17, "2026-08-31", "0001193125-26-389274")
+
+    def test_vistra(self):
+        self.check("VST", 10_276, 10_557, 0.97, "2026-06-30", "0001692819-26-000019")
+
+
+def balance_sheet(rows):
+    """Synthetic company facts anchored, like facts(), by a fiscal 2026 Q2 10-Q (accession q2) for Jun 30, 2026.
+    rows are (tag, end, val, form, filed, accn[, fy, fp]) USD instants."""
+    gaap = {"Revenues": {"units": {"USD": [{"start": "2026-01-01", "end": "2026-06-30", "val": 1, "form": "10-Q",
+                                            "filed": "2026-08-01", "accn": "q2"}]}}}
+    for tag, end, val, form, filed, accn, *meta in rows:
+        fy, fp = meta or (2026, "Q2")
+        gaap.setdefault(tag, {"units": {"USD": []}})["units"]["USD"].append(
+            {"end": end, "val": val, "form": form, "filed": filed, "accn": accn, "fy": fy, "fp": fp})
+    return {"cik": 1, "entityName": "X", "facts": {"us-gaap": gaap}}
+
+
+CA, CL = xbrl.CURRENT_ASSETS, xbrl.CURRENT_LIABILITIES
+ASSETS = (CA, "2026-06-30", 300, "10-Q", "2026-08-01", "q2")
+LIABILITIES = (CL, "2026-06-30", 200, "10-Q", "2026-08-01", "q2")
+
+
+class CurrentRatioRules(unittest.TestCase):
+    def test_ratio_from_the_anchor_filing(self):
+        r = xbrl.current_ratio(balance_sheet([ASSETS, LIABILITIES]))
+        self.assertEqual((r["value"], r["note"], r["inputs"]["current_assets"]["accession"]), (1.5, None, "q2"))
+
+    def test_missing_input_is_unavailable_not_zero(self):
+        r = xbrl.current_ratio(balance_sheet([ASSETS]))
+        self.assertEqual((r["value"], r["note"]), (None, xbrl.UNAVAILABLE))
+        self.assertIn("current liabilities: no LiabilitiesCurrent tag", r["detail"])
+        self.assertEqual(r["inputs"]["current_assets"]["value"], 300)   # the input that exists is still shown
+
+    def test_input_at_a_different_date_is_not_combined(self):
+        # Liabilities only at Mar 31 in the anchor filing: not paired with Jun 30 assets
+        r = xbrl.current_ratio(balance_sheet([ASSETS, (CL, "2026-03-31", 200, "10-Q", "2026-08-01", "q2")]))
+        self.assertIsNone(r["value"])
+        self.assertIn("reports current liabilities only at Mar 31, 2026", r["detail"])
+
+    def test_input_from_another_filing_is_not_combined(self):
+        # Only a later 10-Q reports Jun 30 liabilities: not substituted into the anchor's pair
+        r = xbrl.current_ratio(balance_sheet([ASSETS, (CL, "2026-06-30", 200, "10-Q", "2026-11-01", "q3", 2026, "Q3")]))
+        self.assertIsNone(r["value"])
+        self.assertIn("other filings that do are not substituted (q3)", r["detail"])
+
+    def test_amendment_restating_both_inputs_is_used_for_both(self):
+        rows = [ASSETS, LIABILITIES, (CA, "2026-06-30", 330, "10-Q/A", "2026-09-01", "qa"),
+                (CL, "2026-06-30", 220, "10-Q/A", "2026-09-01", "qa")]
+        r = xbrl.current_ratio(balance_sheet(rows))
+        a, l = r["inputs"]["current_assets"], r["inputs"]["current_liabilities"]
+        self.assertEqual((a["accession"], l["accession"], r["value"]), ("qa", "qa", 1.5))
+
+    def test_amendment_changing_one_input_takes_the_other_from_the_same_amendment(self):
+        # The 10-Q/A changes assets and repeats liabilities unchanged: both inputs come from the 10-Q/A
+        rows = [ASSETS, LIABILITIES, (CA, "2026-06-30", 360, "10-Q/A", "2026-09-01", "qa"),
+                (CL, "2026-06-30", 200, "10-Q/A", "2026-09-01", "qa")]
+        r = xbrl.current_ratio(balance_sheet(rows))
+        a, l = r["inputs"]["current_assets"], r["inputs"]["current_liabilities"]
+        self.assertEqual((a["accession"], l["accession"], r["value"]), ("qa", "qa", 1.8))
+        self.assertIn("so both current-ratio inputs come from one filing", l["notes"][-1])
+
+    def test_partial_amendment_is_not_mixed_with_the_original(self):
+        # The 10-Q/A restates assets but does not report liabilities: no ratio across two filings
+        rows = [ASSETS, LIABILITIES, (CA, "2026-06-30", 360, "10-Q/A", "2026-09-01", "qa")]
+        r = xbrl.current_ratio(balance_sheet(rows))
+        self.assertIsNone(r["value"])
+        self.assertIn("comes from 10-Q/A (accession qa), which does not report current liabilities", r["detail"])
+        self.assertIn("inputs from different filings are not combined", r["detail"])
+
+    def test_amendment_with_conflicting_values_for_the_other_input_is_unavailable(self):
+        rows = [ASSETS, LIABILITIES, (CA, "2026-06-30", 360, "10-Q/A", "2026-09-01", "qa"),
+                (CL, "2026-06-30", 200, "10-Q/A", "2026-09-01", "qa"), (CL, "2026-06-30", 210, "10-Q/A", "2026-09-01", "qa")]
+        r = xbrl.current_ratio(balance_sheet(rows))
+        self.assertIsNone(r["value"])
+        # Liabilities' own selection already finds the amendment's two values
+        self.assertIn("reports more than one current liabilities value", r["detail"])
+
+    def test_amendment_for_another_period_does_not_change_the_pair(self):
+        rows = [ASSETS, LIABILITIES, (CA, "2026-06-30", 360, "10-Q/A", "2026-12-01", "qa3", 2026, "Q3")]
+        r = xbrl.current_ratio(balance_sheet(rows))
+        self.assertEqual((r["value"], r["inputs"]["current_assets"]["accession"]), (1.5, "q2"))
+        self.assertIn("could not be established", r["inputs"]["current_assets"]["notes"][0])
+
+    def test_zero_liabilities_explained_not_divided(self):
+        r = xbrl.current_ratio(balance_sheet([ASSETS, (CL, "2026-06-30", 0, "10-Q", "2026-08-01", "q2")]))
+        self.assertEqual((r["value"], r["note"]), (None, xbrl.UNAVAILABLE))
+        self.assertIn("current liabilities are 0 USD; a ratio with a zero or negative denominator is not meaningful",
+                      r["detail"])
+
+    def test_negative_liabilities_explained_not_divided(self):
+        r = xbrl.current_ratio(balance_sheet([ASSETS, (CL, "2026-06-30", -5, "10-Q", "2026-08-01", "q2")]))
+        self.assertIsNone(r["value"])
+        self.assertIn("current liabilities are -5 USD", r["detail"])
+
+
 class Plumbing(unittest.TestCase):
     def test_url_pads_the_cik(self):
         self.assertEqual(xbrl.companyfacts_url("320193"),

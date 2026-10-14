@@ -15,8 +15,9 @@ Method (decided Oct 11, 2026):
 - A tag with no value for a needed period is "Not reported in SEC data". Nothing falls back to an older
   period, another tag (except revenue's second tag below) or Yahoo.
 
-Cash (decided Oct 14, 2026; docs/debt_liquidity_plan.md) is a balance-sheet amount, so it follows a stricter rule
-than the TTM figures: it comes from the anchor filing itself (see cash_and_equivalents).
+Cash and the current-ratio inputs (decided Oct 14, 2026; docs/debt_liquidity_plan.md) are balance-sheet amounts, so they
+follow a stricter rule than the TTM figures: they come from the anchor filing itself (see _instant_fact), and the two
+current-ratio inputs must come from one filing (see current_ratio).
 """
 from __future__ import annotations
 
@@ -35,7 +36,9 @@ TAGS = [*REVENUE_TAGS, GROSS_PROFIT, OPERATING_INCOME, OPERATING_CASH_FLOW, CAPE
 # Balance-sheet values at one date ("instants", no start date). Confirmed for LLY, ORCL and VST to exclude restricted
 # cash; for other filers the plan's open item 1 applies.
 CASH = "CashAndCashEquivalentsAtCarryingValue"
-INSTANT_TAGS = [CASH]
+CURRENT_ASSETS = "AssetsCurrent"
+CURRENT_LIABILITIES = "LiabilitiesCurrent"
+INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES]
 UNAVAILABLE = "Unavailable"
 
 PERIODIC_FORMS = {"10-K", "10-Q", "10-K/A", "10-Q/A"}
@@ -61,7 +64,7 @@ def companyfacts_url(cik: str) -> str:
 
 def trim(facts: dict, since: str | None = None) -> dict:
     """Keep only the tags read here, from 10-K and 10-Q filings (and amendments): the six period tags in dollars,
-    and the cash tag in every unit, so a cash fact in another currency can be reported rather than silently missing.
+    and the balance-sheet tags in every unit, so a fact in another currency can be reported rather than silently missing.
     A full file is 3 to 8 MB; this is what the app caches per company, and what the test fixtures hold.
     since drops periods ending earlier."""
     gaap = facts.get("facts", {}).get("us-gaap", {})
@@ -221,7 +224,13 @@ RULE_AMENDED = ("USD instant at the balance-sheet date, from the latest amendmen
 
 def cash_and_equivalents(facts: dict, filed_by: str | None = None) -> dict:
     """Cash and cash equivalents at the balance-sheet date of the latest original 10-K or 10-Q (the same anchor
-    the TTM figures use). filed_by works as in ttm_metrics.
+    the TTM figures use). filed_by works as in ttm_metrics. Selection rules: see _instant_fact."""
+    gaap = facts.get("facts", {}).get("us-gaap", {})
+    return _instant_fact(gaap, CASH, "cash", "Cash and cash equivalents", filed_by)
+
+
+def _instant_fact(gaap: dict, tag: str, noun: str, label: str, filed_by: str | None) -> dict:
+    """One balance-sheet value at the balance-sheet date of the latest original 10-K or 10-Q.
 
     Why stricter than the TTM rule: a balance-sheet value belongs to one filing and one date. So
     - only a USD instant dated exactly at the balance-sheet date counts, and it must come from the anchor filing;
@@ -234,19 +243,18 @@ def cash_and_equivalents(facts: dict, filed_by: str | None = None) -> dict:
 
     Returns label, unit, value (None when unavailable), period_end, tag, form, filed, accession, selection_rule,
     notes (list of strings), note (None or UNAVAILABLE) and detail (why unavailable)."""
-    gaap = facts.get("facts", {}).get("us-gaap", {})
     anchor_acc, anchor = _anchor_filing(_filings(gaap, filed_by))
     end = anchor["period"]
-    result = {"source": SOURCE, "label": "Cash and cash equivalents", "unit": "USD", "value": None,
-              "period_end": end, "tag": f"us-gaap:{CASH}", "form": None, "filed": None, "accession": None,
+    result = {"source": SOURCE, "label": label, "unit": "USD", "value": None,
+              "period_end": end, "tag": f"us-gaap:{tag}", "form": None, "filed": None, "accession": None,
               "selection_rule": None, "notes": [], "note": UNAVAILABLE, "detail": ""}
 
     def unavailable(why):
         return {**result, "detail": why}
 
-    units = gaap.get(CASH, {}).get("units", {})
+    units = gaap.get(tag, {}).get("units", {})
     if not units:
-        return unavailable(f"no {CASH} tag")
+        return unavailable(f"no {tag} tag")
     visible = lambda rows: [r for r in rows if r.get("form") in PERIODIC_FORMS and not r.get("start")
                             and (not filed_by or r["filed"] <= filed_by)]
     usd = visible(units.get("USD", []))
@@ -257,18 +265,18 @@ def cash_and_equivalents(facts: dict, filed_by: str | None = None) -> dict:
     if not own:
         if any(r["accn"] == anchor_acc and r["end"] != end for r in usd):
             dates = sorted({r["end"] for r in usd if r["accn"] == anchor_acc})
-            return unavailable(f"{anchor_name} reports cash only at {', '.join(_fmt(d) for d in dates)}, "
+            return unavailable(f"{anchor_name} reports {noun} only at {', '.join(_fmt(d) for d in dates)}, "
                                f"not at its balance-sheet date {_fmt(end)}")
         other_units = sorted(u for u, rows in units.items() if u != "USD"
                              and any(r["accn"] == anchor_acc and r["end"] == end for r in visible(rows)))
         if other_units:
-            return unavailable(f"{anchor_name} reports cash at {_fmt(end)} only in {', '.join(other_units)}, not USD")
+            return unavailable(f"{anchor_name} reports {noun} at {_fmt(end)} only in {', '.join(other_units)}, not USD")
         if at_end:
-            return unavailable(f"{anchor_name} reports no cash at {_fmt(end)}; other filings that do are not "
+            return unavailable(f"{anchor_name} reports no {noun} at {_fmt(end)}; other filings that do are not "
                                f"substituted ({', '.join(sorted({r['accn'] for r in at_end}))})")
-        return unavailable(f"{anchor_name} reports no cash at {_fmt(end)}")
+        return unavailable(f"{anchor_name} reports no {noun} at {_fmt(end)}")
     if len({r["val"] for r in own}) > 1:
-        return unavailable(f"{anchor_name} reports more than one cash value at {_fmt(end)}")
+        return unavailable(f"{anchor_name} reports more than one {noun} value at {_fmt(end)}")
 
     chosen, rule, notes = own[0], RULE_ANCHOR, []
     # An amendment amends the anchor's report only if the filing says it covers the same fiscal period. Each
@@ -292,7 +300,7 @@ def cash_and_equivalents(facts: dict, filed_by: str | None = None) -> dict:
         amended = same_period[-1]
         if len({r["val"] for r in at_end if r["accn"] == amended["accn"]}) > 1:
             return unavailable(f"the amendment {amended['form']} filed {amended['filed']} (accession "
-                               f"{amended['accn']}) reports more than one cash value at {_fmt(end)}")
+                               f"{amended['accn']}) reports more than one {noun} value at {_fmt(end)}")
         if amended["val"] != chosen["val"]:
             notes.append(f"Amended: {amended['form']} filed {amended['filed']} (accession {amended['accn']}) "
                          f"reports {amended['val']:,} USD, replacing {chosen['val']:,} USD in {chosen['form']} "
@@ -312,3 +320,54 @@ def cash_and_equivalents(facts: dict, filed_by: str | None = None) -> dict:
 
     return {**result, "value": chosen["val"], "form": chosen["form"], "filed": chosen["filed"],
             "accession": chosen["accn"], "selection_rule": rule, "notes": notes, "note": None}
+
+
+def current_ratio(facts: dict, filed_by: str | None = None) -> dict:
+    """Current ratio = current assets / current liabilities at the balance-sheet date of the latest original 10-K
+    or 10-Q. filed_by works as in ttm_metrics. The ratio is derived: it has no XBRL tag; its inputs carry theirs.
+
+    Each input is selected by _instant_fact (anchor filing's own USD instant at that exact date, amendments only
+    when they amend the same fiscal period). Both inputs share the anchor's date by construction, and they must also
+    come from one filing, because a ratio of an amended numerator over an unamended denominator mixes two versions
+    of the balance sheet. So when one input was replaced by an amendment, the other is taken from that same
+    amendment if it reports it; if it doesn't, no ratio is calculated.
+
+    Returns label, unit ("ratio"), value (None when unavailable), period_end, formula, tag (None),
+    inputs {"current_assets", "current_liabilities"} (each as _instant_fact returns it), notes, note and detail."""
+    gaap = facts.get("facts", {}).get("us-gaap", {})
+    assets = _instant_fact(gaap, CURRENT_ASSETS, "current assets", "Current assets", filed_by)
+    liabilities = _instant_fact(gaap, CURRENT_LIABILITIES, "current liabilities", "Current liabilities", filed_by)
+    result = {"source": SOURCE, "label": "Current ratio", "unit": "ratio", "value": None,
+              "period_end": assets["period_end"], "formula": f"{CURRENT_ASSETS} / {CURRENT_LIABILITIES}",
+              "tag": None, "inputs": {"current_assets": assets, "current_liabilities": liabilities},
+              "notes": [], "note": UNAVAILABLE, "detail": ""}
+
+    def unavailable(why):
+        return {**result, "inputs": {"current_assets": assets, "current_liabilities": liabilities}, "detail": why}
+
+    missing = [f"{x['label'].lower()}: {x['detail']}" for x in (assets, liabilities) if x["value"] is None]
+    if missing:
+        return unavailable("; ".join(missing))
+
+    if assets["accession"] != liabilities["accession"]:
+        # One input was replaced by an amendment. Take the other from that same amendment, or calculate nothing
+        newer, older = sorted((assets, liabilities), key=lambda x: (x["filed"], x["accession"]), reverse=True)
+        older_tag = older["tag"].split(":")[-1]
+        rows = [r for r in gaap.get(older_tag, {}).get("units", {}).get("USD", [])
+                if r["accn"] == newer["accession"] and r["end"] == newer["period_end"] and not r.get("start")]
+        if len({r["val"] for r in rows}) != 1:
+            why = "does not report" if not rows else "reports more than one value for"
+            return unavailable(f"{newer['label'].lower()} comes from {newer['form']} (accession {newer['accession']}), "
+                               f"which {why} {older['label'].lower()} at {_fmt(newer['period_end'])}; inputs from "
+                               f"different filings are not combined")
+        swapped = {**older, "value": rows[0]["val"], "form": newer["form"], "filed": newer["filed"],
+                   "accession": newer["accession"], "selection_rule": RULE_AMENDED,
+                   "notes": older["notes"] + [f"Taken from {newer['form']} (accession {newer['accession']}) so both "
+                                              f"current-ratio inputs come from one filing"]}
+        assets, liabilities = (swapped, liabilities) if older is assets else (assets, swapped)
+
+    if liabilities["value"] <= 0:
+        return unavailable(f"current liabilities are {liabilities['value']:,} USD; a ratio with a zero or negative "
+                           f"denominator is not meaningful")
+    return {**result, "inputs": {"current_assets": assets, "current_liabilities": liabilities},
+            "value": assets["value"] / liabilities["value"], "note": None}
