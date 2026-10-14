@@ -28,6 +28,7 @@ For up to five tickers:
 
 ## Known limits
 
+- Live results include a dated EDGAR index of 8-Ks, debt-offering form candidates and periodic-report amendments since the latest balance sheet. It links to filing index pages, but the documents and exhibits in that list have not been screened for financing. A retrieval gap is labeled incomplete. The saved sample predates this index.
 - "No close match in the prior 10-K" is a text test. A heavily rewritten paragraph can be labeled that way; the closest prior paragraph is shown as context.
 - Section extraction has been checked on seven filers (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM). Other filing layouts may not be recognized.
 - Each request is capped at 76,000 tokens (64,000 of input, 12,000 of output). When the evidence is larger, the rest is omitted and the omission is shown.

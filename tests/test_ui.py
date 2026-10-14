@@ -92,6 +92,20 @@ class Components(unittest.TestCase):
         self.assertEqual(ui.eight_k_items("6.99"), "Item 6.99")                                       # unknown code: number only
         self.assertEqual(ui.eight_k_items(""), "")
 
+    def test_filing_index_never_claims_content_was_reviewed(self):
+        inventory = {"status": "incomplete", "since": "2026-06-30", "through": "2026-10-14",
+                     "notes": ["Older filing page was unavailable."],
+                     "filings": [{"form": "8-K", "filed": "2026-09-24", "items": "2.03,9.01",
+                                  "accession": "0000000001-26-000001", "url": "https://www.sec.gov/test-index.htm",
+                                  "review": "Not checked"}]}
+        rendered = ui.filing_review_list(inventory)
+        self.assertIn("Filing index incomplete", rendered)
+        self.assertIn("Document contents and exhibits: Not checked", rendered)
+        self.assertIn("8-K filed 2026-09-24", rendered)
+        self.assertIn("Item 2.03 New financial obligation", rendered)
+        self.assertIn("Not checked: Older filing page", rendered)
+        self.assertIn("Not checked: this saved result", ui.filing_review_list(None))
+
     def test_rows_say_what_a_click_does(self):
         html = ui.findings_list(self.r["sections"]["risks"]["items"][:1], "risk")
         self.assertIn('class="toggle"', html)

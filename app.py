@@ -163,8 +163,11 @@ def gather_evidence(ticker: str, cik: str) -> dict:
     sources = analysis.build_sources(selection, texts)
     if not any(s.sendable for s in sources):
         raise TickerFailure("no usable text could be extracted from its SEC filings")
+    inventory = sec_data.filing_review_inventory(
+        subs, cik, selection.mdna_source.period, datetime.now(ET).date().isoformat(), cached_json)
     return {"company_name": subs.get("name", ticker).title(), "industry": subs.get("sicDescription", "Public issuer").title(),
             "selection": selection, "sources": sources,
+            "filing_review": inventory,
             "event_markers": [(f.filed, f.form) for f in wanted]}
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -303,6 +306,7 @@ def analyze_ticker(ticker: str, cik: str, progress) -> dict:
     profile = {"ticker": ticker, "company_name": evidence["company_name"], "industry": evidence["industry"],
                "financials": financials, "sec_metrics": sec_metrics,
                "evidence": [s.coverage() for s in evidence["sources"]], "analysis": result,
+               "filing_review": evidence["filing_review"],
                "event_markers": evidence["event_markers"]}
     if SAMPLE_OUT:
         os.makedirs(SAMPLE_OUT, exist_ok=True)
@@ -403,6 +407,22 @@ def generate_excel(profiles):
         for c in p["evidence"]:
             ws.append([p["ticker"], c["id"], c["role"], c["status"], c.get("form"), c.get("filed"), c.get("period"),
                        c["chars"], c["sent_chars"], c["omitted_chars"], c["note"], c.get("url")])
+
+    ws = wb.create_sheet("Filing review")
+    ws.append(["Ticker", "Balance-sheet date", "Index through", "Index status", "Form", "Filed", "Report date",
+               "8-K items", "Accession", "Content review", "EDGAR index", "Index note"])
+    for p in profiles:
+        inv = p.get("filing_review")
+        if not inv:
+            ws.append([p["ticker"], None, None, "Not checked", None, None, None, None, None, None, None,
+                       "Saved result has no subsequent-filing index."])
+            continue
+        for f in inv["filings"]:
+            ws.append([p["ticker"], inv["since"], inv["through"], inv["status"], f["form"], f["filed"],
+                       f["period"], f["items"], f["accession"], f["review"], f["url"], "; ".join(inv["notes"])])
+        if not inv["filings"]:
+            ws.append([p["ticker"], inv["since"], inv["through"], inv["status"], None, None, None, None, None,
+                       "Not checked", None, "; ".join(inv["notes"]) or "No candidate forms indexed; contents not reviewed."])
 
     for ws in wb.worksheets:
         for cell in ws[1]: cell.fill, cell.font = header_fill, header_font
@@ -522,6 +542,10 @@ def render_profile(p: dict) -> None:
         st.caption(f"Price chart unavailable ({type(e).__name__})")
 
     st.markdown(ui.analysis_banner(a) + ui.evidence_list(p["evidence"], a["comparison"], a.get("budget")), unsafe_allow_html=True)
+
+    review = p.get("filing_review")
+    with st.expander("Filings since the balance sheet to review"):
+        st.markdown(ui.filing_review_list(review), unsafe_allow_html=True)
 
     counts = {"Catalysts": len(secs["catalysts"]["items"]), "Risk factor changes": len(secs["risks"]["items"]),
               "Other risks": len(secs["other_risks"]["items"])}

@@ -18,6 +18,59 @@ def f(form, filed, period="", acc=None):
     return Filing(form, filed, period, acc or f"0000000000-{filed[2:4]}-{filed[5:7]}{filed[8:]}", "doc.htm", "1")
 
 
+def submission_rows(rows):
+    return {"form": [r[0] for r in rows], "filingDate": [r[1] for r in rows],
+            "reportDate": [r[2] for r in rows], "items": [r[3] for r in rows],
+            "accessionNumber": [f"0000000001-26-{i:06d}" for i in range(len(rows))],
+            "primaryDocument": ["doc.htm"] * len(rows)}
+
+
+class FilingReviewInventory(unittest.TestCase):
+    def test_vistra_forms_are_indexed_without_claiming_review(self):
+        rows = [("8-K", "2026-10-02", "2026-09-30", "1.01,2.03,9.01"),
+                ("8-K", "2026-09-24", "2026-09-24", "1.01,8.01,9.01"),
+                ("424B2", "2026-09-14", "", ""), ("FWP", "2026-09-11", "", ""),
+                ("424B5", "2026-09-10", "", ""), ("S-3ASR", "2026-09-09", "", ""),
+                ("8-K", "2026-08-07", "2026-08-07", "2.02,9.01"),
+                ("8-K", "2026-07-16", "2026-07-10", "1.01,2.03"),
+                ("8-K", "2026-07-14", "2026-07-14", "8.01"),
+                ("8-K", "2026-06-30", "2026-06-24", "1.01"),
+                ("10-Q", "2026-08-10", "2026-06-30", ""),
+                ("4", "2026-06-29", "", "")]
+        subs = {"filings": {"recent": submission_rows(rows)}}
+        inv = sec_data.filing_review_inventory(subs, "1692819", "2026-06-30", "2026-10-14",
+                                               lambda _: self.fail("Recent history covers the date"))
+        self.assertEqual(inv["status"], "indexed")
+        self.assertEqual(len(inv["filings"]), 10)
+        self.assertEqual({r["review"] for r in inv["filings"]}, {"Not checked"})
+        self.assertEqual(inv["filings"][0]["form"], "8-K")
+        self.assertTrue(inv["filings"][0]["url"].endswith("-index.htm"))
+
+    def test_older_page_needed_and_failure_marks_index_incomplete(self):
+        recent = submission_rows([("10-Q", "2026-08-10", "2026-06-30", "")])
+        pages = [{"name": "old.json", "filingFrom": "2026-05-01", "filingTo": "2026-08-09"}]
+        subs = {"filings": {"recent": recent, "files": pages}}
+        old = submission_rows([("8-K/A", "2026-07-16", "2026-07-10", "2.03")])
+        inv = sec_data.filing_review_inventory(subs, "1692819", "2026-06-30", "2026-10-14",
+                                               lambda _: old)
+        self.assertEqual(inv["status"], "indexed")
+        self.assertEqual([r["form"] for r in inv["filings"]], ["8-K/A"])
+        failed = sec_data.filing_review_inventory(subs, "1692819", "2026-06-30", "2026-10-14",
+                                                  lambda _: (_ for _ in ()).throw(OSError("offline")))
+        self.assertEqual(failed["status"], "incomplete")
+        self.assertIn("could not be read", failed["notes"][0])
+        self.assertEqual(failed["filings"], [])
+
+    def test_missing_date_and_no_candidates_do_not_claim_a_review(self):
+        subs = {"filings": {"recent": submission_rows([("10-Q", "2026-08-10", "2026-06-30", ""),
+                                                        ("4", "2026-06-01", "", "")])}}
+        self.assertEqual(sec_data.filing_review_inventory(subs, "1", "", "2026-10-14", lambda _: {})["status"],
+                         "incomplete")
+        inv = sec_data.filing_review_inventory(subs, "1", "2026-06-30", "2026-10-14", lambda _: {})
+        self.assertEqual(inv["status"], "indexed")
+        self.assertEqual(inv["filings"], [])
+
+
 class SelectFilings(unittest.TestCase):
     TODAY = date(2026, 10, 10)
 

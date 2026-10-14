@@ -412,6 +412,29 @@ def evidence_list(coverage: list, comparison: dict, budget: dict | None) -> str:
             f'<ul>{"".join(rows)}</ul>{tokens}</details>')
 
 
+def filing_review_list(inventory: dict | None) -> str:
+    """Show the filing index separately from any review of document contents or exhibits."""
+    if not inventory:
+        return '<p class="irt-note">Not checked: this saved result has no subsequent-filing index.</p>'
+    since, through = inventory["since"], inventory["through"]
+    dates = f"from {esc(since)} through {esc(through)}" if since else "(balance-sheet date unavailable)"
+    intro = (f"EDGAR submissions index {dates}. Forms listed: 8-K, 8-K/A, 424B series, FWP, S-3 series, "
+             "10-K/A and 10-Q/A. Form and date alone do not establish a financing event. "
+             "Document contents and exhibits: Not checked.")
+    notes = "".join(f'<p class="irt-note">Not checked: {esc(n)}</p>' for n in inventory["notes"])
+    if inventory["status"] == "incomplete":
+        notes = '<p class="irt-note">Filing index incomplete.</p>' + notes
+    rows = []
+    for f in inventory["filings"]:
+        item = f" · {eight_k_items(f['items'])}" if f["form"].startswith("8-K") and f["items"] else ""
+        rows.append(f'<li><a href="{esc(f["url"])}" target="_blank" rel="noopener noreferrer">'
+                    f'{esc(f["form"])} filed {esc(f["filed"])} · {esc(f["accession"])}</a>'
+                    f'{esc(item)} · Not checked</li>')
+    empty = "<p class=\"irt-note\">No candidate forms indexed for these dates; contents not reviewed.</p>"
+    return (f'<p class="irt-note">{intro}</p>{notes}'
+            + (f'<ul class="irt-ol">{"".join(rows)}</ul>' if rows else empty))
+
+
 NO_INPUT = {
     "risks": "No usable risk-factor section was found (no 10-K comparison and no 10-Q update), so there was nothing to review.",
     "other_risks": "Management's discussion (MD&A) wasn't found in the latest 10-K or 10-Q, so there was nothing to review.",
