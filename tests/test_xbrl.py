@@ -430,6 +430,70 @@ class GrossDebtLilly(unittest.TestCase):
         self.assertIn("Matches the filing's own total", r["notes"][0])
 
 
+class GrossDebtOracle(unittest.TestCase):
+    """Oracle's balance-sheet presentation (docs/pilot_evidence_oracle.md): notes payable and other borrowings,
+    current (NotesPayableCurrent) plus non-current (LongTermNotesAndLoans)."""
+
+    def test_aug_31_2026(self):
+        r = xbrl.baseline_gross_debt(load("ORCL"), "ORCL")
+        self.assertEqual((r["value"], r["period_end"], r["note"], r["tag"]), (125_337 * M, "2026-08-31", None, None))
+        self.assertEqual(r["formula"], "NotesPayableCurrent + LongTermNotesAndLoans")
+        self.assertEqual([(x["tag"], x["value"], x["accession"], x["form"], x["filed"]) for x in r["inputs"]],
+                         [("us-gaap:NotesPayableCurrent", 7_625 * M, "0001193125-26-389274", "10-Q", "2026-09-11"),
+                          ("us-gaap:LongTermNotesAndLoans", 117_712 * M, "0001193125-26-389274", "10-Q", "2026-09-11")])
+        self.assertEqual(r["notes"], [])   # the 10-Q reports no combined total
+        for words in ("rounded fair-value disclosure", "lease liabilities", "short-term financing related to capital"):
+            self.assertIn(words, r["not_added"])
+        # The commercial paper and capex-financing balances stay Unavailable; nothing is inferred from the total
+        self.assertEqual(len(r["caveats"]), 2)
+        self.assertIn("commercial paper balance is Unavailable and is not inferred", r["caveats"][0])
+        self.assertIn("no disclosed balance (Unavailable)", r["caveats"][1])
+
+    def test_may_31_2026_matches_the_10k_note_6_total(self):
+        # 7,199 + 122,342 = 129,541, which the 10-K's Note 6 reports as DebtLongtermAndShorttermCombinedAmount
+        r = xbrl.baseline_gross_debt(load("ORCL"), "ORCL", filed_by="2026-07-01")
+        self.assertEqual((r["value"], r["period_end"]), (129_541 * M, "2026-05-31"))
+        self.assertEqual({x["accession"] for x in r["inputs"]}, {"0001193125-26-277521"})
+        self.assertIn("Matches the filing's own total", r["notes"][0])
+
+    def test_lilly_is_unchanged(self):
+        self.assertEqual(xbrl.baseline_gross_debt(load("LLY"), "LLY")["value"], 54_908 * M)
+
+
+NPC, LTNL = xbrl.NOTES_PAYABLE_CURRENT, xbrl.LONG_TERM_NOTES_AND_LOANS
+
+
+class GrossDebtOracleRules(unittest.TestCase):
+    def debt(self, rows):
+        return xbrl.baseline_gross_debt(balance_sheet(rows), "ORCL")
+
+    def test_rounded_subset_leases_and_capex_financing_are_not_added(self):
+        rows = [(NPC, "2026-06-30", 76, "10-Q", "2026-08-01", "q2"), (LTNL, "2026-06-30", 1177, "10-Q", "2026-08-01", "q2"),
+                ("DebtInstrumentCarryingAmount", "2026-06-30", 1250, "10-Q", "2026-08-01", "q2"),
+                ("OperatingLeaseLiability", "2026-06-30", 346, "10-Q", "2026-08-01", "q2"),
+                ("FinanceLeaseLiability", "2026-06-30", 92, "10-Q", "2026-08-01", "q2")]
+        self.assertEqual(self.debt(rows)["value"], 1253)
+
+    def test_missing_component_is_unavailable(self):
+        r = self.debt([(LTNL, "2026-06-30", 1177, "10-Q", "2026-08-01", "q2")])
+        self.assertIsNone(r["value"])
+        self.assertIn("notes payable and other borrowings, current: no NotesPayableCurrent tag", r["detail"])
+
+    def test_another_companys_tags_are_not_used(self):
+        # Lilly-style tags in an Oracle filing are not Oracle's verified components
+        r = self.debt([(xbrl.DEBT_CURRENT, "2026-06-30", 76, "10-Q", "2026-08-01", "q2"),
+                       (xbrl.LONG_TERM_DEBT_NONCURRENT, "2026-06-30", 1177, "10-Q", "2026-08-01", "q2")])
+        self.assertIsNone(r["value"])
+        self.assertIn("no NotesPayableCurrent tag", r["detail"])
+
+    def test_component_split_across_filings_is_not_combined(self):
+        rows = [(NPC, "2026-06-30", 76, "10-Q", "2026-08-01", "q2"), (LTNL, "2026-06-30", 1177, "10-Q", "2026-08-01", "q2"),
+                (NPC, "2026-06-30", 80, "10-Q/A", "2026-09-01", "qa")]
+        r = self.debt(rows)
+        self.assertIsNone(r["value"])
+        self.assertIn("which does not report notes payable and other borrowings, non-current", r["detail"])
+
+
 DC, LTD = xbrl.DEBT_CURRENT, xbrl.LONG_TERM_DEBT_NONCURRENT
 CURRENT_DEBT = (DC, "2026-06-30", 70, "10-Q", "2026-08-01", "q2")
 LONG_DEBT = (LTD, "2026-06-30", 480, "10-Q", "2026-08-01", "q2")

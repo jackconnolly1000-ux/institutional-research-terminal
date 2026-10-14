@@ -41,12 +41,15 @@ CURRENT_LIABILITIES = "LiabilitiesCurrent"
 DEBT_CURRENT = "DebtCurrent"
 LONG_TERM_DEBT_NONCURRENT = "LongTermDebtNoncurrent"
 DEBT_TOTAL = "DebtLongtermAndShorttermCombinedAmount"
-INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES, DEBT_CURRENT, LONG_TERM_DEBT_NONCURRENT, DEBT_TOTAL]
+NOTES_PAYABLE_CURRENT = "NotesPayableCurrent"
+LONG_TERM_NOTES_AND_LOANS = "LongTermNotesAndLoans"
+INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES, DEBT_CURRENT, LONG_TERM_DEBT_NONCURRENT, DEBT_TOTAL,
+                NOTES_PAYABLE_CURRENT, LONG_TERM_NOTES_AND_LOANS]
 
 # Borrowing presentations verified per company from its filings (docs/pilot_evidence_*.md). Debt tags are not
 # universal (plan, source rules), so a company without an entry gets Unavailable, never a guessed set of tags.
 # components: (tag, noun, label) added together; total_check: a filer total that must equal their sum when the
-# same filing reports it at the same date.
+# same filing reports it at the same date; not_added and caveats are stated with the result.
 BORROWING_PRESENTATIONS = {
     "LLY": {
         "name": "balance sheet: short-term borrowings and current maturities of long-term debt, plus long-term debt",
@@ -59,6 +62,26 @@ BORROWING_PRESENTATIONS = {
         "not_added": "Note 8 fair-value table (commercial paper and long-term debt carrying amounts), which presents "
                      "the same debt",
         "evidence": "docs/pilot_evidence_lly.md",
+        "caveats": [],
+    },
+    "ORCL": {
+        "name": "balance sheet: notes payable and other borrowings, current plus non-current",
+        "components": [(NOTES_PAYABLE_CURRENT, "notes payable and other borrowings, current",
+                        "Notes payable and other borrowings, current"),
+                       (LONG_TERM_NOTES_AND_LOANS, "notes payable and other borrowings, non-current",
+                        "Notes payable and other borrowings, non-current")],
+        # The 10-K's Note 6 total; a 10-Q does not report it
+        "total_check": DEBT_TOTAL,
+        "not_added": "the rounded fair-value disclosure of senior notes and other long-term borrowings (a narrower "
+                     "subset of the same debt), operating and finance lease liabilities, and cash-flow amounts for "
+                     "short-term financing related to capital expenditures",
+        "evidence": "docs/pilot_evidence_oracle.md",
+        # Stated with every Oracle result so the total is not read as more than it is
+        "caveats": ["The split of this total by instrument (senior notes, term loans, commercial paper) is itemized "
+                    "only in the 10-K's Note 6; a 10-Q's commercial paper balance is Unavailable and is not inferred "
+                    "from this total.",
+                    "Short-term financing related to capital expenditures has no disclosed balance (Unavailable); "
+                    "its cash-flow amounts are not added to debt."],
     },
 }
 UNAVAILABLE = "Unavailable"
@@ -431,20 +454,21 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None) -
     missing component, so nothing is calculated. A negative component is refused.
 
     Returns label, unit, value (None when unavailable), period_end, formula, tag (None), presentation, inputs
-    (list, each as _instant_fact returns it), not_added, evidence, notes, note and detail."""
+    (list, each as _instant_fact returns it), not_added, evidence, caveats, notes, note and detail."""
     gaap = facts.get("facts", {}).get("us-gaap", {})
     presentation = BORROWING_PRESENTATIONS.get(ticker)
     end = _anchor_filing(_filings(gaap, filed_by))[1]["period"]
     result = {"source": SOURCE, "label": "Baseline gross debt", "unit": "USD", "value": None, "period_end": end,
               "formula": None, "tag": None, "presentation": None, "inputs": [], "not_added": None,
-              "evidence": None, "notes": [], "note": UNAVAILABLE, "detail": ""}
+              "evidence": None, "caveats": [], "notes": [], "note": UNAVAILABLE, "detail": ""}
     if presentation is None:
         return {**result, "detail": f"no verified borrowing presentation for {ticker}; debt components are chosen "
                                     f"per company from its filings, not guessed"}
     components = presentation["components"]
     inputs = [_instant_fact(gaap, tag, noun, label, filed_by) for tag, noun, label in components]
     result.update(formula=" + ".join(tag for tag, _, _ in components), presentation=presentation["name"],
-                  inputs=inputs, not_added=presentation["not_added"], evidence=presentation["evidence"])
+                  inputs=inputs, not_added=presentation["not_added"], evidence=presentation["evidence"],
+                  caveats=presentation["caveats"])
 
     def unavailable(why):
         return {**result, "inputs": inputs, "detail": why}

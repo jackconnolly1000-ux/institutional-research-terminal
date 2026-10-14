@@ -67,6 +67,8 @@ The filings do not explain the difference between the "—" and the $1.1 billion
 
 **Conclusion:** baseline borrowing at Aug 31, 2026 is the sum of Oracle's two reported balance-sheet borrowing lines, 7,625 + 117,712 = 125,337 (a hand calculation; no total line is reported in the 10-Q). Do not add the "$125.0 billion" to them; it is a rounded, narrower subset of the same debt. The composition of the 125,337 at Aug 31, including commercial paper, is not stated.
 
+**Implemented (Oct 14, 2026):** `xbrl.baseline_gross_debt(facts, "ORCL")` adds `NotesPayableCurrent` + `LongTermNotesAndLoans` from one filing at the anchor date: 125,337 at Aug 31, 2026 (10-Q 0001193125-26-389274), and 129,541 at May 31, 2026 (10-K 0001193125-26-277521), matching that 10-K's Note 6 total. It does not add the rounded "$125.0 billion" subset, leases or capex-financing cash flows, and every Oracle result states that the commercial paper and capex-financing balances are Unavailable and not inferred from the total.
+
 **Short-term financing related to capital expenditures: balance Unavailable.** Traced through the cash flow statements, balance-sheet labels, notes and tagged facts:
 
 | Where checked | Finding |
