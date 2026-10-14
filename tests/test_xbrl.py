@@ -212,6 +212,12 @@ class CashRules(unittest.TestCase):
                          (120, "qa", "10-Q/A", xbrl.RULE_AMENDED))
         self.assertIn("replacing 100 USD in 10-Q (accession q2)", c["notes"][0])
 
+    def test_latest_of_two_amendments_wins_and_the_earlier_one_is_flagged(self):
+        rows = [ANCHOR, ("2026-06-30", 110, "10-Q/A", "2026-09-01", "qa1"), ("2026-06-30", 120, "10-Q/A", "2026-10-01", "qa2")]
+        c = xbrl.cash_and_equivalents(facts(rows))
+        self.assertEqual((c["value"], c["accession"]), (120, "qa2"))
+        self.assertTrue(any("Not used: 10-Q/A filed 2026-09-01 (accession qa1)" in n for n in c["notes"]))
+
     def test_amendment_is_hidden_before_it_was_filed(self):
         c = xbrl.cash_and_equivalents(facts([ANCHOR, ("2026-06-30", 120, "10-Q/A", "2026-09-01", "qa")]),
                                       filed_by="2026-08-15")

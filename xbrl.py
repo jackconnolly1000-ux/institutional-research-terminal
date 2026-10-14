@@ -286,7 +286,8 @@ def cash_and_equivalents(facts: dict, filed_by: str | None = None) -> dict:
         else:
             notes.append(f"{amended['form']} filed {amended['filed']} (accession {amended['accn']}) "
                          f"reports the same value")
-    used = {r["accn"] for r in own} | {r["accn"] for r in amendments}
+    # Only the latest amendment is used; an earlier one that differs is flagged like any other filing
+    used = {r["accn"] for r in own} | ({amendments[-1]["accn"]} if amendments else set())
     for r in sorted((r for r in at_end if r["accn"] not in used), key=lambda r: (r["filed"], r["accn"])):
         if r["val"] != chosen["val"]:
             notes.append(f"Not used: {r['form']} filed {r['filed']} (accession {r['accn']}) reports "
