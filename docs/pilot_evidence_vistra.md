@@ -67,7 +67,8 @@ Checked in the 10-Q's inline XBRL (accession 0001692819-26-000019) and in SEC co
 
 **Remaining uncertainty:**
 - At Dec 31, 2025 the balance-sheet line was 1,225 while the Receivables Facility's outstanding borrowings were "$1.1 billion" (p. 27) and the repurchase facility had 125 outstanding (p. 28). 1,100 + 125 = 1,225 (calculation) suggests the balance-sheet line includes both facilities; the filing does not say so explicitly. At June 30, 2026 the repurchase facility had no borrowings, so the line and the Receivables Facility agree at 300.
-- The extension element's definition and label in Vistra's schema were not read.
+- **Element definition (read Oct 14, 2026)** in the filing's schema `vistra-20260630.xsd` and label file `vistra-20260630_lab.xml` (same accession): `vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed` is a monetary item (`xbrli:monetaryItemType`), `periodType="instant"`, `balance="credit"` (a liability-type amount), not abstract. Standard label "Accounts Receivable Securitization Program, Amounts Borrowed"; the documentation label repeats that text and adds no definition; terse and verbose labels "Accounts receivable financing". This establishes that the fact is a point-in-time borrowed amount under the receivables securitization program, presented as the balance-sheet line. It does not say whether the line also includes the repurchase facility (see the Dec 31, 2025 note above).
+- **Filing-level reader (Oct 14, 2026):** `filing_xbrl.read_instant` reads this fact from the saved 10-Q: 300M from context c-8 (no dimensions, USD, scale 6, decimals -6), where the balance-sheet and Note 12 table facts agree; the dimensioned Note 12 text fact (c-722) is not selected. Tested on a trimmed copy of the filing (`tests/fixtures/VST_2026Q2_ixbrl.htm`) and, when saved locally, the full document. `baseline_gross_debt("VST")` does not use the reader yet and stays Unavailable.
 
 ## Shown separately, not in baseline borrowing (classifications)
 
@@ -207,7 +208,7 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 ## Open gaps
 
 1. Lease liabilities at June 30, 2026 are Unavailable; only Dec 31, 2025 amounts are established.
-1a. Baseline gross borrowing in the app is Unavailable until a filing-level reader can read `vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed` (balance sheet, context c-8) with its provenance; see the borrowing source audit.
+1a. Baseline gross borrowing in the app is Unavailable. The filing-level reader now reads `vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed` (300M, context c-8) with its provenance; connecting it to `baseline_gross_debt` (which needs the filing document as an input alongside companyfacts) is the next task.
 2. Interest basis: whether receivables-facility interest and the Nuveen obligation's interest are inside the "Interest expense" component or in "Other", and what "Other" contains, are not stated.
 3. Interest extraction: the component is the Vistra extension tag `vistra:PostEmergenceInterestPaidAndAccrued`. Its contexts are verified by hand above. Still needed before any display: read the element's definition and label in the filer's schema, and build and test an inline XBRL extractor that reproduces the four checked facts with their provenance.
 4. Helix Fund: amount funded to date not separately disclosed (callable status and milestone status are stated on p. 69).

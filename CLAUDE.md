@@ -29,6 +29,7 @@ Stock Project/
 │   ├── analysis.py  evidence blocks, token budget, prompt and schema, response checks, excerpt matching (tested)
 │   ├── market_data.py  Yahoo values as numbers with unit, period, source, retrieval time (tested)
 │   ├── xbrl.py      TTM revenue, margins and free cash flow from SEC XBRL company facts, with periods and filings (no Streamlit, tested)
+│   ├── filing_xbrl.py   one fact from a filing's own inline XBRL (extension tags companyfacts lacks), with context, unit and checks (no Streamlit, tested)
 │   ├── budget.py    daily spending ledger for Claude calls, prices, how API errors are charged (no Streamlit, tested)
 │   ├── theme.py     color tokens, named by meaning (the one place colors are defined)
 │   ├── ui.py        CSS built from theme.py, finding rows, metrics panel, skeleton loaders, progress strip
@@ -44,7 +45,7 @@ Stock Project/
 │   ├── .streamlit/config.toml   widget theme (repeats the base colors in theme.py)
 │   ├── tests/       tests and diagnostics (no Anthropic calls)
 │   │   ├── test_*.py          unit tests of sec_data, analysis, market_data, budget, ui, xbrl, the saved sample (commands under "Running the tests")
-│   │   ├── fixtures/          real SEC company facts for AAPL, STRL, JPM and the pilots LLY, ORCL, VST, trimmed to the tags xbrl.py reads; make_fixtures.py rebuilds them from data/raw/xbrl
+│   │   ├── fixtures/          real SEC company facts for AAPL, STRL, JPM and the pilots LLY, ORCL, VST, trimmed to the tags xbrl.py reads; make_fixtures.py rebuilds them from data/raw/xbrl; VST_2026Q2_ixbrl.htm is a trimmed copy of Vistra's 10-Q inline XBRL (make_filing_fixture.py)
 │   │   ├── check_risk_extraction.py   live EDGAR check of filing selection and sections, using the production functions
 │   │   ├── chart_preview.py   price chart on synthetic prices
 │   │   └── offline/           whole app on fake SEC/Yahoo/Anthropic responses; check_states.py drives failure scenarios, check_sample.py the saved sample (shots/ is gitignored)
