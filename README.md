@@ -23,12 +23,12 @@ For up to five tickers:
 
 - It doesn't give investment advice, price targets or ratings.
 - It doesn't verify the AI's interpretation. An "Excerpt matched" label means the quoted words are in the filing, not that the summary is right.
-- It doesn't read exhibits: risk factors incorporated by reference from an annual-report exhibit (as JPM does) and 8-K press releases (EX-99.1) are not read.
+- The general AI evidence pipeline doesn't read exhibits: risk factors incorporated by reference from an annual-report exhibit (as JPM does) and 8-K press releases (EX-99.1) are not sent to Claude. The separately checked Vistra financing notice cites selected exhibits.
 - It doesn't know the period behind most Yahoo Finance values; those show "Period not stated". Yahoo's margins and free cash flow are still in the Excel export, labeled that way, next to the SEC figures.
 
 ## Known limits
 
-- Live results include a dated EDGAR index of 8-Ks, debt-offering form candidates and periodic-report amendments since the latest balance sheet. It links to filing index pages, but the documents and exhibits in that list have not been screened for financing. A retrieval gap is labeled incomplete. The saved sample predates this index.
+- Live results include a dated EDGAR index of 8-Ks, debt-offering form candidates and periodic-report amendments since the latest balance sheet. For Vistra's June 30, 2026 balance sheet, ten filings through October 14 were manually screened for financing, with source documents linked; the September offering documents refer to one completed $1.5 billion issuance. Other companies and later or unmatched filings remain "Not checked." A retrieval gap is labeled incomplete. The saved sample predates this index.
 - "No close match in the prior 10-K" is a text test. A heavily rewritten paragraph can be labeled that way; the closest prior paragraph is shown as context.
 - Section extraction has been checked on seven filers (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM). Other filing layouts may not be recognized.
 - Each request is capped at 76,000 tokens (64,000 of input, 12,000 of output). When the evidence is larger, the rest is omitted and the omission is shown.
