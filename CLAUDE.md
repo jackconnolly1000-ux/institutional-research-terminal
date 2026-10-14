@@ -35,6 +35,9 @@ Stock Project/
 │   ├── charts.py    price chart (drawing only, no network)
 │   ├── samples/     the saved AAPL + STRL sample (profiles, price CSVs, manifest), built by tests/offline/build_sample.py
 │   ├── docs/debt_liquidity_plan.md  debt and liquidity plan (planned work, tracked)
+│   ├── docs/pilot_evidence_lly.md   Eli Lilly pilot evidence: filing values with sources, checks and open gaps
+│   ├── docs/pilot_evidence_oracle.md  Oracle pilot evidence: filing values with sources, checks and open gaps
+│   ├── docs/pilot_evidence_vistra.md  Vistra pilot evidence: filing values with sources, checks and open gaps
 │   ├── requirements.txt
 │   ├── README.md    public description: what it does, what it doesn't, known limits
 │   ├── CLAUDE.md    these instructions, for Claude Code
