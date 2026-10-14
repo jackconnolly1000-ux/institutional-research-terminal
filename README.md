@@ -28,6 +28,8 @@ For up to five tickers:
 
 ## Known limits
 
+- A free saved debt and liquidity pilot is available for LLY, ORCL and VST, checked October 14, 2026. It shows each company's dated cash, baseline gross debt, net debt and current ratio, their reported inputs and source 10-Q, and a separate Excel evidence download with formulas. Vistra's checked subsequent financing changes are included. This is a frozen pilot, not a live update or a complete obligations analysis; interest coverage and cash-flow support ratios are not included. The existing AAPL/STRL saved analysis is separate.
+
 - Live results include a dated EDGAR index of 8-Ks, debt-offering form candidates and periodic-report amendments since the latest balance sheet. For Vistra's June 30, 2026 balance sheet, ten filings through October 14 were manually screened for financing, with source documents linked; the September offering documents refer to one completed $1.5 billion issuance. Other companies and later or unmatched filings remain "Not checked." A retrieval gap is labeled incomplete. The saved sample predates this index.
 - "No close match in the prior 10-K" is a text test. A heavily rewritten paragraph can be labeled that way; the closest prior paragraph is shown as context.
 - Section extraction has been checked on seven filers (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM). Other filing layouts may not be recognized.

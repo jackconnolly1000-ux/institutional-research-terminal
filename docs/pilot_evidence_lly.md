@@ -1,6 +1,6 @@
 # Pilot evidence: Eli Lilly (LLY)
 
-Evidence for the first debt and liquidity pilot (see `debt_liquidity_plan.md`): filing values with sources and checks, hand calculations labeled as such, and open gaps. Checked values are the pilot's expected answers; Unavailable items and open gaps are not. Checked Oct 14, 2026. No app code uses this yet.
+Evidence for the first debt and liquidity pilot (see `debt_liquidity_plan.md`): filing values with sources and checks, hand calculations labeled as such, and open gaps. Checked values are the pilot's expected answers; Unavailable items and open gaps are not. Checked Oct 14, 2026. The saved debt and liquidity pilot uses the checked cash, borrowing and current-position values; other sections retain their own status.
 
 **How it was checked:** each amount was read from the filing's HTML text (row label and column) and matched to the inline XBRL fact on that row, then compared with SEC companyfacts. Page numbers are the filing's printed page footers. Any value marked "provisional" has not been checked against the filed table and is not an acceptance value (none at present). Raw downloads are kept outside the repo in `Stock Project/data/raw/` (companyfacts and submissions in `xbrl/`, filings in `sec/LLY/`).
 

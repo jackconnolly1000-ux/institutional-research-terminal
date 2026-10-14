@@ -1,6 +1,6 @@
 # Pilot evidence: Vistra (VST)
 
-Evidence for the third debt and liquidity pilot (see `debt_liquidity_plan.md`): filing values with sources and checks, hand calculations labeled as such, decided classifications, and open gaps. Checked values are the pilot's expected answers; Unavailable items and open gaps are not. Checked Oct 14, 2026. No app code uses this yet.
+Evidence for the third debt and liquidity pilot (see `debt_liquidity_plan.md`): filing values with sources and checks, hand calculations labeled as such, decided classifications, and open gaps. Checked values are the pilot's expected answers; Unavailable items and open gaps are not. Checked Oct 14, 2026. The saved debt and liquidity pilot uses the checked cash, borrowing and current-position values; other sections retain their own status.
 
 **How it was checked:** each amount was read from the filing's HTML text and matched to the inline XBRL fact on that row (tag, period, dimensions, unit), then compared with SEC companyfacts where companyfacts has the tag. Page numbers are the filing's printed page footers, found by splitting the document at its page breaks. Raw downloads are kept outside the repo in `Stock Project/data/raw/` (`xbrl/VST_*`, `sec/VST/`).
 
@@ -210,7 +210,7 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 ## Open gaps
 
 1. Lease liabilities at June 30, 2026 are Unavailable; only Dec 31, 2025 amounts are established.
-1a. The 19,895M baseline is calculated when the checked filing document is supplied, but the app does not fetch or pass that document, and no UI or Excel output displays the figure yet.
+1a. The saved pilot displays and exports the 19,895M baseline, built from companyfacts and the trimmed real-filing fixture. Live analysis still does not fetch or pass the checked filing document for this calculation.
 2. Interest basis: whether receivables-facility interest and the Nuveen obligation's interest are inside the "Interest expense" component or in "Other", and what "Other" contains, are not stated.
 3. Interest extraction: the component is the Vistra extension tag `vistra:PostEmergenceInterestPaidAndAccrued`. Its contexts are verified by hand above. Still needed before any display: read the element's definition and label in the filer's schema, and build and test an inline XBRL extractor that reproduces the four checked facts with their provenance.
 4. Helix Fund: amount funded to date not separately disclosed (callable status and milestone status are stated on p. 69).

@@ -55,7 +55,7 @@ class SavedSample(unittest.TestCase):
         # because the files were on disk, but the deployed sample would have had no charts.
         if shutil.which("git") is None:
             self.skipTest("git isn't installed, so tracked files can't be checked")
-        files = ["manifest.json"] + [f"{t}{end}" for t in self.manifest["tickers"] for end in (".json", "_prices.csv")]
+        files = ["manifest.json", "liquidity_pilots.json"] + [f"{t}{end}" for t in self.manifest["tickers"] for end in (".json", "_prices.csv")]
         for name in files:
             with self.subTest(name):
                 result = subprocess.run(["git", "ls-files", "--error-unmatch", name], cwd=SAMPLES,
