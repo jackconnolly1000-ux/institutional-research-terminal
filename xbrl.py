@@ -14,6 +14,9 @@ Method (decided Oct 11, 2026):
   and a restatement changes them), the most recently filed value is used.
 - A tag with no value for a needed period is "Not reported in SEC data". Nothing falls back to an older
   period, another tag (except revenue's second tag below) or Yahoo.
+
+Cash (decided Oct 14, 2026; docs/debt_liquidity_plan.md) is a balance-sheet amount, so it follows a stricter rule
+than the TTM figures: it comes from the anchor filing itself (see cash_and_equivalents).
 """
 from __future__ import annotations
 
@@ -28,7 +31,12 @@ GROSS_PROFIT = "GrossProfit"
 OPERATING_INCOME = "OperatingIncomeLoss"
 OPERATING_CASH_FLOW = "NetCashProvidedByUsedInOperatingActivities"
 CAPEX = "PaymentsToAcquirePropertyPlantAndEquipment"
-TAGS = [*REVENUE_TAGS, GROSS_PROFIT, OPERATING_INCOME, OPERATING_CASH_FLOW, CAPEX]
+TAGS = [*REVENUE_TAGS, GROSS_PROFIT, OPERATING_INCOME, OPERATING_CASH_FLOW, CAPEX]   # flows over a period
+# Balance-sheet values at one date ("instants", no start date). Confirmed for LLY, ORCL and VST to exclude restricted
+# cash; for other filers the plan's open item 1 applies.
+CASH = "CashAndCashEquivalentsAtCarryingValue"
+INSTANT_TAGS = [CASH]
+UNAVAILABLE = "Unavailable"
 
 PERIODIC_FORMS = {"10-K", "10-Q", "10-K/A", "10-Q/A"}
 # Fiscal years are 52 or 53 weeks for many filers (Apple: 364 or 371 days), so "a year" is a range
@@ -52,8 +60,10 @@ def companyfacts_url(cik: str) -> str:
 
 
 def trim(facts: dict, since: str | None = None) -> dict:
-    """Keep only the six tags, in dollars, from 10-K and 10-Q filings (and amendments). A full file is 3 to 8 MB;
-    this is what the app caches per company, and what the test fixtures hold. since drops periods ending earlier."""
+    """Keep only the tags read here, from 10-K and 10-Q filings (and amendments): the six period tags in dollars,
+    and the cash tag in every unit, so a cash fact in another currency can be reported rather than silently missing.
+    A full file is 3 to 8 MB; this is what the app caches per company, and what the test fixtures hold.
+    since drops periods ending earlier."""
     gaap = facts.get("facts", {}).get("us-gaap", {})
     kept = {}
     for tag in TAGS:
@@ -61,6 +71,15 @@ def trim(facts: dict, since: str | None = None) -> dict:
                 if r.get("form") in PERIODIC_FORMS and r.get("start") and (since is None or r["end"] >= since)]
         if rows:
             kept[tag] = {"units": {"USD": rows}}
+    for tag in INSTANT_TAGS:
+        units = {}
+        for unit, all_rows in gaap.get(tag, {}).get("units", {}).items():
+            rows = [r for r in all_rows
+                    if r.get("form") in PERIODIC_FORMS and not r.get("start") and (since is None or r["end"] >= since)]
+            if rows:
+                units[unit] = rows
+        if units:
+            kept[tag] = {"units": units}
     return {"cik": facts.get("cik"), "entityName": facts.get("entityName"), "facts": {"us-gaap": kept}}
 
 
@@ -93,13 +112,19 @@ def _filings(gaap: dict, filed_by: str | None) -> dict:
     return out
 
 
-def _anchor(filings: dict) -> tuple[str, str]:
-    """(period end, form) of the latest original 10-K or 10-Q. Amendments are left out here so a late 10-K/A
-    doesn't pull TTM back a year; their values still count when periods are deduplicated."""
+def _anchor_filing(filings: dict) -> tuple[str, dict]:
+    """(accession, {form, period, filed}) of the latest original 10-K or 10-Q. Amendments are left out here so a
+    late 10-K/A doesn't pull TTM back a year; their values still count when periods are deduplicated."""
     originals = [(f["filed"], acc, f) for acc, f in filings.items() if f["form"] in ("10-K", "10-Q")]
     if not originals:
         raise XbrlError("no 10-K or 10-Q figures in SEC company facts")
-    f = max(originals)[2]
+    _, acc, f = max(originals)
+    return acc, f
+
+
+def _anchor(filings: dict) -> tuple[str, str]:
+    """(period end, form) of the latest original 10-K or 10-Q."""
+    f = _anchor_filing(filings)[1]
     return f["period"], f["form"]
 
 
@@ -187,3 +212,103 @@ def ttm_metrics(facts: dict, filed_by: str | None = None) -> dict:
                                  lambda t: t[OPERATING_CASH_FLOW] - t[CAPEX]),
     }
     return {"source": SOURCE, "period_end": end, "basis": basis, "metrics": metrics}
+
+
+RULE_ANCHOR = ("USD instant at the balance-sheet date, from the latest original 10-K or 10-Q itself")
+RULE_AMENDED = ("USD instant at the balance-sheet date, from the latest amendment to that same period, "
+                "which replaces the original filing's value")
+
+
+def cash_and_equivalents(facts: dict, filed_by: str | None = None) -> dict:
+    """Cash and cash equivalents at the balance-sheet date of the latest original 10-K or 10-Q (the same anchor
+    the TTM figures use). filed_by works as in ttm_metrics.
+
+    Why stricter than the TTM rule: a balance-sheet value belongs to one filing and one date. So
+    - only a USD instant dated exactly at the balance-sheet date counts, and it must come from the anchor filing;
+      another filing's value is never substituted for a missing one;
+    - an amendment (10-K/A, 10-Q/A) replaces the value, and the result says so, only when its filing's fiscal year
+      and period (fy, fp) match the anchor filing's; otherwise it is flagged and not used. An amendment with
+      conflicting values at the date makes the result Unavailable;
+    - any other filing that reports the same date with a different value (a later comparative) is flagged in
+      notes and not used, because a changed comparative may be a restatement that needs reading.
+
+    Returns label, unit, value (None when unavailable), period_end, tag, form, filed, accession, selection_rule,
+    notes (list of strings), note (None or UNAVAILABLE) and detail (why unavailable)."""
+    gaap = facts.get("facts", {}).get("us-gaap", {})
+    anchor_acc, anchor = _anchor_filing(_filings(gaap, filed_by))
+    end = anchor["period"]
+    result = {"source": SOURCE, "label": "Cash and cash equivalents", "unit": "USD", "value": None,
+              "period_end": end, "tag": f"us-gaap:{CASH}", "form": None, "filed": None, "accession": None,
+              "selection_rule": None, "notes": [], "note": UNAVAILABLE, "detail": ""}
+
+    def unavailable(why):
+        return {**result, "detail": why}
+
+    units = gaap.get(CASH, {}).get("units", {})
+    if not units:
+        return unavailable(f"no {CASH} tag")
+    visible = lambda rows: [r for r in rows if r.get("form") in PERIODIC_FORMS and not r.get("start")
+                            and (not filed_by or r["filed"] <= filed_by)]
+    usd = visible(units.get("USD", []))
+    at_end = [r for r in usd if r["end"] == end]
+    own = [r for r in at_end if r["accn"] == anchor_acc]
+    anchor_name = f"the latest periodic filing ({anchor['form']}, accession {anchor_acc})"
+
+    if not own:
+        if any(r["accn"] == anchor_acc and r["end"] != end for r in usd):
+            dates = sorted({r["end"] for r in usd if r["accn"] == anchor_acc})
+            return unavailable(f"{anchor_name} reports cash only at {', '.join(_fmt(d) for d in dates)}, "
+                               f"not at its balance-sheet date {_fmt(end)}")
+        other_units = sorted(u for u, rows in units.items() if u != "USD"
+                             and any(r["accn"] == anchor_acc and r["end"] == end for r in visible(rows)))
+        if other_units:
+            return unavailable(f"{anchor_name} reports cash at {_fmt(end)} only in {', '.join(other_units)}, not USD")
+        if at_end:
+            return unavailable(f"{anchor_name} reports no cash at {_fmt(end)}; other filings that do are not "
+                               f"substituted ({', '.join(sorted({r['accn'] for r in at_end}))})")
+        return unavailable(f"{anchor_name} reports no cash at {_fmt(end)}")
+    if len({r["val"] for r in own}) > 1:
+        return unavailable(f"{anchor_name} reports more than one cash value at {_fmt(end)}")
+
+    chosen, rule, notes = own[0], RULE_ANCHOR, []
+    # An amendment amends the anchor's report only if the filing says it covers the same fiscal period. Each
+    # companyfacts row carries its filing's fiscal year and period (fy, fp, from the filing's cover data), so the
+    # anchor's and the amendment's must match. The latest date in an amendment's facts is not used for this: an
+    # amendment to a later report can carry only an earlier comparative.
+    report = lambda acc: {(r.get("fy"), r.get("fp")) for r in usd if r["accn"] == acc}
+    anchor_report = report(anchor_acc)
+    later_amendments = sorted({r["accn"]: r for r in at_end if r["form"].endswith("/A")
+                               and (r["filed"], r["accn"]) > (chosen["filed"], chosen["accn"])}.values(),
+                              key=lambda r: (r["filed"], r["accn"]))
+    same_period = [r for r in later_amendments
+                   if len(anchor_report) == 1 and None not in next(iter(anchor_report))
+                   and report(r["accn"]) == anchor_report]
+    for r in later_amendments:
+        if r not in same_period:
+            notes.append(f"Not used: {r['form']} filed {r['filed']} (accession {r['accn']}) reports "
+                         f"{r['val']:,} USD for {_fmt(end)}, but it could not be established that it amends the "
+                         f"{anchor['form']} for this period")
+    if same_period:
+        amended = same_period[-1]
+        if len({r["val"] for r in at_end if r["accn"] == amended["accn"]}) > 1:
+            return unavailable(f"the amendment {amended['form']} filed {amended['filed']} (accession "
+                               f"{amended['accn']}) reports more than one cash value at {_fmt(end)}")
+        if amended["val"] != chosen["val"]:
+            notes.append(f"Amended: {amended['form']} filed {amended['filed']} (accession {amended['accn']}) "
+                         f"reports {amended['val']:,} USD, replacing {chosen['val']:,} USD in {chosen['form']} "
+                         f"(accession {chosen['accn']})")
+            chosen, rule = amended, RULE_AMENDED
+        else:
+            notes.append(f"{amended['form']} filed {amended['filed']} (accession {amended['accn']}) "
+                         f"reports the same value")
+    # Only the latest same-period amendment is used; an earlier one that differs is flagged like any other filing.
+    # Amendments whose period could not be established were flagged above.
+    used = ({r["accn"] for r in own} | {r["accn"] for r in later_amendments if r not in same_period}
+            | ({same_period[-1]["accn"]} if same_period else set()))
+    for r in sorted((r for r in at_end if r["accn"] not in used), key=lambda r: (r["filed"], r["accn"])):
+        if r["val"] != chosen["val"]:
+            notes.append(f"Not used: {r['form']} filed {r['filed']} (accession {r['accn']}) reports "
+                         f"{r['val']:,} USD for {_fmt(end)}; possible revision, check that filing")
+
+    return {**result, "value": chosen["val"], "form": chosen["form"], "filed": chosen["filed"],
+            "accession": chosen["accn"], "selection_rule": rule, "notes": notes, "note": None}
