@@ -19,6 +19,7 @@ import streamlit as st
 
 import analysis
 import budget
+import filing_review
 import market_data
 import sec_data
 import ui
@@ -545,7 +546,7 @@ def render_profile(p: dict) -> None:
 
     review = p.get("filing_review")
     with st.expander("Filings since the balance sheet to review"):
-        st.markdown(ui.filing_review_list(review), unsafe_allow_html=True)
+        st.markdown(filing_review.render(review), unsafe_allow_html=True)
 
     counts = {"Catalysts": len(secs["catalysts"]["items"]), "Risk factor changes": len(secs["risks"]["items"]),
               "Other risks": len(secs["other_risks"]["items"])}

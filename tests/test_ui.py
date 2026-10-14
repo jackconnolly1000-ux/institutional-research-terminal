@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ui  # noqa: E402
+import filing_review  # noqa: E402
 from analysis import check_response  # noqa: E402
 from test_analysis import answer, finding, sources  # noqa: E402
 
@@ -98,13 +99,13 @@ class Components(unittest.TestCase):
                      "filings": [{"form": "8-K", "filed": "2026-09-24", "items": "2.03,9.01",
                                   "accession": "0000000001-26-000001", "url": "https://www.sec.gov/test-index.htm",
                                   "review": "Not checked"}]}
-        rendered = ui.filing_review_list(inventory)
+        rendered = filing_review.render(inventory)
         self.assertIn("Filing index incomplete", rendered)
         self.assertIn("Document contents and exhibits: Not checked", rendered)
         self.assertIn("8-K filed 2026-09-24", rendered)
         self.assertIn("Item 2.03 New financial obligation", rendered)
         self.assertIn("Not checked: Older filing page", rendered)
-        self.assertIn("Not checked: this saved result", ui.filing_review_list(None))
+        self.assertIn("Not checked: this saved result", filing_review.render(None))
 
     def test_rows_say_what_a_click_does(self):
         html = ui.findings_list(self.r["sections"]["risks"]["items"][:1], "risk")
