@@ -405,6 +405,111 @@ class CurrentRatioRules(unittest.TestCase):
         self.assertIn("current liabilities are -5 USD", r["detail"])
 
 
+class GrossDebtLilly(unittest.TestCase):
+    """Lilly's balance-sheet presentation (docs/pilot_evidence_lly.md): short-term borrowings and current maturities
+    (DebtCurrent) plus long-term debt (LongTermDebtNoncurrent)."""
+
+    def test_jun_30_2026(self):
+        r = xbrl.baseline_gross_debt(load("LLY"), "LLY")
+        self.assertEqual((r["value"], r["period_end"], r["note"], r["tag"], r["unit"]),
+                         (54_908 * M, "2026-06-30", None, None, "USD"))
+        self.assertEqual(r["formula"], "DebtCurrent + LongTermDebtNoncurrent")
+        self.assertEqual([(x["tag"], x["value"], x["accession"], x["form"], x["filed"], x["period_end"])
+                          for x in r["inputs"]],
+                         [("us-gaap:DebtCurrent", 7_050 * M, "0000059478-26-000081", "10-Q", "2026-08-05", "2026-06-30"),
+                          ("us-gaap:LongTermDebtNoncurrent", 47_858 * M, "0000059478-26-000081", "10-Q", "2026-08-05",
+                           "2026-06-30")])
+        self.assertIn("fair-value table", r["not_added"])
+        self.assertEqual(r["notes"], [])   # the 10-Q reports no combined total to check against
+
+    def test_dec_31_2025_matches_the_10k_total(self):
+        # 1,635 + 40,868 = 42,503, which the 10-K also reports as DebtLongtermAndShorttermCombinedAmount
+        r = xbrl.baseline_gross_debt(load("LLY"), "LLY", filed_by="2026-03-01")
+        self.assertEqual((r["value"], r["period_end"]), (42_503 * M, "2025-12-31"))
+        self.assertEqual({x["accession"] for x in r["inputs"]}, {"0000059478-26-000013"})
+        self.assertIn("Matches the filing's own total", r["notes"][0])
+
+
+DC, LTD = xbrl.DEBT_CURRENT, xbrl.LONG_TERM_DEBT_NONCURRENT
+CURRENT_DEBT = (DC, "2026-06-30", 70, "10-Q", "2026-08-01", "q2")
+LONG_DEBT = (LTD, "2026-06-30", 480, "10-Q", "2026-08-01", "q2")
+
+
+class GrossDebtRules(unittest.TestCase):
+    def debt(self, rows, ticker="LLY", **kw):
+        return xbrl.baseline_gross_debt(balance_sheet(rows), ticker, **kw)
+
+    def test_sum_from_the_anchor_filing(self):
+        r = self.debt([CURRENT_DEBT, LONG_DEBT])
+        self.assertEqual((r["value"], r["note"]), (550, None))
+
+    def test_company_without_a_verified_presentation_is_unavailable(self):
+        r = self.debt([CURRENT_DEBT, LONG_DEBT], ticker="XYZ")
+        self.assertEqual((r["value"], r["note"], r["inputs"]), (None, xbrl.UNAVAILABLE, []))
+        self.assertIn("no verified borrowing presentation for XYZ", r["detail"])
+
+    def test_missing_component_is_unavailable_not_zero(self):
+        r = self.debt([CURRENT_DEBT])
+        self.assertIsNone(r["value"])
+        self.assertIn("long-term debt: no LongTermDebtNoncurrent tag", r["detail"])
+
+    def test_component_at_another_date_is_not_added(self):
+        r = self.debt([CURRENT_DEBT, (LTD, "2026-03-31", 480, "10-Q", "2026-08-01", "q2")])
+        self.assertIsNone(r["value"])
+        self.assertIn("reports long-term debt only at Mar 31, 2026", r["detail"])
+
+    def test_zero_component_is_a_reported_zero(self):
+        r = self.debt([(DC, "2026-06-30", 0, "10-Q", "2026-08-01", "q2"), LONG_DEBT])
+        self.assertEqual(r["value"], 480)
+
+    def test_negative_component_is_refused(self):
+        r = self.debt([(DC, "2026-06-30", -5, "10-Q", "2026-08-01", "q2"), LONG_DEBT])
+        self.assertIsNone(r["value"])
+        self.assertIn("cannot be negative", r["detail"])
+
+    def test_overlapping_presentation_is_not_added(self):
+        # The fair-value table's tags for the same debt are present but are not components
+        rows = [CURRENT_DEBT, LONG_DEBT, ("CommercialPaper", "2026-06-30", 50, "10-Q", "2026-08-01", "q2"),
+                ("LongTermDebt", "2026-06-30", 500, "10-Q", "2026-08-01", "q2")]
+        self.assertEqual(self.debt(rows)["value"], 550)
+
+    def test_filer_total_that_matches_is_noted(self):
+        r = self.debt([CURRENT_DEBT, LONG_DEBT, (xbrl.DEBT_TOTAL, "2026-06-30", 550, "10-Q", "2026-08-01", "q2")])
+        self.assertEqual(r["value"], 550)
+        self.assertIn("Matches the filing's own total", r["notes"][0])
+
+    def test_filer_total_that_differs_stops_the_calculation(self):
+        r = self.debt([CURRENT_DEBT, LONG_DEBT, (xbrl.DEBT_TOTAL, "2026-06-30", 600, "10-Q", "2026-08-01", "q2")])
+        self.assertIsNone(r["value"])
+        self.assertIn("components sum to 550 USD but the same filing", r["detail"])
+        self.assertIn("overlap or a missing component", r["detail"])
+
+    def test_filer_total_in_another_filing_is_not_used_for_the_check(self):
+        rows = [CURRENT_DEBT, LONG_DEBT, (xbrl.DEBT_TOTAL, "2026-06-30", 600, "10-Q", "2026-11-01", "q3", 2026, "Q3")]
+        r = self.debt(rows)
+        self.assertEqual((r["value"], r["notes"]), (550, []))
+
+    def test_amendment_changing_one_component_takes_the_other_from_it(self):
+        rows = [CURRENT_DEBT, LONG_DEBT, (DC, "2026-06-30", 90, "10-Q/A", "2026-09-01", "qa"),
+                (LTD, "2026-06-30", 480, "10-Q/A", "2026-09-01", "qa")]
+        r = self.debt(rows)
+        self.assertEqual((r["value"], [x["accession"] for x in r["inputs"]]), (570, ["qa", "qa"]))
+        self.assertIn("so both gross-debt inputs come from one filing", r["inputs"][1]["notes"][-1])
+
+    def test_partial_amendment_is_not_mixed_with_the_original(self):
+        r = self.debt([CURRENT_DEBT, LONG_DEBT, (DC, "2026-06-30", 90, "10-Q/A", "2026-09-01", "qa")])
+        self.assertIsNone(r["value"])
+        self.assertIn("which does not report long-term debt", r["detail"])
+
+    def test_repeated_component_with_another_fiscal_period_is_not_used(self):
+        rows = [CURRENT_DEBT, LONG_DEBT, (DC, "2026-06-30", 90, "10-Q/A", "2026-09-01", "qa"),
+                (LTD, "2026-06-30", 480, "10-Q/A", "2026-09-01", "qa", 2026, "Q3")]
+        r = self.debt(rows)
+        self.assertIsNone(r["value"])
+        self.assertIn("could not be established that its long-term debt figure covers the anchor's fiscal period",
+                      r["detail"])
+
+
 class Plumbing(unittest.TestCase):
     def test_url_pads_the_cik(self):
         self.assertEqual(xbrl.companyfacts_url("320193"),
