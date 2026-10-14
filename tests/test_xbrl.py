@@ -489,16 +489,16 @@ class GrossDebtVistra(unittest.TestCase):
     """Vistra's presentation (docs/pilot_evidence_vistra.md, borrowing source audit): long-term debt due currently
     + long-term debt less amounts due currently + short-term borrowings + accounts receivable financing. The last is
     tagged only with the extension vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed, which companyfacts
-    does not carry, so no total until a filing-level reader exists."""
+    does not carry. Its document must be supplied by the checked accession before a total can be calculated."""
 
     def setUp(self):
         self.r = xbrl.baseline_gross_debt(load("VST"), "VST")
 
-    def test_unavailable_until_the_extension_tag_can_be_read(self):
+    def test_unavailable_without_the_checked_filing_document(self):
         self.assertEqual((self.r["value"], self.r["note"], self.r["caveats"], self.r["notes"]),
                          (None, xbrl.UNAVAILABLE, [], []))
         self.assertIn("vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed", self.r["detail"])
-        self.assertIn("needs a filing-level reader", self.r["detail"])
+        self.assertIn("filing-level reader needs the main document", self.r["detail"])
         self.assertIn("never counted as zero", self.r["detail"])
 
     def test_readable_components_are_kept_for_review(self):
@@ -510,6 +510,46 @@ class GrossDebtVistra(unittest.TestCase):
         # 1,876 + 17,719 = 19,595, Note 12's long-term debt including amounts due currently (no lease line)
         self.assertEqual(sum(x["value"] for x in self.r["inputs"][:2]), 19_595 * M)
         self.assertIn("lease liabilities", self.r["not_added"])
+
+    def test_checked_filing_document_completes_the_four_component_total(self):
+        accession = "0001692819-26-000019"
+        document = FIXTURES / "VST_2026Q2_ixbrl.htm"
+        r = xbrl.baseline_gross_debt(load("VST"), "VST", filing_documents={accession: document})
+        self.assertEqual((r["value"], r["note"], r["period_end"]), (19_895 * M, None, "2026-06-30"))
+        self.assertEqual([x["value"] for x in r["inputs"]], [1_876 * M, 17_719 * M, 0, 300 * M])
+        self.assertEqual({x["accession"] for x in r["inputs"]}, {accession})
+        self.assertEqual({x["period_end"] for x in r["inputs"]}, {"2026-06-30"})
+        extension = r["inputs"][3]
+        self.assertEqual((extension["context_id"], extension["document"], extension["facts_found"]),
+                         ("c-8", document.name, 2))
+        self.assertEqual((extension["unit"], extension["scale"], extension["decimals"]), ("USD", 6, "-6"))
+        self.assertEqual(extension["tag"], "vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed")
+        self.assertIn(extension["tag"], r["formula"])
+
+    def test_document_for_another_accession_is_not_used(self):
+        r = xbrl.baseline_gross_debt(load("VST"), "VST", filing_documents={
+            "0001692819-25-000085": FIXTURES / "VST_2026Q2_ixbrl.htm"})
+        self.assertIsNone(r["value"])
+        self.assertIn("checked accession 0001692819-26-000019", r["detail"])
+        self.assertEqual(len(r["inputs"]), 3)
+
+    def test_reader_rejection_does_not_add_partial_debt(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as directory:
+            document = Path(directory) / "wrong.htm"
+            document.write_text('<root xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"/>', encoding="utf-8")
+            r = xbrl.baseline_gross_debt(load("VST"), "VST", filing_documents={
+                "0001692819-26-000019": document})
+        self.assertIsNone(r["value"])
+        self.assertIn("no vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed fact", r["detail"])
+        self.assertEqual([x["value"] for x in r["inputs"]], [1_876 * M, 17_719 * M, 0])
+
+    def test_unchecked_presentation_stays_unavailable_with_document(self):
+        presentations = {"VST": {**xbrl.BORROWING_PRESENTATIONS["VST"], "checked": {}}}
+        r = xbrl.baseline_gross_debt(load("VST"), "VST", presentations=presentations,
+                                     filing_documents={"0001692819-26-000019": FIXTURES / "VST_2026Q2_ixbrl.htm"})
+        self.assertIsNone(r["value"])
+        self.assertIn("presentation not checked for this filing", r["detail"])
 
     def test_other_pilots_are_unchanged(self):
         self.assertEqual(xbrl.baseline_gross_debt(load("LLY"), "LLY")["value"], 54_908 * M)

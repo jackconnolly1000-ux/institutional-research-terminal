@@ -22,6 +22,10 @@ current-ratio inputs must come from one filing (see current_ratio).
 from __future__ import annotations
 
 from datetime import date, timedelta
+from pathlib import Path
+from xml.etree.ElementTree import ParseError
+
+import filing_xbrl
 
 URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 SOURCE = "SEC XBRL company facts (data.sec.gov)"
@@ -57,8 +61,8 @@ INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES, DEBT_CURRENT, LONG_TE
 # checked: {accession: caveats} for the filings reviewed in the evidence file. Findings about a filing (a balance
 # that was Unavailable, a disclosure that overlaps) are stated only with that filing's result. A filing not listed
 # gets no total at all (baseline_gross_debt returns Unavailable), so it can neither inherit findings nor rely on a
-# mapping nobody checked for it. filing_reader_components: verified components that companyfacts does not carry
-# (company extension tags); until a filing-level reader exists, the result is Unavailable and says so.
+# mapping nobody checked for it. filing_reader_components: verified extension tags read from the checked filing's
+# own document when supplied by accession; without that document, the total is Unavailable.
 BORROWING_PRESENTATIONS = {
     "LLY": {
         "name": "balance sheet: short-term borrowings and current maturities of long-term debt, plus long-term debt",
@@ -111,6 +115,8 @@ BORROWING_PRESENTATIONS = {
                         "Long-term debt, less amounts due currently"),
                        (SHORT_TERM_BORROWINGS, "short-term borrowings", "Short-term borrowings")],
         "filing_reader_components": ["vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed"],
+        "filing_reader_labels": {"vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed":
+                                 "Accounts receivable financing"},
         "total_check": None,
         "not_added": "lease liabilities, the forward repurchase obligation, margin deposits financing with affiliate, "
                      "and project-level debt again (it is already inside long-term debt)",
@@ -477,11 +483,13 @@ def _one_filing(gaap: dict, inputs: list[dict], purpose: str, filed_by: str | No
 
 
 def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None,
-                        presentations: dict | None = None) -> dict:
+                        presentations: dict | None = None,
+                        filing_documents: dict[str, str | Path] | None = None) -> dict:
     """Baseline gross debt (plan definition: reported carrying amounts of interest-bearing borrowing, excluding
     leases) at the balance-sheet date of the latest original 10-K or 10-Q, from the company's verified
-    presentation in BORROWING_PRESENTATIONS (presentations replaces that map, for tests). filed_by works as in
-    ttm_metrics. The total is derived: it has no XBRL tag; each component carries its own.
+    presentation in BORROWING_PRESENTATIONS (presentations replaces that map, for tests). filing_documents maps
+    accession to its saved main filing document; the caller must obtain and pair that document with the accession.
+    filed_by works as in ttm_metrics. The total is derived: it has no XBRL tag; each component carries its own.
 
     Each component is selected by _instant_fact (anchor filing's own USD instant at that exact date) and all must
     come from one filing version (_one_filing). That filing must be one whose presentation was checked (listed in
@@ -510,12 +518,7 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None,
     def unavailable(why):
         return {**result, "inputs": inputs, "detail": why}
 
-    # A verified component that companyfacts cannot supply blocks the total; the readable components stay for review
     unread = presentation.get("filing_reader_components", [])
-    if unread:
-        return unavailable(f"{', '.join(unread)} is part of the verified presentation but is a company extension tag "
-                           f"that SEC companyfacts does not carry; it needs a filing-level reader, so no total is "
-                           f"calculated (a missing component is never counted as zero)")
     missing = [f"{x['label'].lower()}: {x['detail']}" for x in inputs if x["value"] is None]
     if missing:
         return unavailable("; ".join(missing))
@@ -528,6 +531,30 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None,
         return unavailable(f"presentation not checked for this filing: {inputs[0]['form']} accession {acc} is not "
                            f"among the filings reviewed in {presentation['evidence']}, so its components are shown "
                            f"for review but not added")
+    if unread:
+        document = (filing_documents or {}).get(acc)
+        if document is None:
+            return unavailable(f"{', '.join(unread)} is part of the verified presentation but is a company extension "
+                               f"tag that SEC companyfacts does not carry; the filing-level reader needs the main "
+                               f"document for checked accession {acc}, so no total is calculated (a missing "
+                               f"component is never counted as zero)")
+        for tag in unread:
+            try:
+                fact = filing_xbrl.read_instant(document, acc, tag, end)
+            except (OSError, ValueError, ParseError) as exc:
+                return unavailable(f"could not read {tag} from the document for accession {acc}: {exc}")
+            if fact["value"] is None:
+                return unavailable(f"{tag} could not be verified in the document for accession {acc}: "
+                                   f"{fact['detail']}; a missing component is never counted as zero")
+            label = presentation.get("filing_reader_labels", {}).get(tag, tag)
+            inputs.append({"source": "Filing inline XBRL", "label": label, "value": fact["value"],
+                           "unit": "USD", "period_end": end, "tag": tag, "form": inputs[0]["form"],
+                           "filed": inputs[0]["filed"], "accession": acc, "selection_rule":
+                           "USD instant at the balance-sheet date in the checked filing document, no dimensions",
+                           "context_id": fact["context_id"], "document": fact["document"],
+                           "scale": fact["scale"], "decimals": fact["decimals"],
+                           "facts_found": fact["facts_found"], "notes": [], "note": None, "detail": ""})
+        result["formula"] += " + " + " + ".join(unread)
     negative = [x for x in inputs if x["value"] < 0]
     if negative:
         return unavailable("; ".join(f"{x['label'].lower()} is {x['value']:,} USD; a borrowing balance cannot be "
