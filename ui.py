@@ -251,13 +251,14 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 .irt-evidence ul {{ list-style: none; padding: 0; margin: 8px 0; }}
 .irt-evidence li {{ padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; color: var(--text); }}
 .irt-evidence .sid {{ display: inline-block; min-width: 64px; color: var(--text-muted); font-variant-numeric: tabular-nums; }}
-.irt-card a, .irt-evidence a {{ color: var(--link); }}
+.irt-card a, .irt-evidence a, .irt-review a {{ color: var(--link); }}
 .irt-evidence .ev-status {{ color: var(--text-muted); }}
 .irt-evidence .ev-status.problem, .irt-progress .problem {{ color: var(--text-strong); font-weight: 600; }}
 
 /* Numbered lists: unchanged and removed risk-factor paragraphs */
 ol.irt-ol {{ margin: 0; padding-left: 1.3rem; }}
 ol.irt-ol li {{ color: var(--text); font-size: 0.92rem; line-height: 1.5; margin: 0 0 8px 0; padding-left: 4px; }}
+.irt-review li {{ overflow-wrap: anywhere; }}
 
 /* Ticker chips in the picker: show the full company name instead of cutting it off */
 .stMultiSelect [data-baseweb="tag"] {{ max-width: none; }}
@@ -432,7 +433,7 @@ def filing_review_list(inventory: dict | None) -> str:
                     f'{esc(item)} · Not checked</li>')
     empty = "<p class=\"irt-note\">No candidate forms indexed for these dates; contents not reviewed.</p>"
     return (f'<p class="irt-note">{intro}</p>{notes}'
-            + (f'<ul class="irt-ol">{"".join(rows)}</ul>' if rows else empty))
+            + (f'<ol class="irt-ol irt-review">{"".join(rows)}</ol>' if rows else empty))
 
 
 NO_INPUT = {
