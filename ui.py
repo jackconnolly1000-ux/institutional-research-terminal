@@ -251,13 +251,14 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 .irt-evidence ul {{ list-style: none; padding: 0; margin: 8px 0; }}
 .irt-evidence li {{ padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; color: var(--text); }}
 .irt-evidence .sid {{ display: inline-block; min-width: 64px; color: var(--text-muted); font-variant-numeric: tabular-nums; }}
-.irt-card a, .irt-evidence a {{ color: var(--link); }}
+.irt-card a, .irt-evidence a, .irt-review a {{ color: var(--link); }}
 .irt-evidence .ev-status {{ color: var(--text-muted); }}
 .irt-evidence .ev-status.problem, .irt-progress .problem {{ color: var(--text-strong); font-weight: 600; }}
 
 /* Numbered lists: unchanged and removed risk-factor paragraphs */
 ol.irt-ol {{ margin: 0; padding-left: 1.3rem; }}
 ol.irt-ol li {{ color: var(--text); font-size: 0.92rem; line-height: 1.5; margin: 0 0 8px 0; padding-left: 4px; }}
+.irt-review li {{ overflow-wrap: anywhere; }}
 
 /* Ticker chips in the picker: show the full company name instead of cutting it off */
 .stMultiSelect [data-baseweb="tag"] {{ max-width: none; }}
@@ -410,6 +411,29 @@ def evidence_list(coverage: list, comparison: dict, budget: dict | None) -> str:
               f'{budget["output_reserve"]:,} output tokens, within a {budget["limit"]:,}-token budget.</p>' if budget else "")
     return (f'<details class="irt-evidence panel"><summary>Evidence: {esc(" · ".join(summary))}</summary>'
             f'<ul>{"".join(rows)}</ul>{tokens}</details>')
+
+
+def filing_review_list(inventory: dict | None) -> str:
+    """Show the filing index separately from any review of document contents or exhibits."""
+    if not inventory:
+        return '<p class="irt-note">Not checked: this saved result has no subsequent-filing index.</p>'
+    since, through = inventory["since"], inventory["through"]
+    dates = f"from {esc(since)} through {esc(through)}" if since else "(balance-sheet date unavailable)"
+    intro = (f"EDGAR submissions index {dates}. Forms listed: 8-K, 8-K/A, 424B series, FWP, S-3 series, "
+             "10-K/A and 10-Q/A. Form and date alone do not establish a financing event. "
+             "Document contents and exhibits: Not checked.")
+    notes = "".join(f'<p class="irt-note">Not checked: {esc(n)}</p>' for n in inventory["notes"])
+    if inventory["status"] == "incomplete":
+        notes = '<p class="irt-note">Filing index incomplete.</p>' + notes
+    rows = []
+    for f in inventory["filings"]:
+        item = f" · {eight_k_items(f['items'])}" if f["form"].startswith("8-K") and f["items"] else ""
+        rows.append(f'<li><a href="{esc(f["url"])}" target="_blank" rel="noopener noreferrer">'
+                    f'{esc(f["form"])} filed {esc(f["filed"])} · {esc(f["accession"])}</a>'
+                    f'{esc(item)} · Not checked</li>')
+    empty = "<p class=\"irt-note\">No candidate forms indexed for these dates; contents not reviewed.</p>"
+    return (f'<p class="irt-note">{intro}</p>{notes}'
+            + (f'<ol class="irt-ol irt-review">{"".join(rows)}</ol>' if rows else empty))
 
 
 NO_INPUT = {

@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup, NavigableString
 ARCHIVES = "https://www.sec.gov/Archives/edgar/data"
 EIGHT_K_WINDOW_DAYS = 180   # 8-Ks older than this aren't "recent events"
 EIGHT_K_MAX = 4             # most recent 8-Ks read per ticker
+REVIEW_PAGE_LIMIT = 8        # a larger history is marked incomplete, not silently truncated
 
 
 # --- Filings -----------------------------------------------------------------------------------
@@ -129,6 +130,50 @@ def select_with_older_pages(submissions: dict, cik: str, today: date, fetch_json
             selection.notes = [n for n in selection.notes if "Only one 10-K" not in n]
             break
     return selection
+
+
+def _review_candidate(form: str) -> bool:
+    """Forms worth checking for subsequent financing; form alone does not establish its contents."""
+    return (form in {"8-K", "8-K/A", "FWP", "10-K/A", "10-Q/A"}
+            or form.startswith("424B") or form.startswith("S-3"))
+
+
+def filing_review_inventory(submissions: dict, cik: str, balance_date: str, through: str,
+                            fetch_json, max_pages: int = REVIEW_PAGE_LIMIT) -> dict:
+    """Index candidate filings from the balance-sheet date through `through`, without reading contents.
+
+    Fetch relevant older submission pages when the recent list ends after the balance-sheet date.
+    Retrieval gaps are reported; an indexed filing always has content review status Not checked.
+    """
+    if not balance_date:
+        return {"status": "incomplete", "since": "", "through": through, "filings": [],
+                "notes": ["Balance-sheet date unavailable; filing history not indexed."]}
+    filings = filings_from_submissions(submissions, cik)
+    recent_dates = [f.filed for f in filings]
+    notes = []
+    covered = bool(recent_dates) and min(recent_dates) <= balance_date
+    if not covered:
+        pages = [p for p in older_pages(submissions)
+                 if p.get("filingFrom", "") <= through and p.get("filingTo", "") >= balance_date]
+        pages.sort(key=lambda p: p["filingTo"], reverse=True)
+        if len(pages) > max_pages:
+            notes.append(f"Only {max_pages} of {len(pages)} older filing pages were read.")
+        for page in pages[:max_pages]:
+            try:
+                filings.extend(filings_from_columns(
+                    fetch_json(f"https://data.sec.gov/submissions/{page['name']}"), cik))
+                if page["filingFrom"] <= balance_date:
+                    covered = True
+            except Exception as exc:
+                notes.append(f"Older filing page {page['name']} could not be read ({exc}).")
+        if not covered:
+            notes.append(f"The available filing history does not cover {balance_date}.")
+    unique = {f.accession: f for f in filings if balance_date <= f.filed <= through and _review_candidate(f.form)}
+    rows = [{"form": f.form, "filed": f.filed, "period": f.period, "items": f.items,
+             "accession": f.accession, "url": f.index_url, "review": "Not checked"}
+            for f in sorted(unique.values(), key=lambda f: (f.filed, f.accession), reverse=True)]
+    return {"status": "indexed" if covered and not notes else "incomplete",
+            "since": balance_date, "through": through, "filings": rows, "notes": notes}
 
 
 # --- Text --------------------------------------------------------------------------------------
