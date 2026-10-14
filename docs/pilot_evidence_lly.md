@@ -107,4 +107,4 @@ Related, not commitments: in July 2026, after the balance sheet, Lilly paid abou
 1. Decide which of the obligations above count as "major" for the app's note.
 2. Build and test an extractor for LLY's segment-dimensioned interest facts before any TTM coverage is shown.
 3. Contingencies, income tax, collaboration and investment notes not reviewed for commitment amounts.
-4. Debt source for the app: presentation A is in companyfacts; B needs the filing's inline XBRL.
+4. Debt source for the app: decided Oct 14, 2026 as presentation A (balance sheet, `DebtCurrent` + `LongTermDebtNoncurrent`), implemented in `xbrl.baseline_gross_debt`. Presentation B is not added.

@@ -38,7 +38,29 @@ TAGS = [*REVENUE_TAGS, GROSS_PROFIT, OPERATING_INCOME, OPERATING_CASH_FLOW, CAPE
 CASH = "CashAndCashEquivalentsAtCarryingValue"
 CURRENT_ASSETS = "AssetsCurrent"
 CURRENT_LIABILITIES = "LiabilitiesCurrent"
-INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES]
+DEBT_CURRENT = "DebtCurrent"
+LONG_TERM_DEBT_NONCURRENT = "LongTermDebtNoncurrent"
+DEBT_TOTAL = "DebtLongtermAndShorttermCombinedAmount"
+INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES, DEBT_CURRENT, LONG_TERM_DEBT_NONCURRENT, DEBT_TOTAL]
+
+# Borrowing presentations verified per company from its filings (docs/pilot_evidence_*.md). Debt tags are not
+# universal (plan, source rules), so a company without an entry gets Unavailable, never a guessed set of tags.
+# components: (tag, noun, label) added together; total_check: a filer total that must equal their sum when the
+# same filing reports it at the same date.
+BORROWING_PRESENTATIONS = {
+    "LLY": {
+        "name": "balance sheet: short-term borrowings and current maturities of long-term debt, plus long-term debt",
+        "components": [(DEBT_CURRENT, "short-term borrowings and current maturities",
+                        "Short-term borrowings and current maturities of long-term debt"),
+                       (LONG_TERM_DEBT_NONCURRENT, "long-term debt", "Long-term debt")],
+        "total_check": DEBT_TOTAL,
+        # The Note 8 fair-value table (CommercialPaper + LongTermDebt carrying amounts) presents the same debt;
+        # adding it would double count
+        "not_added": "Note 8 fair-value table (commercial paper and long-term debt carrying amounts), which presents "
+                     "the same debt",
+        "evidence": "docs/pilot_evidence_lly.md",
+    },
+}
 UNAVAILABLE = "Unavailable"
 
 PERIODIC_FORMS = {"10-K", "10-Q", "10-K/A", "10-Q/A"}
@@ -349,35 +371,112 @@ def current_ratio(facts: dict, filed_by: str | None = None) -> dict:
     if missing:
         return unavailable("; ".join(missing))
 
-    if assets["accession"] != liabilities["accession"]:
-        # One input was replaced by an amendment. Take the other from that same amendment, or calculate nothing
-        newer, older = sorted((assets, liabilities), key=lambda x: (x["filed"], x["accession"]), reverse=True)
-        older_tag = older["tag"].split(":")[-1]
-        usd = [r for r in gaap.get(older_tag, {}).get("units", {}).get("USD", [])
-               if r.get("form") in PERIODIC_FORMS and not r.get("start") and (not filed_by or r["filed"] <= filed_by)]
-        rows = [r for r in usd if r["accn"] == newer["accession"] and r["end"] == newer["period_end"]]
-        # Same rule as _instant_fact: the repeated input's rows in the amendment must carry the anchor filing's
-        # single, complete fiscal year and period
-        report = lambda acc: {(r.get("fy"), r.get("fp")) for r in usd if r["accn"] == acc}
-        anchor_report = report(_anchor_filing(_filings(gaap, filed_by))[0])
-        if rows and not (len(anchor_report) == 1 and None not in next(iter(anchor_report))
-                         and report(newer["accession"]) == anchor_report):
-            return unavailable(f"{newer['label'].lower()} comes from {newer['form']} (accession {newer['accession']}), "
-                               f"but it could not be established that its {older['label'].lower()} figure covers the "
-                               f"anchor's fiscal period; inputs from different filings are not combined")
-        if len({r["val"] for r in rows}) != 1:
-            why = "does not report" if not rows else "reports more than one value for"
-            return unavailable(f"{newer['label'].lower()} comes from {newer['form']} (accession {newer['accession']}), "
-                               f"which {why} {older['label'].lower()} at {_fmt(newer['period_end'])}; inputs from "
-                               f"different filings are not combined")
-        swapped = {**older, "value": rows[0]["val"], "form": newer["form"], "filed": newer["filed"],
-                   "accession": newer["accession"], "selection_rule": RULE_AMENDED,
-                   "notes": older["notes"] + [f"Taken from {newer['form']} (accession {newer['accession']}) so both "
-                                              f"current-ratio inputs come from one filing"]}
-        assets, liabilities = (swapped, liabilities) if older is assets else (assets, swapped)
-
+    paired, why = _one_filing(gaap, [assets, liabilities], "current-ratio", filed_by)
+    if paired is None:
+        return unavailable(why)
+    assets, liabilities = paired
     if liabilities["value"] <= 0:
         return unavailable(f"current liabilities are {liabilities['value']:,} USD; a ratio with a zero or negative "
                            f"denominator is not meaningful")
     return {**result, "inputs": {"current_assets": assets, "current_liabilities": liabilities},
             "value": assets["value"] / liabilities["value"], "note": None}
+
+
+def _one_filing(gaap: dict, inputs: list[dict], purpose: str, filed_by: str | None) -> tuple[list[dict] | None, str]:
+    """Make inputs selected by _instant_fact come from one filing version, or say why they can't.
+
+    They already share the anchor's date. When an amendment replaced some of them, the others are taken from that
+    same (newest) amendment, but only if it reports them once at that date and their rows carry the anchor filing's
+    single, complete fiscal year and period (the _instant_fact rule). Otherwise nothing is combined.
+    Returns (inputs, "") or (None, reason)."""
+    newer = max(inputs, key=lambda x: (x["filed"], x["accession"]))
+    anchor_acc = _anchor_filing(_filings(gaap, filed_by))[0]
+    out = []
+    for older in inputs:
+        if older["accession"] == newer["accession"]:
+            out.append(older)
+            continue
+        older_tag = older["tag"].split(":")[-1]
+        usd = [r for r in gaap.get(older_tag, {}).get("units", {}).get("USD", [])
+               if r.get("form") in PERIODIC_FORMS and not r.get("start") and (not filed_by or r["filed"] <= filed_by)]
+        rows = [r for r in usd if r["accn"] == newer["accession"] and r["end"] == newer["period_end"]]
+        report = lambda acc: {(r.get("fy"), r.get("fp")) for r in usd if r["accn"] == acc}
+        anchor_report = report(anchor_acc)
+        source = f"{newer['label'].lower()} comes from {newer['form']} (accession {newer['accession']})"
+        if rows and not (len(anchor_report) == 1 and None not in next(iter(anchor_report))
+                         and report(newer["accession"]) == anchor_report):
+            return None, (f"{source}, but it could not be established that its {older['label'].lower()} figure "
+                          f"covers the anchor's fiscal period; inputs from different filings are not combined")
+        if len({r["val"] for r in rows}) != 1:
+            how = "does not report" if not rows else "reports more than one value for"
+            return None, (f"{source}, which {how} {older['label'].lower()} at {_fmt(newer['period_end'])}; "
+                          f"inputs from different filings are not combined")
+        every = "both" if len(inputs) == 2 else "all"
+        out.append({**older, "value": rows[0]["val"], "form": newer["form"], "filed": newer["filed"],
+                    "accession": newer["accession"], "selection_rule": RULE_AMENDED,
+                    "notes": older["notes"] + [f"Taken from {newer['form']} (accession {newer['accession']}) so "
+                                               f"{every} {purpose} inputs come from one filing"]})
+    return out, ""
+
+
+def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None) -> dict:
+    """Baseline gross debt (plan definition: reported carrying amounts of interest-bearing borrowing, excluding
+    leases) at the balance-sheet date of the latest original 10-K or 10-Q, from the company's verified
+    presentation in BORROWING_PRESENTATIONS. filed_by works as in ttm_metrics. The total is derived: it has no
+    XBRL tag; each component carries its own.
+
+    Each component is selected by _instant_fact (anchor filing's own USD instant at that exact date) and all must
+    come from one filing version (_one_filing). Before adding, overlap is checked: when that filing also reports the
+    filer's own total at the same date, the components must sum to it exactly; a difference means overlap or a
+    missing component, so nothing is calculated. A negative component is refused.
+
+    Returns label, unit, value (None when unavailable), period_end, formula, tag (None), presentation, inputs
+    (list, each as _instant_fact returns it), not_added, evidence, notes, note and detail."""
+    gaap = facts.get("facts", {}).get("us-gaap", {})
+    presentation = BORROWING_PRESENTATIONS.get(ticker)
+    end = _anchor_filing(_filings(gaap, filed_by))[1]["period"]
+    result = {"source": SOURCE, "label": "Baseline gross debt", "unit": "USD", "value": None, "period_end": end,
+              "formula": None, "tag": None, "presentation": None, "inputs": [], "not_added": None,
+              "evidence": None, "notes": [], "note": UNAVAILABLE, "detail": ""}
+    if presentation is None:
+        return {**result, "detail": f"no verified borrowing presentation for {ticker}; debt components are chosen "
+                                    f"per company from its filings, not guessed"}
+    components = presentation["components"]
+    inputs = [_instant_fact(gaap, tag, noun, label, filed_by) for tag, noun, label in components]
+    result.update(formula=" + ".join(tag for tag, _, _ in components), presentation=presentation["name"],
+                  inputs=inputs, not_added=presentation["not_added"], evidence=presentation["evidence"])
+
+    def unavailable(why):
+        return {**result, "inputs": inputs, "detail": why}
+
+    missing = [f"{x['label'].lower()}: {x['detail']}" for x in inputs if x["value"] is None]
+    if missing:
+        return unavailable("; ".join(missing))
+    paired, why = _one_filing(gaap, inputs, "gross-debt", filed_by)
+    if paired is None:
+        return unavailable(why)
+    inputs = paired
+    negative = [x for x in inputs if x["value"] < 0]
+    if negative:
+        return unavailable("; ".join(f"{x['label'].lower()} is {x['value']:,} USD; a borrowing balance cannot be "
+                                     f"negative, so the components are not added" for x in negative))
+    total = sum(x["value"] for x in inputs)
+
+    notes = []
+    check = presentation.get("total_check")
+    if check:
+        acc = inputs[0]["accession"]
+        rows = [r for r in gaap.get(check, {}).get("units", {}).get("USD", [])
+                if r["accn"] == acc and r["end"] == end and not r.get("start")
+                and (not filed_by or r["filed"] <= filed_by)]
+        reported = {r["val"] for r in rows}
+        if len(reported) > 1:
+            return unavailable(f"the filing (accession {acc}) reports more than one {check} total at {_fmt(end)}")
+        if reported:
+            filer_total = reported.pop()
+            if filer_total != total:
+                return unavailable(f"the components sum to {total:,} USD but the same filing (accession {acc}) "
+                                   f"reports a total ({check}) of {filer_total:,} USD at {_fmt(end)}; that points "
+                                   f"to overlap or a missing component, so nothing is calculated")
+            notes.append(f"Matches the filing's own total ({check}) of {filer_total:,} USD")
+    return {**result, "inputs": inputs, "value": total, "notes": notes, "note": None}
