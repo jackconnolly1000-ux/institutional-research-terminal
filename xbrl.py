@@ -49,7 +49,10 @@ INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES, DEBT_CURRENT, LONG_TE
 # Borrowing presentations verified per company from its filings (docs/pilot_evidence_*.md). Debt tags are not
 # universal (plan, source rules), so a company without an entry gets Unavailable, never a guessed set of tags.
 # components: (tag, noun, label) added together; total_check: a filer total that must equal their sum when the
-# same filing reports it at the same date; not_added and caveats are stated with the result.
+# same filing reports it at the same date; not_added: what is never added, as a rule with no dates in it.
+# checked: {accession: caveats} for the filings reviewed in the evidence file. Findings about a filing (a balance
+# that was Unavailable, a disclosure that overlaps) are stated only with that filing's result; a filing not listed
+# gets a "not checked" caveat instead of inheriting them.
 BORROWING_PRESENTATIONS = {
     "LLY": {
         "name": "balance sheet: short-term borrowings and current maturities of long-term debt, plus long-term debt",
@@ -57,12 +60,14 @@ BORROWING_PRESENTATIONS = {
                         "Short-term borrowings and current maturities of long-term debt"),
                        (LONG_TERM_DEBT_NONCURRENT, "long-term debt", "Long-term debt")],
         "total_check": DEBT_TOTAL,
-        # The Note 8 fair-value table (CommercialPaper + LongTermDebt carrying amounts) presents the same debt;
-        # adding it would double count
-        "not_added": "Note 8 fair-value table (commercial paper and long-term debt carrying amounts), which presents "
-                     "the same debt",
+        "not_added": "fair-value-table carrying amounts of the same borrowings (commercial paper, long-term debt)",
         "evidence": "docs/pilot_evidence_lly.md",
-        "caveats": [],
+        "checked": {
+            "0000059478-26-000081": [   # 10-Q, Jun 30, 2026
+                "In this 10-Q, the Note 8 fair-value table's carrying amounts (commercial paper 5,284M plus long-term "
+                "debt including current portion 49,624M) present the same 54,908M; they are not added."],
+            "0000059478-26-000013": [],   # 10-K, Dec 31, 2025: components match the 10-K's own total
+        },
     },
     "ORCL": {
         "name": "balance sheet: notes payable and other borrowings, current plus non-current",
@@ -72,16 +77,23 @@ BORROWING_PRESENTATIONS = {
                         "Notes payable and other borrowings, non-current")],
         # The 10-K's Note 6 total; a 10-Q does not report it
         "total_check": DEBT_TOTAL,
-        "not_added": "the rounded fair-value disclosure of senior notes and other long-term borrowings (a narrower "
-                     "subset of the same debt), operating and finance lease liabilities, and cash-flow amounts for "
-                     "short-term financing related to capital expenditures",
+        "not_added": "rounded fair-value disclosures of borrowings, operating and finance lease liabilities, and "
+                     "cash-flow amounts for short-term financing related to capital expenditures",
         "evidence": "docs/pilot_evidence_oracle.md",
-        # Stated with every Oracle result so the total is not read as more than it is
-        "caveats": ["The split of this total by instrument (senior notes, term loans, commercial paper) is itemized "
-                    "only in the 10-K's Note 6; a 10-Q's commercial paper balance is Unavailable and is not inferred "
-                    "from this total.",
-                    "Short-term financing related to capital expenditures has no disclosed balance (Unavailable); "
-                    "its cash-flow amounts are not added to debt."],
+        "checked": {
+            "0001193125-26-389274": [   # 10-Q, Aug 31, 2026
+                "This 10-Q does not split the total by instrument: commercial paper at Aug 31, 2026 is Unavailable "
+                "and is not inferred from the total.",
+                "This 10-Q's rounded $125.0 billion of senior notes and other long-term borrowings is a narrower "
+                "subset of the same debt; it is not added.",
+                "Short-term financing related to capital expenditures: no balance is disclosed in this 10-Q "
+                "(Unavailable); its cash-flow amounts are not added."],
+            "0001193125-26-277521": [   # 10-K, May 31, 2026
+                "In this 10-K, Note 6 itemizes the total, including commercial paper notes of 1,468M and term loans "
+                "of 5,137M (principal 130,105M less 564M of unamortized discount and issuance costs).",
+                "Short-term financing related to capital expenditures: no balance is disclosed in the sections of "
+                "this 10-K checked (Unavailable); its cash-flow amounts are not added."],
+        },
     },
 }
 UNAVAILABLE = "Unavailable"
@@ -454,7 +466,8 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None) -
     missing component, so nothing is calculated. A negative component is refused.
 
     Returns label, unit, value (None when unavailable), period_end, formula, tag (None), presentation, inputs
-    (list, each as _instant_fact returns it), not_added, evidence, caveats, notes, note and detail."""
+    (list, each as _instant_fact returns it), not_added, evidence, caveats (for the filing the inputs came from,
+    or a "not checked" caveat), notes, note and detail."""
     gaap = facts.get("facts", {}).get("us-gaap", {})
     presentation = BORROWING_PRESENTATIONS.get(ticker)
     end = _anchor_filing(_filings(gaap, filed_by))[1]["period"]
@@ -467,8 +480,7 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None) -
     components = presentation["components"]
     inputs = [_instant_fact(gaap, tag, noun, label, filed_by) for tag, noun, label in components]
     result.update(formula=" + ".join(tag for tag, _, _ in components), presentation=presentation["name"],
-                  inputs=inputs, not_added=presentation["not_added"], evidence=presentation["evidence"],
-                  caveats=presentation["caveats"])
+                  inputs=inputs, not_added=presentation["not_added"], evidence=presentation["evidence"])
 
     def unavailable(why):
         return {**result, "inputs": inputs, "detail": why}
@@ -503,4 +515,11 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None) -
                                    f"reports a total ({check}) of {filer_total:,} USD at {_fmt(end)}; that points "
                                    f"to overlap or a missing component, so nothing is calculated")
             notes.append(f"Matches the filing's own total ({check}) of {filer_total:,} USD")
-    return {**result, "inputs": inputs, "value": total, "notes": notes, "note": None}
+    acc = inputs[0]["accession"]
+    if acc in presentation["checked"]:
+        caveats = presentation["checked"][acc]
+    else:
+        caveats = [f"Not checked: this filing ({inputs[0]['form']}, accession {acc}) is not among those reviewed in "
+                   f"{presentation['evidence']}; findings about other filings (such as balances that were "
+                   f"Unavailable) do not carry over to it."]
+    return {**result, "inputs": inputs, "value": total, "caveats": caveats, "notes": notes, "note": None}

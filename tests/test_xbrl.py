@@ -419,8 +419,11 @@ class GrossDebtLilly(unittest.TestCase):
                          [("us-gaap:DebtCurrent", 7_050 * M, "0000059478-26-000081", "10-Q", "2026-08-05", "2026-06-30"),
                           ("us-gaap:LongTermDebtNoncurrent", 47_858 * M, "0000059478-26-000081", "10-Q", "2026-08-05",
                            "2026-06-30")])
-        self.assertIn("fair-value table", r["not_added"])
+        self.assertIn("fair-value-table carrying amounts", r["not_added"])
         self.assertEqual(r["notes"], [])   # the 10-Q reports no combined total to check against
+        # The overlap finding is stated for this 10-Q, with its amounts
+        self.assertEqual(len(r["caveats"]), 1)
+        self.assertIn("In this 10-Q, the Note 8 fair-value table", r["caveats"][0])
 
     def test_dec_31_2025_matches_the_10k_total(self):
         # 1,635 + 40,868 = 42,503, which the 10-K also reports as DebtLongtermAndShorttermCombinedAmount
@@ -428,6 +431,7 @@ class GrossDebtLilly(unittest.TestCase):
         self.assertEqual((r["value"], r["period_end"]), (42_503 * M, "2025-12-31"))
         self.assertEqual({x["accession"] for x in r["inputs"]}, {"0000059478-26-000013"})
         self.assertIn("Matches the filing's own total", r["notes"][0])
+        self.assertEqual(r["caveats"], [])   # checked; the 10-Q's Note 8 finding does not carry over
 
 
 class GrossDebtOracle(unittest.TestCase):
@@ -442,12 +446,16 @@ class GrossDebtOracle(unittest.TestCase):
                          [("us-gaap:NotesPayableCurrent", 7_625 * M, "0001193125-26-389274", "10-Q", "2026-09-11"),
                           ("us-gaap:LongTermNotesAndLoans", 117_712 * M, "0001193125-26-389274", "10-Q", "2026-09-11")])
         self.assertEqual(r["notes"], [])   # the 10-Q reports no combined total
-        for words in ("rounded fair-value disclosure", "lease liabilities", "short-term financing related to capital"):
+        for words in ("rounded fair-value disclosures", "lease liabilities", "short-term financing related to capital"):
             self.assertIn(words, r["not_added"])
-        # The commercial paper and capex-financing balances stay Unavailable; nothing is inferred from the total
-        self.assertEqual(len(r["caveats"]), 2)
-        self.assertIn("commercial paper balance is Unavailable and is not inferred", r["caveats"][0])
-        self.assertIn("no disclosed balance (Unavailable)", r["caveats"][1])
+        # The rule has no dates or amounts in it; the findings are scoped to this 10-Q in the caveats
+        self.assertNotIn("125.0", r["not_added"])
+        self.assertNotIn("Unavailable", r["not_added"])
+        self.assertEqual(len(r["caveats"]), 3)
+        self.assertIn("This 10-Q does not split the total by instrument: commercial paper at Aug 31, 2026 is "
+                      "Unavailable", r["caveats"][0])
+        self.assertIn("This 10-Q's rounded $125.0 billion", r["caveats"][1])
+        self.assertIn("no balance is disclosed in this 10-Q (Unavailable)", r["caveats"][2])
 
     def test_may_31_2026_matches_the_10k_note_6_total(self):
         # 7,199 + 122,342 = 129,541, which the 10-K's Note 6 reports as DebtLongtermAndShorttermCombinedAmount
@@ -455,6 +463,22 @@ class GrossDebtOracle(unittest.TestCase):
         self.assertEqual((r["value"], r["period_end"]), (129_541 * M, "2026-05-31"))
         self.assertEqual({x["accession"] for x in r["inputs"]}, {"0001193125-26-277521"})
         self.assertIn("Matches the filing's own total", r["notes"][0])
+        # The 10-K itemizes commercial paper; the 10-Q's "Unavailable" finding must not appear here
+        self.assertEqual(len(r["caveats"]), 2)
+        self.assertIn("In this 10-K, Note 6 itemizes the total, including commercial paper notes of 1,468M",
+                      r["caveats"][0])
+        self.assertFalse(any("commercial paper at" in c for c in r["caveats"]))
+        self.assertIn("in the sections of this 10-K checked (Unavailable)", r["caveats"][1])
+
+    def test_unchecked_filing_gets_no_inherited_findings(self):
+        # The Feb 28, 2026 10-Q (filed Mar 11, 2026) is not among the filings reviewed
+        r = xbrl.baseline_gross_debt(load("ORCL"), "ORCL", filed_by="2026-04-01")
+        self.assertEqual(r["period_end"], "2026-02-28")
+        self.assertIsNotNone(r["value"])
+        self.assertEqual(len(r["caveats"]), 1)
+        self.assertIn("Not checked: this filing (10-Q, accession 0001193125-26-101045)", r["caveats"][0])
+        self.assertIn("do not carry over", r["caveats"][0])
+        self.assertFalse(any("1,468M" in c or "125.0" in c for c in r["caveats"]))
 
     def test_lilly_is_unchanged(self):
         self.assertEqual(xbrl.baseline_gross_debt(load("LLY"), "LLY")["value"], 54_908 * M)
