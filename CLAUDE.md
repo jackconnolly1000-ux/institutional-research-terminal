@@ -32,6 +32,7 @@ Stock Project/
 │   ├── filing_xbrl.py   one fact from a filing's own inline XBRL (extension tags companyfacts lacks), with context, unit and checks (no Streamlit, tested)
 │   ├── filing_review.py  display the subsequent-filing index and its review status
 │   ├── reviewed_financing.py  ten accession-specific Vistra financing filing checks; unknown filings stay Not checked
+│   ├── liquidity_pilot.py  frozen LLY/ORCL/VST debt and liquidity view, same-filing net debt and formula-based Excel export; samples/liquidity_pilots.json is rebuilt by tests/offline/build_liquidity_pilot.py
 │   ├── budget.py    daily spending ledger for Claude calls, prices, how API errors are charged (no Streamlit, tested)
 │   ├── theme.py     color tokens, named by meaning (the one place colors are defined)
 │   ├── ui.py        CSS built from theme.py, finding rows, metrics panel, skeleton loaders, progress strip
