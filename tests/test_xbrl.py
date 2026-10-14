@@ -485,6 +485,37 @@ class GrossDebtOracle(unittest.TestCase):
         self.assertEqual(xbrl.baseline_gross_debt(load("LLY"), "LLY")["value"], 54_908 * M)
 
 
+class GrossDebtVistra(unittest.TestCase):
+    """Vistra's presentation (docs/pilot_evidence_vistra.md, borrowing source audit): long-term debt due currently
+    + long-term debt less amounts due currently + short-term borrowings + accounts receivable financing. The last is
+    tagged only with the extension vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed, which companyfacts
+    does not carry, so no total until a filing-level reader exists."""
+
+    def setUp(self):
+        self.r = xbrl.baseline_gross_debt(load("VST"), "VST")
+
+    def test_unavailable_until_the_extension_tag_can_be_read(self):
+        self.assertEqual((self.r["value"], self.r["note"], self.r["caveats"], self.r["notes"]),
+                         (None, xbrl.UNAVAILABLE, [], []))
+        self.assertIn("vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed", self.r["detail"])
+        self.assertIn("needs a filing-level reader", self.r["detail"])
+        self.assertIn("never counted as zero", self.r["detail"])
+
+    def test_readable_components_are_kept_for_review(self):
+        got = [(x["tag"], x["value"], x["accession"], x["period_end"]) for x in self.r["inputs"]]
+        self.assertEqual(got, [
+            ("us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent", 1_876 * M, "0001692819-26-000019", "2026-06-30"),
+            ("us-gaap:LongTermDebtAndCapitalLeaseObligations", 17_719 * M, "0001692819-26-000019", "2026-06-30"),
+            ("us-gaap:ShortTermBorrowings", 0, "0001692819-26-000019", "2026-06-30")])   # reported as zero ("—")
+        # 1,876 + 17,719 = 19,595, Note 12's long-term debt including amounts due currently (no lease line)
+        self.assertEqual(sum(x["value"] for x in self.r["inputs"][:2]), 19_595 * M)
+        self.assertIn("lease liabilities", self.r["not_added"])
+
+    def test_other_pilots_are_unchanged(self):
+        self.assertEqual(xbrl.baseline_gross_debt(load("LLY"), "LLY")["value"], 54_908 * M)
+        self.assertEqual(xbrl.baseline_gross_debt(load("ORCL"), "ORCL")["value"], 125_337 * M)
+
+
 NPC, LTNL = xbrl.NOTES_PAYABLE_CURRENT, xbrl.LONG_TERM_NOTES_AND_LOANS
 
 
@@ -549,6 +580,16 @@ class GrossDebtRules(unittest.TestCase):
         self.assertIsNone(r["value"])
         self.assertIn("10-Q/A accession qa is not among the filings reviewed", r["detail"])
         self.assertEqual({x["accession"] for x in r["inputs"]}, {"qa"})
+
+    def test_component_needing_a_filing_reader_blocks_the_total(self):
+        # Both readable components are present and the filing is checked, but a verified extension-tag component
+        # cannot be read from companyfacts: no total, and it is not treated as zero
+        presentations = checked("LLY", "q2")
+        presentations["LLY"]["filing_reader_components"] = ["x:ExtensionBorrowings"]
+        r = xbrl.baseline_gross_debt(balance_sheet([CURRENT_DEBT, LONG_DEBT]), "LLY", presentations=presentations)
+        self.assertIsNone(r["value"])
+        self.assertIn("x:ExtensionBorrowings is part of the verified presentation", r["detail"])
+        self.assertEqual([x["value"] for x in r["inputs"]], [70, 480])
 
     def test_real_mapping_does_not_check_synthetic_filings(self):
         r = xbrl.baseline_gross_debt(balance_sheet([CURRENT_DEBT, LONG_DEBT]), "LLY")
