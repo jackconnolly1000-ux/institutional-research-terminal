@@ -38,13 +38,36 @@ Cash for the plan's definition is 435; restricted cash is reported on separate l
 | Long-term debt, less amounts due currently | 17,719 | Balance sheet, p. 2 | `LongTermDebtAndCapitalLeaseObligations` | Fact |
 | Long-term debt including amounts due currently (carrying amount) | 19,595 | Note 12: Debt, Credit Facilities, and Financings, debt summary, p. 20 | `LongTermDebt` / `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities` | Fact; equals 1,876 + 17,719 (calculation) |
 | Short-term borrowings | 0 ("—"; 1,800 at Dec 31, 2025) | Balance sheet, p. 2; Note 12, p. 20 | `ShortTermBorrowings` | Fact |
-| Accounts receivable financing | 300 (1,225 at Dec 31, 2025) | Balance sheet, p. 2; Note 12, pp. 20 and 27 | balance-sheet line | Fact. Note 12 (p. 27): "outstanding borrowings under the Receivables Facility totaled $300 million", supported by $1.609 billion of gross receivables; Vistra "records interest expense on amounts advanced". |
+| Accounts receivable financing | 300 (1,225 at Dec 31, 2025) | Balance sheet, p. 2; Note 12, pp. 20 and 27 | `vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed` (extension; not in companyfacts) | Fact. Note 12 (p. 27): "outstanding borrowings under the Receivables Facility totaled $300 million", supported by $1.609 billion of gross receivables; Vistra "records interest expense on amounts advanced". |
 | **Baseline gross borrowing** | **19,895** | | none | Calculation: 19,595 + 0 + 300 |
 
 - **Carrying amount vs principal (Note 12, p. 20):** principal before premiums, discounts and issuance costs is 19,764 (Vistra Operations debt 18,131 + project-level debt 1,633), less 169 = 19,595 carrying. The baseline uses carrying amounts.
 - **Project-level debt, shown as a subset of the 19,595, not added again:** 1,633 principal (Note 12, p. 20; `DebtInstrumentCarryingAmount` with `LongtermDebtTypeAxis = ProjectLevelDebtMember`). It consists of BCOP bridge loans 261 and construction/term loans 503, the Vistra Zero Term Loan B 697, and the Texas Energy Fund loan 172; 261 + 503 + 697 + 172 = 1,633 (calculation; credit facilities table, p. 22). **Recourse is reported by the filing, not assumed here:** for each of the three, the filing says the obligations are secured by that project group's assets "but are otherwise non-recourse to Vistra Operations and its other subsidiaries" (BCOP p. 24; Vistra Zero and TxEF p. 25). The 1,633 is principal: it sits in the block labeled "before unamortized premiums, discounts and issuance costs" (p. 20), so it is not exactly the carrying amount inside the 19,595.
 - **Repurchase facility:** no outstanding borrowings at June 30, 2026 (125 at Dec 31, 2025) (Note 12, p. 28). Nothing to add.
 - **Leases are not in the baseline** (see Leases).
+
+### Borrowing source audit (Oct 14, 2026)
+
+Checked in the 10-Q's inline XBRL (accession 0001692819-26-000019) and in SEC companyfacts.
+
+| Component | Amount | Inline XBRL fact | Context | Unit / scale / decimals | In companyfacts |
+|---|---|---|---|---|---|
+| Long-term debt due currently | 1,876 | `us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent` (balance sheet, p. 2) | c-8: instant 2026-06-30, no dimensions | iso4217:USD / 6 / -6 | Yes, 10-Q, fy 2026, fp Q2 |
+| Long-term debt, less amounts due currently | 17,719 | `us-gaap:LongTermDebtAndCapitalLeaseObligations` (balance sheet, p. 2) | c-8 | same | Yes |
+| Short-term borrowings | 0 (printed "—") | `us-gaap:ShortTermBorrowings`, format `ixt:fixed-zero` (balance sheet, p. 2) | c-8 | same | Yes, value 0: a reported zero, not a missing fact |
+| Accounts receivable financing | 300 | `vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed` (balance sheet, p. 2) | c-8, no dimensions | iso4217:USD / 6 / -6 | **No.** It is a Vistra extension element; companyfacts carries only `dei`, `us-gaap` and `ffd` for Vistra. |
+| (same, Note 12 text, p. 27: "outstanding borrowings under the Receivables Facility totaled $300 million") | 300 | same extension element | c-722: instant 2026-06-30, `us-gaap:DebtInstrumentAxis = vistra:AccountsReceivableSecuritizationProgramMember` | USD / 6 | No |
+
+**Debt reconciliation without leases (Note 12, p. 20; calculations from the printed table):**
+- Vistra Operations debt 18,131 + project-level debt 1,633 = 19,764 principal; less 169 unamortized premiums, discounts and issuance costs = 19,595.
+- 1,876 + 17,719 = 19,595, which is the table's "Long-term debt including amounts due currently" (`us-gaap:LongTermDebt` and `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`, c-8).
+- Note 12's itemized debt lists senior notes, credit facilities, project-level loans, revenue bonds, equipment financing agreements (46) and other (4); there is no lease line. The balance-sheet tag names include "CapitalLeaseObligations", but the itemization shows debt only. The 10-K (p. 122) places lease liabilities in other current liabilities and other noncurrent liabilities and deferred credits.
+
+**Result:** the three `us-gaap` components can be read from companyfacts with the existing rules; the 300 cannot. `xbrl.baseline_gross_debt(facts, "VST")` therefore returns **Unavailable**: it names the extension tag, says it needs a filing-level reader, keeps the three readable components for review (1,876; 17,719; 0) and does not count the missing component as zero. The 19,895 baseline stays a hand calculation in this file until a filing-level reader can supply the 300 with a verified context.
+
+**Remaining uncertainty:**
+- At Dec 31, 2025 the balance-sheet line was 1,225 while the Receivables Facility's outstanding borrowings were "$1.1 billion" (p. 27) and the repurchase facility had 125 outstanding (p. 28). 1,100 + 125 = 1,225 (calculation) suggests the balance-sheet line includes both facilities; the filing does not say so explicitly. At June 30, 2026 the repurchase facility had no borrowings, so the line and the Receivables Facility agree at 300.
+- The extension element's definition and label in Vistra's schema were not read.
 
 ## Shown separately, not in baseline borrowing (classifications)
 
@@ -184,6 +207,7 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 ## Open gaps
 
 1. Lease liabilities at June 30, 2026 are Unavailable; only Dec 31, 2025 amounts are established.
+1a. Baseline gross borrowing in the app is Unavailable until a filing-level reader can read `vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed` (balance sheet, context c-8) with its provenance; see the borrowing source audit.
 2. Interest basis: whether receivables-facility interest and the Nuveen obligation's interest are inside the "Interest expense" component or in "Other", and what "Other" contains, are not stated.
 3. Interest extraction: the component is the Vistra extension tag `vistra:PostEmergenceInterestPaidAndAccrued`. Its contexts are verified by hand above. Still needed before any display: read the element's definition and label in the filer's schema, and build and test an inline XBRL extractor that reproduces the four checked facts with their provenance.
 4. Helix Fund: amount funded to date not separately disclosed (callable status and milestone status are stated on p. 69).

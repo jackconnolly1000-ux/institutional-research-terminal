@@ -43,8 +43,12 @@ LONG_TERM_DEBT_NONCURRENT = "LongTermDebtNoncurrent"
 DEBT_TOTAL = "DebtLongtermAndShorttermCombinedAmount"
 NOTES_PAYABLE_CURRENT = "NotesPayableCurrent"
 LONG_TERM_NOTES_AND_LOANS = "LongTermNotesAndLoans"
+LTD_AND_LEASES_CURRENT = "LongTermDebtAndCapitalLeaseObligationsCurrent"
+LTD_AND_LEASES_NONCURRENT = "LongTermDebtAndCapitalLeaseObligations"
+SHORT_TERM_BORROWINGS = "ShortTermBorrowings"
 INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES, DEBT_CURRENT, LONG_TERM_DEBT_NONCURRENT, DEBT_TOTAL,
-                NOTES_PAYABLE_CURRENT, LONG_TERM_NOTES_AND_LOANS]
+                NOTES_PAYABLE_CURRENT, LONG_TERM_NOTES_AND_LOANS, LTD_AND_LEASES_CURRENT, LTD_AND_LEASES_NONCURRENT,
+                SHORT_TERM_BORROWINGS]
 
 # Borrowing presentations verified per company from its filings (docs/pilot_evidence_*.md). Debt tags are not
 # universal (plan, source rules), so a company without an entry gets Unavailable, never a guessed set of tags.
@@ -53,7 +57,8 @@ INSTANT_TAGS = [CASH, CURRENT_ASSETS, CURRENT_LIABILITIES, DEBT_CURRENT, LONG_TE
 # checked: {accession: caveats} for the filings reviewed in the evidence file. Findings about a filing (a balance
 # that was Unavailable, a disclosure that overlaps) are stated only with that filing's result. A filing not listed
 # gets no total at all (baseline_gross_debt returns Unavailable), so it can neither inherit findings nor rely on a
-# mapping nobody checked for it.
+# mapping nobody checked for it. filing_reader_components: verified components that companyfacts does not carry
+# (company extension tags); until a filing-level reader exists, the result is Unavailable and says so.
 BORROWING_PRESENTATIONS = {
     "LLY": {
         "name": "balance sheet: short-term borrowings and current maturities of long-term debt, plus long-term debt",
@@ -95,6 +100,22 @@ BORROWING_PRESENTATIONS = {
                 "Short-term financing related to capital expenditures: no balance is disclosed in the sections of "
                 "this 10-K checked (Unavailable); its cash-flow amounts are not added."],
         },
+    },
+    "VST": {
+        "name": "balance sheet: long-term debt due currently and less amounts due currently, short-term borrowings, "
+                "and accounts receivable financing",
+        # The two long-term debt tags name capital leases, but Note 12 itemizes them as debt only (no lease line);
+        # leases are reported in other liabilities (docs/pilot_evidence_vistra.md)
+        "components": [(LTD_AND_LEASES_CURRENT, "long-term debt due currently", "Long-term debt due currently"),
+                       (LTD_AND_LEASES_NONCURRENT, "long-term debt, less amounts due currently",
+                        "Long-term debt, less amounts due currently"),
+                       (SHORT_TERM_BORROWINGS, "short-term borrowings", "Short-term borrowings")],
+        "filing_reader_components": ["vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed"],
+        "total_check": None,
+        "not_added": "lease liabilities, the forward repurchase obligation, margin deposits financing with affiliate, "
+                     "and project-level debt again (it is already inside long-term debt)",
+        "evidence": "docs/pilot_evidence_vistra.md",
+        "checked": {"0001692819-26-000019": []},   # 10-Q, Jun 30, 2026
     },
 }
 UNAVAILABLE = "Unavailable"
@@ -489,6 +510,12 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None,
     def unavailable(why):
         return {**result, "inputs": inputs, "detail": why}
 
+    # A verified component that companyfacts cannot supply blocks the total; the readable components stay for review
+    unread = presentation.get("filing_reader_components", [])
+    if unread:
+        return unavailable(f"{', '.join(unread)} is part of the verified presentation but is a company extension tag "
+                           f"that SEC companyfacts does not carry; it needs a filing-level reader, so no total is "
+                           f"calculated (a missing component is never counted as zero)")
     missing = [f"{x['label'].lower()}: {x['detail']}" for x in inputs if x["value"] is None]
     if missing:
         return unavailable("; ".join(missing))
