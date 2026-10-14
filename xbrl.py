@@ -465,9 +465,9 @@ def baseline_gross_debt(facts: dict, ticker: str, filed_by: str | None = None,
     Each component is selected by _instant_fact (anchor filing's own USD instant at that exact date) and all must
     come from one filing version (_one_filing). That filing must be one whose presentation was checked (listed in
     the presentation's checked map): a mapping verified on one filing is not assumed to hold for another, so an
-    unlisted filing returns Unavailable with its components kept for review. Before adding, overlap is checked: when that filing also reports the
-    filer's own total at the same date, the components must sum to it exactly; a difference means overlap or a
-    missing component, so nothing is calculated. A negative component is refused.
+    unlisted filing returns Unavailable with its components kept for review. Before adding, overlap is checked:
+    when that filing also reports the filer's own total at the same date, the components must sum to it exactly;
+    a difference means overlap or a missing component, so nothing is calculated. A negative component is refused.
 
     Returns label, unit, value (None when unavailable), period_end, formula, tag (None), presentation, inputs
     (list, each as _instant_fact returns it), not_added, evidence, caveats (for the checked filing the inputs came
