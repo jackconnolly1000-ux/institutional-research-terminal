@@ -226,7 +226,9 @@ def cash_and_equivalents(facts: dict, filed_by: str | None = None) -> dict:
     Why stricter than the TTM rule: a balance-sheet value belongs to one filing and one date. So
     - only a USD instant dated exactly at the balance-sheet date counts, and it must come from the anchor filing;
       another filing's value is never substituted for a missing one;
-    - an amendment (10-K/A, 10-Q/A) whose own period is that same date replaces the value, and the result says so;
+    - an amendment (10-K/A, 10-Q/A) replaces the value, and the result says so, only when its filing's fiscal year
+      and period (fy, fp) match the anchor filing's; otherwise it is flagged and not used. An amendment with
+      conflicting values at the date makes the result Unavailable;
     - any other filing that reports the same date with a different value (a later comparative) is flagged in
       notes and not used, because a changed comparative may be a restatement that needs reading.
 
@@ -269,15 +271,28 @@ def cash_and_equivalents(facts: dict, filed_by: str | None = None) -> dict:
         return unavailable(f"{anchor_name} reports more than one cash value at {_fmt(end)}")
 
     chosen, rule, notes = own[0], RULE_ANCHOR, []
-    # A filing's own period is its latest end date among its cash facts (comparatives end earlier)
-    period_of = {}
-    for r in usd:
-        period_of[r["accn"]] = max(period_of.get(r["accn"], r["end"]), r["end"])
-    amendments = sorted((r for r in at_end if r["form"].endswith("/A") and period_of[r["accn"]] == end
-                         and (r["filed"], r["accn"]) > (chosen["filed"], chosen["accn"])),
-                        key=lambda r: (r["filed"], r["accn"]))
-    if amendments:
-        amended = amendments[-1]
+    # An amendment amends the anchor's report only if the filing says it covers the same fiscal period. Each
+    # companyfacts row carries its filing's fiscal year and period (fy, fp, from the filing's cover data), so the
+    # anchor's and the amendment's must match. The latest date in an amendment's facts is not used for this: an
+    # amendment to a later report can carry only an earlier comparative.
+    report = lambda acc: {(r.get("fy"), r.get("fp")) for r in usd if r["accn"] == acc}
+    anchor_report = report(anchor_acc)
+    later_amendments = sorted({r["accn"]: r for r in at_end if r["form"].endswith("/A")
+                               and (r["filed"], r["accn"]) > (chosen["filed"], chosen["accn"])}.values(),
+                              key=lambda r: (r["filed"], r["accn"]))
+    same_period = [r for r in later_amendments
+                   if len(anchor_report) == 1 and None not in next(iter(anchor_report))
+                   and report(r["accn"]) == anchor_report]
+    for r in later_amendments:
+        if r not in same_period:
+            notes.append(f"Not used: {r['form']} filed {r['filed']} (accession {r['accn']}) reports "
+                         f"{r['val']:,} USD for {_fmt(end)}, but it could not be established that it amends the "
+                         f"{anchor['form']} for this period")
+    if same_period:
+        amended = same_period[-1]
+        if len({r["val"] for r in at_end if r["accn"] == amended["accn"]}) > 1:
+            return unavailable(f"the amendment {amended['form']} filed {amended['filed']} (accession "
+                               f"{amended['accn']}) reports more than one cash value at {_fmt(end)}")
         if amended["val"] != chosen["val"]:
             notes.append(f"Amended: {amended['form']} filed {amended['filed']} (accession {amended['accn']}) "
                          f"reports {amended['val']:,} USD, replacing {chosen['val']:,} USD in {chosen['form']} "
@@ -286,8 +301,10 @@ def cash_and_equivalents(facts: dict, filed_by: str | None = None) -> dict:
         else:
             notes.append(f"{amended['form']} filed {amended['filed']} (accession {amended['accn']}) "
                          f"reports the same value")
-    # Only the latest amendment is used; an earlier one that differs is flagged like any other filing
-    used = {r["accn"] for r in own} | ({amendments[-1]["accn"]} if amendments else set())
+    # Only the latest same-period amendment is used; an earlier one that differs is flagged like any other filing.
+    # Amendments whose period could not be established were flagged above.
+    used = ({r["accn"] for r in own} | {r["accn"] for r in later_amendments if r not in same_period}
+            | ({same_period[-1]["accn"]} if same_period else set()))
     for r in sorted((r for r in at_end if r["accn"] not in used), key=lambda r: (r["filed"], r["accn"])):
         if r["val"] != chosen["val"]:
             notes.append(f"Not used: {r['form']} filed {r['filed']} (accession {r['accn']}) reports "

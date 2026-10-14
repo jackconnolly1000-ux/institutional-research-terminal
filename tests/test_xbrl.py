@@ -157,9 +157,11 @@ class CashPilots(unittest.TestCase):
 
 
 def facts(cash_rows, cash_units=None):
-    """Synthetic company facts: one 10-Q (accession q2) anchors Jun 30, 2026 through a revenue fact; cash_rows are
-    (end, val, form, filed, accn) USD instants; cash_units adds rows in other units as {unit: [same tuples]}."""
-    row = lambda end, val, form, filed, accn: {"end": end, "val": val, "form": form, "filed": filed, "accn": accn}
+    """Synthetic company facts: one 10-Q (accession q2, fiscal 2026 Q2) anchors Jun 30, 2026 through a revenue fact;
+    cash_rows are (end, val, form, filed, accn[, fy, fp]) USD instants, where fy and fp are the filing's fiscal year
+    and period (default 2026, Q2); cash_units adds rows in other units as {unit: [same tuples]}."""
+    row = lambda end, val, form, filed, accn, fy=2026, fp="Q2": {
+        "end": end, "val": val, "form": form, "filed": filed, "accn": accn, "fy": fy, "fp": fp}
     units = {"USD": [row(*r) for r in cash_rows]}
     for unit, rows in (cash_units or {}).items():
         units[unit] = [row(*r) for r in rows]
@@ -224,11 +226,33 @@ class CashRules(unittest.TestCase):
         self.assertEqual((c["value"], c["accession"], c["notes"]), (100, "q2", []))
 
     def test_amendment_to_a_later_period_is_a_comparative_not_a_replacement(self):
-        # A 10-K/A whose own period is Dec 31, 2026 repeats Jun 30 with a different value: flagged, not used
-        rows = [ANCHOR, ("2026-06-30", 130, "10-K/A", "2027-03-01", "ka"), ("2026-12-31", 140, "10-K/A", "2027-03-01", "ka")]
+        # A 10-K/A for fiscal 2026 (fp FY) repeats Jun 30 with a different value: flagged, not used
+        rows = [ANCHOR, ("2026-06-30", 130, "10-K/A", "2027-03-01", "ka", 2026, "FY"),
+                ("2026-12-31", 140, "10-K/A", "2027-03-01", "ka", 2026, "FY")]
         c = xbrl.cash_and_equivalents(facts(rows))
         self.assertEqual((c["value"], c["accession"]), (100, "q2"))
         self.assertIn("Not used: 10-K/A filed 2027-03-01 (accession ka) reports 130 USD", c["notes"][0])
+
+    def test_later_period_amendment_with_only_an_earlier_comparative_does_not_replace(self):
+        # A 10-Q/A amending the Q3 report carries only a Jun 30 comparative. Its latest cash date is Jun 30, but its
+        # filing says fiscal 2026 Q3, so it does not amend the Q2 anchor: flagged, not used
+        rows = [ANCHOR, ("2026-06-30", 130, "10-Q/A", "2026-12-01", "qa3", 2026, "Q3")]
+        c = xbrl.cash_and_equivalents(facts(rows))
+        self.assertEqual((c["value"], c["accession"], c["selection_rule"]), (100, "q2", xbrl.RULE_ANCHOR))
+        self.assertEqual(len(c["notes"]), 1)
+        self.assertIn("could not be established that it amends the 10-Q for this period", c["notes"][0])
+
+    def test_amendment_without_period_metadata_does_not_replace(self):
+        rows = [ANCHOR, ("2026-06-30", 130, "10-Q/A", "2026-09-01", "qa", None, None)]
+        c = xbrl.cash_and_equivalents(facts(rows))
+        self.assertEqual((c["value"], c["accession"]), (100, "q2"))
+        self.assertIn("could not be established", c["notes"][0])
+
+    def test_amendment_with_conflicting_values_is_unavailable(self):
+        rows = [ANCHOR, ("2026-06-30", 120, "10-Q/A", "2026-09-01", "qa"), ("2026-06-30", 125, "10-Q/A", "2026-09-01", "qa")]
+        c = xbrl.cash_and_equivalents(facts(rows))
+        self.assertEqual((c["value"], c["note"], c["accession"]), (None, xbrl.UNAVAILABLE, None))
+        self.assertIn("amendment 10-Q/A filed 2026-09-01 (accession qa) reports more than one cash value", c["detail"])
 
     def test_differing_later_comparative_is_flagged_not_substituted(self):
         # A later 10-Q (period Sep 30) repeats Jun 30 with a different value
