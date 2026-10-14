@@ -20,7 +20,8 @@ The tool is for my own stock research and to show accounting, analysis, product 
 | TTM free cash flow: `NetCashProvidedByUsedInOperatingActivities` minus `PaymentsToAcquirePropertyPlantAndEquipment`, with period end, form, filed date and accession | `xbrl.py` | Implemented and unit-tested on AAPL, STRL and JPM fixtures. **Not yet validated against the three pilot companies.** |
 | TTM revenue, gross margin, operating margin (`OperatingIncomeLoss` is the operating income input coverage would use) | `xbrl.py` | Implemented and unit-tested on fixtures. Not validated against the pilots. |
 | "Financing and liquidity" category on AI findings (`FINANCING_LIQUIDITY`) | `analysis.py`, `ui.py` | Exists. It is Claude's unverified label, not a calculation. |
-| Balance-sheet values, cash, debt, leases, interest expense, ratios | none | Not built |
+| Cash and cash equivalents at the latest 10-K/10-Q balance-sheet date (`xbrl.cash_and_equivalents`): the anchor filing's own USD instant, with form, filed date, accession, tag, units and selection rule; amendments to that period replace it with a note; differing later comparatives are flagged, not used | `xbrl.py` | Implemented and unit-tested; matches the LLY, ORCL and VST evidence values. Not shown in the app yet. |
+| Debt, leases, interest expense, ratios | none | Not built |
 
 ## First-release scope (planned)
 

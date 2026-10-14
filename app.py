@@ -179,7 +179,7 @@ def load_financials(ticker: str) -> dict:
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def cached_companyfacts(cik: str) -> dict:
-    """SEC XBRL company facts, trimmed to the six tags xbrl.py reads (a full file is 3 to 8 MB). They change only
+    """SEC XBRL company facts, trimmed to the tags xbrl.py reads (a full file is 3 to 8 MB). They change only
     when the company files, so a day is fresh enough. sec_get raises on failure, so a failure is never cached."""
     return {"retrieved_at": datetime.now(ET).isoformat(timespec="seconds"),
             **xbrl.trim(json.loads(sec_get(xbrl.companyfacts_url(cik))))}
