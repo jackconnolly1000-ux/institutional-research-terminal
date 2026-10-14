@@ -353,8 +353,18 @@ def current_ratio(facts: dict, filed_by: str | None = None) -> dict:
         # One input was replaced by an amendment. Take the other from that same amendment, or calculate nothing
         newer, older = sorted((assets, liabilities), key=lambda x: (x["filed"], x["accession"]), reverse=True)
         older_tag = older["tag"].split(":")[-1]
-        rows = [r for r in gaap.get(older_tag, {}).get("units", {}).get("USD", [])
-                if r["accn"] == newer["accession"] and r["end"] == newer["period_end"] and not r.get("start")]
+        usd = [r for r in gaap.get(older_tag, {}).get("units", {}).get("USD", [])
+               if r.get("form") in PERIODIC_FORMS and not r.get("start") and (not filed_by or r["filed"] <= filed_by)]
+        rows = [r for r in usd if r["accn"] == newer["accession"] and r["end"] == newer["period_end"]]
+        # Same rule as _instant_fact: the repeated input's rows in the amendment must carry the anchor filing's
+        # single, complete fiscal year and period
+        report = lambda acc: {(r.get("fy"), r.get("fp")) for r in usd if r["accn"] == acc}
+        anchor_report = report(_anchor_filing(_filings(gaap, filed_by))[0])
+        if rows and not (len(anchor_report) == 1 and None not in next(iter(anchor_report))
+                         and report(newer["accession"]) == anchor_report):
+            return unavailable(f"{newer['label'].lower()} comes from {newer['form']} (accession {newer['accession']}), "
+                               f"but it could not be established that its {older['label'].lower()} figure covers the "
+                               f"anchor's fiscal period; inputs from different filings are not combined")
         if len({r["val"] for r in rows}) != 1:
             why = "does not report" if not rows else "reports more than one value for"
             return unavailable(f"{newer['label'].lower()} comes from {newer['form']} (accession {newer['accession']}), "

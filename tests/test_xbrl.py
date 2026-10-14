@@ -354,6 +354,23 @@ class CurrentRatioRules(unittest.TestCase):
         self.assertEqual((a["accession"], l["accession"], r["value"]), ("qa", "qa", 1.8))
         self.assertIn("so both current-ratio inputs come from one filing", l["notes"][-1])
 
+    def test_repeated_input_with_a_different_fiscal_period_gives_no_ratio(self):
+        # The 10-Q/A's assets carry fiscal 2026 Q2 (so they replace the anchor's), but its liabilities row carries
+        # Q3: it cannot be established that the repeated figure covers the anchor's period
+        rows = [ASSETS, LIABILITIES, (CA, "2026-06-30", 360, "10-Q/A", "2026-09-01", "qa"),
+                (CL, "2026-06-30", 200, "10-Q/A", "2026-09-01", "qa", 2026, "Q3")]
+        r = xbrl.current_ratio(balance_sheet(rows))
+        self.assertEqual((r["value"], r["note"]), (None, xbrl.UNAVAILABLE))
+        self.assertIn("could not be established that its current liabilities figure covers the anchor's fiscal period",
+                      r["detail"])
+
+    def test_repeated_input_without_fiscal_period_gives_no_ratio(self):
+        rows = [ASSETS, LIABILITIES, (CA, "2026-06-30", 360, "10-Q/A", "2026-09-01", "qa"),
+                (CL, "2026-06-30", 200, "10-Q/A", "2026-09-01", "qa", None, None)]
+        r = xbrl.current_ratio(balance_sheet(rows))
+        self.assertIsNone(r["value"])
+        self.assertIn("could not be established", r["detail"])
+
     def test_partial_amendment_is_not_mixed_with_the_original(self):
         # The 10-Q/A restates assets but does not report liabilities: no ratio across two filings
         rows = [ASSETS, LIABILITIES, (CA, "2026-06-30", 360, "10-Q/A", "2026-09-01", "qa")]
