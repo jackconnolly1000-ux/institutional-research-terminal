@@ -32,6 +32,8 @@ The tool is for my own stock research and to show accounting, analysis, product 
 6. Add two charts, each answering a specific financial question
 7. Provide an Excel evidence export
 8. Reconcile displayed values to their sources
+9. Show a "financing filings since the balance sheet" notice (see definitions)
+10. Show a short sourced note for major obligations or commitments outside baseline debt (see definitions)
 
 Supported filers: USD, U.S. GAAP, nonfinancial operating companies. Banks (for example JPM) and specialized issuers need separate methods and get an "unsupported" result, not a calculation.
 
@@ -44,7 +46,9 @@ Supported filers: USD, U.S. GAAP, nonfinancial operating companies. Banks (for e
 - **Current ratio:** current assets / current liabilities, both from the same balance-sheet date.
 - **Free cash flow (initial):** TTM operating cash flow minus stated purchases of property, plant and equipment. This is the existing `xbrl.py` calculation.
 - **OCF/debt and FCF/debt:** compatible TTM flows divided by period-end baseline gross debt.
-- **Operating-income interest coverage:** TTM operating income / gross borrowing interest expense. Always labeled with this full name.
+- **Operating-income interest coverage (decided Oct 14, 2026):** TTM operating income / TTM reported interest expense on borrowings, before any offset for interest income. When the filing says the expense is net of capitalized interest, the ratio says so (for example "Operating income / reported interest expense on borrowings (net of capitalized interest)"). It is never labeled "gross interest incurred". Capitalized interest is never added to this denominator; if interest incurred (expensed plus capitalized) is supported later, it is a separately named measure. If the TTM interest inputs can't be established reliably from the filing's tagged data, the TTM ratio is "Unavailable"; an older fiscal-year expense is never substituted into a current TTM ratio.
+- **Financing filings since the balance sheet (decided Oct 14, 2026):** a sourced notice listing filings made after the balance-sheet date that report financing: 8-K and 8-K/A filings and debt-offering filings (for example 424B2 prospectuses and FWPs) and their exhibits, screened by their contents, not only by 8-K item number. Each entry shows event date, filed date, form and item, accession and link, a factual description, and whether any stated amount is outstanding debt, facility capacity, or another amount. Events are never rolled into the dated balance-sheet debt or cash. When nothing relevant is found, the notice says: "No relevant financing filing identified among [filing types] filed from [date] through [date], checked as of [date]." It never claims that no financing occurred.
+- **Obligations outside baseline debt (decided Oct 14, 2026):** when a pilot filing discloses a major obligation or commitment that is not in baseline gross debt (for example Oracle's future lease commitments for leases not yet commenced), the app shows a short note stating what it is, the amount as disclosed, its reporting date, whether it is recognized on the balance sheet, and its filing, location and accession. It is never added to debt, lease liabilities or any ratio. Which items count as "major" is decided per pilot from the filing and recorded in that pilot's evidence file.
 
 ## Source rules (planned)
 
@@ -52,6 +56,8 @@ Supported filers: USD, U.S. GAAP, nonfinancial operating companies. Banks (for e
 - A derived value (net debt, gross debt summed from components, every ratio) has no XBRL tag of its own. It lists every input fact it was calculated from, each with that fact's full source metadata, plus the formula used.
 - Check debt components for overlap before adding them, and check that inputs share comparable dates before calculating.
 - A missing value is "Unavailable", never zero.
+- An empty financing-filings or obligations notice ("No relevant financing filing identified…" or no obligations listed) is allowed only after the intended filings were retrieved and reviewed successfully. If retrieval or review is incomplete, the notice says "Not checked" with the reason, never "No relevant filing found".
+- Rounding: a tagged value is compared with a printed figure after rounding the tagged value to the printed figure's precision, half away from zero (for example $492.7 million tagged matches $493 million printed in a table "in millions"). Amounts calculated from rounded printed figures are labeled as hand calculations, not exact SEC facts.
 - A nonpositive denominator gives an explanation instead of a ratio.
 - Valid negative cash flows and negative net debt are kept, not hidden.
 - Overlapping year-to-date periods are never summed. TTM follows the existing rule: latest fiscal year + current year to date - prior year to date.
@@ -75,6 +81,8 @@ The steps are done in this order. Each change is small enough to review on its o
 2. **Cash:** cash and cash equivalents excluding restricted cash, point in time, with source metadata and the Unavailable result.
 3. **Current ratio:** current assets and current liabilities from the same date.
 4. **Borrowing:** map debt tags per pilot from the filings, check overlap, compute baseline gross debt; leases separately; then net debt.
+4a. **Financing filings notice:** screen filings after each pilot's balance-sheet date and check the result by hand against EDGAR (LLY evidence: `docs/pilot_evidence_lly.md`).
+4b. **Obligations outside baseline debt:** record each pilot's disclosed major commitments in its evidence file and show the note.
 5. **Validate existing FCF** against LLY, ORCL and VST, before FCF is used in any ratio.
 6. **Flow ratios:** OCF/debt, then FCF/debt once step 5 passes, and operating-income interest coverage after the interest expense tag is decided.
 7. **Display:** metrics, short factual findings, comparable company history.
@@ -82,7 +90,7 @@ The steps are done in this order. Each change is small enough to review on its o
 9. **Excel evidence export** with a row per value and its full source metadata.
 10. **Reconciliation:** every displayed value traced to its source value.
 
-Later phases (not in the first release): debt maturities, financing terms, covenants, subsequent financing events, appropriate industry peers, stress scenarios, category assessments. Deferred: overall grades, default probabilities and stock recommendations.
+Later phases (not in the first release): debt maturities, financing terms, covenants, recalculating debt and cash from subsequent financing events (the first release only lists them), detailed analysis of commitments and other obligations outside debt (the first release only notes them), appropriate industry peers, stress scenarios, category assessments. Deferred: overall grades, default probabilities and stock recommendations.
 
 ## Acceptance criteria (first release)
 
@@ -90,6 +98,10 @@ Later phases (not in the first release): debt maturities, financing terms, coven
 - Ratios and other derived values usually don't appear in a filing. For each pilot they match a result hand-calculated independently from the hand-read inputs, to the stated rounding, or are "Unavailable" with a stated reason.
 - Every displayed and exported reported value shows period end, form, filed date, accession, tag, units and selection rule. Every derived value shows its formula and lists each input fact with that metadata; it carries no tag of its own.
 - Unit tests cover: missing value is Unavailable, not zero; nonpositive denominator explained; negative FCF and negative net debt kept; no overlapping year-to-date sums; overlapping debt components not double-counted; mismatched dates refused; leases excluded from gross debt; unsupported filer (bank) refused.
+- Financing notice: for each pilot, the listed filings match a hand check of EDGAR for the same dates; no listed amount changes balance-sheet debt or cash; facility capacity is never shown as borrowing; an empty result uses the "No relevant financing filing identified…" wording with filing types, date range and check date.
+- Notices: a failed or incomplete retrieval or review shows "Not checked" with the reason, never an empty result (unit-tested).
+- Obligations note: each note matches the filing's disclosed amount, date and location and states whether the item is on the balance sheet; no such amount changes debt, lease liabilities or any ratio.
+- Interest coverage: the label states the basis, including "net of capitalized interest" when the filing says so; capitalized interest is never added to the denominator; unit tests cover Unavailable when a TTM interest input is missing, and refuse a fiscal-year expense in a TTM ratio.
 - The existing 96 unit tests still pass, and the offline and saved-sample browser checks still pass.
 - Vistra's limits are written in the app's README "Known limits".
 - No grades, default probabilities or recommendations appear anywhere.
@@ -99,7 +111,7 @@ Later phases (not in the first release): debt maturities, financing terms, coven
 
 1. **Cash tag:** confirm from the pilot filings which tag reports cash and cash equivalents excluding restricted cash, and what to do when a company reports only a total that includes restricted cash (initial answer: Unavailable).
 2. **Debt tags:** which tags make up baseline gross debt for each pilot, and how overlap is detected (for example a total tag alongside its current and noncurrent parts).
-3. **Interest expense tag:** which tag reports gross borrowing interest expense for each pilot, and the result when only a net figure is reported.
+3. **Interest expense tag:** which tag reports interest expense on borrowings for each pilot. The basis is decided (see the coverage definition). Dimensioned facts, such as LLY's segment-tagged 10-Q interest expense, are usable only for a specific company after an extractor checks the inline XBRL context (tag, segment member, no other dimensions, periods, units, accession) and agreement with the printed table. LLY's single reportable segment supports an LLY-specific decision, not a universal rule. Until such an extractor passes those checks, the app's TTM coverage stays Unavailable.
 4. **Unsupported filers:** how the app detects banks, non-USD and non-U.S. GAAP filers.
 5. **Order of work:** where this project sits relative to the course features in `CLAUDE.md`.
 6. **Public README:** when to mention this work in `README.md`. Not until something is built.
