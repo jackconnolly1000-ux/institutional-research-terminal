@@ -137,12 +137,12 @@ None of these is added to borrowing, lease liabilities, each other or any ratio.
 
 **Near-term obligation (own category):** the 613 Nuveen forward repurchase obligation, with its 631 final payment due Dec 31, 2026 (see above).
 
-**Future commitment: Helix Fund (10-Q Note 7: Equity Method Investment, p. 15; referenced in Note 16, p. 39)**
+**Future commitment: Helix Fund (10-Q Note 7: Equity Method Investment, p. 15; MD&A Liquidity, p. 69, paragraph beginning "Additionally, as of June 30, 2026"; referenced in Note 16, p. 39)**
 
 | Part | Amount | What the filing says | Funding at June 30, 2026 |
 |---|---|---|---|
-| Initial commitment | up to $500 million | "an initial $500 million commitment" under the limited partnership agreement entered into in June 2026 | **Not stated.** The sections checked give no funded or called amount, no unfunded balance, and no tagged fact for the investment. Whether the $500 million remained fully callable at June 30 is therefore not verified. |
-| Additional commitment | up to $500 million | "subject to the Helix Fund meeting certain commercial power supply milestones for our existing generation assets or, at the Company's election, regardless of whether such milestones are achieved" | Not stated. The filing does not say whether the milestones had been met at June 30. |
+| Initial commitment | up to $500 million | "an initial $500 million commitment" under the limited partnership agreement entered into in June 2026 | MD&A p. 69: the $500 million initial commitment "remains callable by the fund's general partner" as of June 30, 2026; the timing and amount of capital calls are set by the general partner. **Amount funded to date: not separately disclosed** in the sections checked (no funded or called amount, no tagged fact), so it stays unverified. |
+| Additional commitment | up to $500 million | "subject to the Helix Fund meeting certain commercial power supply milestones for our existing generation assets or, at the Company's election, regardless of whether such milestones are achieved" | MD&A p. 69: contingent on the milestones, "which has not occurred as of June 30, 2026". Note 7 adds that Vistra may also elect to make it regardless of the milestones. |
 
 **Credit support and security (separate disclosures, not borrowing, not added together; 10-Q Note 16: Commitments and Contingencies, p. 39)**
 
@@ -162,6 +162,7 @@ None of these is added to borrowing, lease liabilities, each other or any ratio.
 
 **Sections checked:**
 - **10-Q (read in full):** balance sheet (pp. 2-3), statement of operations (p. 1), cash flow statement (pp. 4-5); Note 7 Helix Fund (p. 15); property, plant and equipment (p. 16); Note 11 (p. 19); Note 12 Debt, Credit Facilities, and Financings (pp. 20-28); Note 16 Commitments and Contingencies, p. 39 (letters of credit, surety bonds, collateral bond, litigation introduction).
+- **10-Q MD&A:** Liquidity, p. 69 (Helix Fund paragraph).
 - **10-Q (opening only):** Note 15 Asset Retirement Obligations (p. 38).
 - **10-K:** statement of operations (p. 79); lease policy (p. 90); interest expense and related charges (p. 121); leases (pp. 122-123); commitments table (p. 140).
 - **10-Q Q2 2025:** interest expense and related charges table (p. 30) and statement of operations facts.
@@ -185,7 +186,7 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 1. Lease liabilities at June 30, 2026 are Unavailable; only Dec 31, 2025 amounts are established.
 2. Interest basis: whether receivables-facility interest and the Nuveen obligation's interest are inside the "Interest expense" component or in "Other", and what "Other" contains, are not stated.
 3. Interest extraction: the component is the Vistra extension tag `vistra:PostEmergenceInterestPaidAndAccrued`. Its contexts are verified by hand above. Still needed before any display: read the element's definition and label in the filer's schema, and build and test an inline XBRL extractor that reproduces the four checked facts with their provenance.
-4. Helix Fund: amount funded or called at June 30 not stated; milestone status not stated.
+4. Helix Fund: amount funded to date not separately disclosed (callable status and milestone status are stated on p. 69).
 5. Purchase commitments only at Dec 31, 2025; no June 30 update found.
 6. Overlap among letters of credit, surety bonds and the reclamation bond, and between the reclamation bond and the recognized asset retirement obligations, is not stated; the P-Caps amount pledged for letters of credit is not stated.
 7. Whether the Series A and B preferred stock redemptions occurred (intended at the October and December 2026 reset dates).
