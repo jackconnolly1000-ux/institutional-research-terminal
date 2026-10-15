@@ -37,6 +37,8 @@ text = html.unescape("\n".join(m.value for m in app.markdown))
 assert all(value in text for value in ("54.91B", "125.34B", "19.90B", "Financing changes after June 30",
                                       "288B", "28.72B", "What remained after capital spending?",
                                       "Historical schedule at May 31, 2026", "$10.145B", "$19.909B"))
+assert all(value in text for value in ("What funded Oracle’s cash balance?", "−$16.759B", "$2.565B",
+                                      "Historical funding exclusions", "6.02(c)"))
 next(b for b in app.button if b.label == "View saved sample").click().run(timeout=30)
 assert not app.exception and not app.error
 assert any("Saved sample. Analysis run" in m.value for m in app.markdown)

@@ -14,6 +14,8 @@ venv/
 *.csv
 # The saved sample's frozen price history is part of the app
 !samples/*.csv
+# Checked Oracle evidence is served without a workbook-build dependency in production.
+!samples/oracle_liquidity.xlsx
 
 # Mac
 .DS_Store

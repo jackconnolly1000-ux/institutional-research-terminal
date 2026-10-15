@@ -179,3 +179,13 @@ The frozen app review now shows checked TTM operating cash flow, reported capita
 ## Implemented historical debt maturity review
 
 The saved Oracle company review now shows the May 31, 2026 principal schedule and its reconciliation, exact quarter financing cash flows, and the two checked later 8-Ks above. Full source audit, period distinctions, terms, open gaps and rebuild instructions: [oracle_maturity_reconciliation.md](oracle_maturity_reconciliation.md). The August 31 schedule and revolver availability are Unavailable; the May schedule is not rolled forward.
+## Cash funding analysis implemented
+
+The separate Oracle cash analysis now reconciles the June–August 2026 cash-flow statement, isolates
+the specified $11.363B prepayment contribution within OCF, and distinguishes the $19.909B net ATM
+proceeds from operating cash generation. It shows the August lease and purchase-obligation payment
+tables and the reviewed March 6 credit agreement's conditions. Historical funding exclusions are
+labelled as arithmetic, not forecasts or recurring OCF. August drawable credit, covenant headroom,
+remaining debt payment dates and annual timing of uncommenced leases stay Unavailable. Exact checks,
+source locations and the formula-based Excel download are documented in
+[`oracle_liquidity_reconciliation.md`](oracle_liquidity_reconciliation.md).
