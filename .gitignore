@@ -18,6 +18,7 @@ venv/
 !samples/oracle_liquidity.xlsx
 !samples/vistra_liquidity.xlsx
 !samples/liquidity_pilots.xlsx
+!samples/lly_liquidity.xlsx
 
 # Mac
 .DS_Store

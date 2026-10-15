@@ -121,6 +121,25 @@ class LiquidityPilot(unittest.TestCase):
         changed[0]["metrics"]["cash"]["value"] = None
         self.assertIsNone(company_review.saved_workbook(changed))
 
+    def test_lilly_download_contains_only_lilly_metrics_with_source_formulas(self):
+        import company_review
+        content=company_review.saved_workbook(self.snapshots,ticker="LLY")
+        self.assertIsNotNone(content)
+        values=load_workbook(BytesIO(content),data_only=True)
+        formulas=load_workbook(BytesIO(content),data_only=False)
+        self.assertEqual(values.sheetnames,["Debt and liquidity","Data","About"])
+        for row,metric in enumerate(self.snapshots[0]["metrics"].values(),6):
+            self.assertAlmostEqual(values["Debt and liquidity"].cell(row,2).value,metric["value"])
+            self.assertTrue(formulas["Debt and liquidity"].cell(row,2).value.startswith("="))
+        inputs=values["Data"]
+        for row in range(2,inputs.max_row+1):
+            if inputs.cell(row,1).value is None:
+                break
+            self.assertTrue(str(inputs.cell(row,7).value).startswith("0000059478-"))
+        changed=deepcopy(self.snapshots);changed[0]["metrics"]["cash"]["value"]=None
+        self.assertIsNone(company_review.saved_workbook(changed,ticker="LLY"))
+        self.assertIsNone(company_review.saved_workbook(self.snapshots,ticker="ORCL"))
+
     def test_styled_export_refuses_changed_source_or_file(self):
         import company_review
         source = ROOT / "samples"

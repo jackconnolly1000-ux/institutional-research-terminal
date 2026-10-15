@@ -195,7 +195,8 @@ def workbook_bytes(review: dict) -> bytes | None:
         metadata = json.loads(WORKBOOK.with_suffix(".manifest.json").read_text())
         if (metadata["review_sha256"] != hashlib.sha256(SAMPLE.read_bytes()).hexdigest()
                 or metadata["workbook_sha256"] != hashlib.sha256(content).hexdigest()
-                or review.get("status") != "Checked"):
+                or metadata["financing_sha256"] != hashlib.sha256(of.SAMPLE.read_bytes()).hexdigest()
+                or review != json.loads(SAMPLE.read_text()) or review.get("status") != "Checked"):
             return None
         return content
     except (OSError, ValueError, KeyError):

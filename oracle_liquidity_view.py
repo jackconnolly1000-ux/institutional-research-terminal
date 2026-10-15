@@ -23,6 +23,15 @@ CSS = """
 .ol-table th,.ol-table td {padding:10px 8px;border-bottom:1px solid var(--border);text-align:right;vertical-align:top;}
 .ol-table th:first-child,.ol-table td:first-child {text-align:left;}
 .ol-table th {font-weight:600;}
+.ol-resource {display:grid;grid-template-columns:220px 110px minmax(0,1fr);gap:16px;padding:14px 0;border-bottom:1px solid var(--border);}
+.ol-resource strong {text-align:right;white-space:nowrap;}
+.ol-resource p {margin:0;}
+.ol-repayments {margin:18px 0;}
+.ol-repayments details {padding:12px 0;border-bottom:1px solid var(--border);}
+.ol-repayments summary {font-weight:600;cursor:pointer;}
+.ol-obligation {display:flex;justify-content:space-between;gap:16px;margin:14px 0 4px;}
+.ol-obligation strong {white-space:nowrap;}
+@media(max-width:760px) {.ol-resource {display:flex;flex-wrap:wrap;gap:8px 12px;} .ol-resource > div {flex:1;min-width:0;} .ol-resource p {flex-basis:100%;width:100%;} .ol-repayments {overflow-wrap:anywhere;}}
 @media(max-width:760px) {.ol-step {display:flex;flex-wrap:wrap;justify-content:space-between;gap:7px 12px;font-size:.82rem;margin:18px 0;} .ol-step > span {flex:1;max-width:calc(100% - 100px);} .ol-step strong {order:1;width:90px;} .ol-step .ol-track {order:2;flex-basis:100%;width:100%;} .ol-axis {display:block;} .ol-axis > span {display:none;} .ol-balances {grid-template-columns:1fr;} .ol-balances > div {display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;} .ol-balances > div + div {border-left:0;border-top:1px solid var(--border);} .ol-balances strong {font-size:1.15rem;white-space:nowrap;} .ol-table th,.ol-table td {padding:9px 5px;font-size:.72rem;}}
 """
 
@@ -145,6 +154,41 @@ def render(snapshot, money):
             'and equity funding while capital spending exceeded OCF. A future repayment surplus or shortfall '
             'is Unavailable: remaining debt principal at August 31, current drawable credit and future '
             'operating cash generation have not been established. The two later saved 8-Ks checked below '
-            'do not establish additional corporate borrowing.</p></section>')
+            'do not establish additional corporate borrowing.</p>')
+    out += repayment_html(snapshot, money) + '</section>'
     # Streamlit's Markdown math parser otherwise consumes prose between currency signs.
     return out.replace("$", "&#36;")
+
+
+def repayment_html(snapshot, money):
+    import oracle_repayment
+    review = oracle_repayment.for_snapshot(snapshot)
+    if not review or review["status"] != "Checked":
+        return '<p>Repayment funding review Unavailable: the checked Oracle inputs are required.</p>'
+    out = '<h3>Which resources could fund the dated payments?</h3>'
+    out += '<p>Resources below retain their dates. They are not a combined available-liquidity total.</p>'
+    for resource in review["resources"]:
+        dates = resource["period_end"] if resource["period_start"] == resource["period_end"] else resource["period_start"] + ' to ' + resource["period_end"]
+        out += (f'<div class="ol-resource"><div>{esc(resource["label"])}'
+                f'<div class="lr-meta">{esc(dates)}</div></div><strong>{esc(money(resource["value"],3))}</strong>'
+                f'<p class="lr-meta">{esc(resource["detail"])} '
+                f'<a href="{esc(resource["source_url"])}" target="_blank" rel="noopener noreferrer">Source</a></p></div>')
+    out += '<div class="ol-repayments">'
+    for index, (label, start, end) in enumerate(ol.DUE):
+        rows = review["obligations"][index*3:index*3+3]
+        out += f'<details{" open" if index == 0 else ""}><summary>{esc(label)} · funding coverage Unavailable</summary>'
+        out += f'<p class="lr-meta">{esc(start)} to {esc(end or "final date Unavailable")}. Lease payments include interest.</p>'
+        for row in rows:
+            out += (f'<div class="ol-obligation"><span>{esc(row["label"])}</span>'
+                    f'<strong>{esc(money(row["value"],3))}</strong></div>'
+                    f'<p class="lr-meta">{esc(row["competing_uses"])}</p>')
+        out += (f'<p><strong>Potential funding:</strong> {esc(rows[0]["candidate_resources"])}</p>'
+                f'<p class="lr-meta"><strong>Coverage Unavailable:</strong> {esc(rows[0]["coverage_detail"])}</p></details>')
+    out += '</div><p>' + esc(review["conclusion"]) + '</p>'
+    out += '<details><summary>Undated obligations and missing debt dates</summary>'
+    for gap in review["gaps"]:
+        out += f'<p><strong>{esc(gap["label"])}</strong>'
+        if gap["value"] is not None:
+            out += ' · ' + esc(money(gap["value"],3))
+        out += '<br>' + esc(gap["detail"]) + '</p>'
+    return out + '</details>'

@@ -1,7 +1,11 @@
 // Structural rules outline data blocks without drawing a grid around every cell.
 export const BORDER = '#BBC3CD';
 export function frame(sheet, address) {
-  sheet.getRange(address).format.borders = {preset:'outside',style:'thin',color:BORDER};
+  const edge={style:'thin',color:BORDER};
+  sheet.getRange(address).format.borders = {
+    top:edge,bottom:edge,left:edge,right:edge,
+    insideVertical:{style:'thin',color:'#DDE2E7'},
+  };
 }
 export function header(sheet, address) {
   const f=sheet.getRange(address).format;

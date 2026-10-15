@@ -17,7 +17,7 @@ debt maturity schedule, other pilots and saved research remain available.
   Ex. 10.17 to the February 28 10-Q, accession `0001193125-26-101045`, filed March 11.
   The exhibit was not in the uploaded archive; downloaded from the official link in the saved 10-K.
   Reviewed definitions §1.01, advances §2.01, extensions §2.06, draw conditions §4.02,
-  financial covenant §6.02(c), and related termination/default provisions.
+  use of proceeds §2.21, financial covenant §6.02(c), and related termination/default provisions.
 - Later saved 8-Ks `0001193125-26-387905` (event and filed September 10) and
   `0001193125-26-389753` (event September 12, filed September 14), including their Ex. 99.1.
   The former reports the same quarter equity program and dividends. The latter cancels an insider's
@@ -125,6 +125,27 @@ debt payment dates, current drawable credit and future operating cash generation
 not zero and historical cash is not compared with a mismatched future maturity period.
 
 ## Tag checks and reproducibility
+
+### Obligation funding review
+
+`oracle_repayment.py` uses the checked quarterly and annual reviews to retain 21 lease and purchase
+payment buckets, six resource records and the historical six-bucket May principal schedule. The app
+and Oracle workbook both consume that same evidence model. No payment amount or source fact is
+revised. The agreement's §2.21 permits working capital and other general corporate purposes, subject
+to its restrictions. This permits a potential funding classification, not a drawable-capacity amount.
+
+Remainder FY2027 through FY2030 end before the original March 6, 2031 revolver expiry. FY2031 crosses
+that date. FY2032 and thereafter start after it. No extension is assumed, and even earlier buckets
+have no established drawable amount. The $36,369M August cash pool is not allocated to any payment;
+operating needs, capital spending and other obligations compete for it. Prepayments and ATM proceeds
+are historical flows already in that pool. Restricted cash is excluded. Every future coverage result
+therefore remains Unavailable, with its specific missing evidence retained beside the obligation.
+
+The first Oracle workbook sheet is now Repayment review. Existing cash calculations, payment dates,
+source facts and native chart remain intact. Annual maturity facts are added to Data with their May
+reporting basis, filing date, accession and source. The workbook manifest binds both source JSON files.
+Primary downloads now sit inside each company tab; the combined export remains an optional download.
+Shared workbook styling adds light vertical separators without a horizontal grid around each cell.
 
 The quarter's `orcl-20260831.xsd` embeds its labels and documentation; there is no separate `_lab.xml`
 in this accession. Read the schema and embedded labels for all three extensions used here: prepayments,

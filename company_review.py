@@ -535,25 +535,29 @@ def workbook(snapshots: list[dict]) -> bytes:
 
 
 
-def saved_workbook(snapshots, folder=None):
+def saved_workbook(snapshots, folder=None, ticker=None):
     """Serve the styled export only with the exact source snapshots used to build it."""
     import hashlib
     import json
     from pathlib import Path
     folder = Path(folder) if folder is not None else Path(__file__).parent / "samples"
     try:
-        manifest = json.loads((folder / "liquidity_pilots.manifest.json").read_text())
+        if ticker not in {None, "LLY"}:
+            return None
+        stem = "lly_liquidity" if ticker == "LLY" else "liquidity_pilots"
+        manifest = json.loads((folder / f"{stem}.manifest.json").read_text())
         saved = json.loads((folder / "liquidity_pilots.json").read_text())
         if snapshots != saved["snapshots"]:
             return None
+        expected = {"liquidity_pilots.json"} if ticker else {"liquidity_pilots.json", "oracle_financing.json"}
         for name, digest in manifest["sources"].items():
-            if name not in {"liquidity_pilots.json", "oracle_financing.json"}:
+            if name not in expected:
                 return None
             if hashlib.sha256((folder / name).read_bytes()).hexdigest() != digest:
                 return None
-        if set(manifest["sources"]) != {"liquidity_pilots.json", "oracle_financing.json"}:
+        if set(manifest["sources"]) != expected:
             return None
-        content = (folder / "liquidity_pilots.xlsx").read_bytes()
+        content = (folder / f"{stem}.xlsx").read_bytes()
         return content if hashlib.sha256(content).hexdigest() == manifest["workbook_sha256"] else None
     except (OSError, ValueError, KeyError, TypeError):
         return None
@@ -576,21 +580,22 @@ def render_app() -> None:
             st.error("The saved liquidity pilot could not be loaded.")
             return
         st.caption("Saved filing reviews · source dates shown below · no live or paid request")
-        content = saved_workbook(saved["snapshots"])
-        if content:
-            st.download_button("Download review and evidence", content,
-                               file_name="Liquidity_Pilot_2026-10-14.xlsx",
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        else:
-            st.caption("Review workbook Unavailable: its saved sources must match the workbook.")
         for snapshot, tab in zip(saved["snapshots"], st.tabs([s["ticker"] for s in saved["snapshots"]])):
             with tab:
+                if snapshot["ticker"] == "LLY":
+                    content = saved_workbook(saved["snapshots"], ticker="LLY")
+                    if content:
+                        st.download_button("Download LLY review and evidence", content,
+                            file_name="Lilly_Liquidity_2026-06-30.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    else:
+                        st.caption("Lilly review workbook Unavailable: its saved sources must match the workbook.")
                 if snapshot["ticker"] == "VST":
                     import vistra_liquidity as vl
                     review = vl.for_snapshot(snapshot)
                     content = vl.workbook_bytes(review) if review else None
                     if content:
-                        st.download_button("Download Vistra repayment analysis and evidence", content,
+                        st.download_button("Download VST review and evidence", content,
                             file_name="Vistra_Liquidity_2026-06-30.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                     else:
@@ -600,9 +605,17 @@ def render_app() -> None:
                     review = ol.for_snapshot(snapshot)
                     content = ol.workbook_bytes(review) if review else None
                     if content:
-                        st.download_button("Download Oracle cash analysis and evidence", content,
+                        st.download_button("Download ORCL review and evidence", content,
                             file_name="Oracle_Liquidity_2026-08-31.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                     else:
                         st.caption("Oracle cash-analysis workbook Unavailable: its saved source review must match the workbook.")
                 st.markdown(render(snapshot) + evidence_html(snapshot) + (financing_html(snapshot) if snapshot["ticker"] == "VST" else ""), unsafe_allow_html=True)
+        with st.expander("Optional combined export"):
+            content = saved_workbook(saved["snapshots"])
+            if content:
+                st.download_button("Download all three company reviews (optional)", content,
+                    file_name="Liquidity_Pilot_2026-10-14.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            else:
+                st.caption("Combined workbook Unavailable: its saved sources must match the workbook.")
