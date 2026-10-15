@@ -79,7 +79,7 @@ def render(snapshot, money):
             'in spending, borrowing, customer behavior or restricted cash. They are not forecasts, cash runway '
             'estimates or proof that funding would have been unavailable.</p></div></div>')
     out += '<details><summary>Cash sources and uses behind the chart</summary><div class="ol-table-wrap"><table class="ol-table">'
-    out += '<thead><tr><th>Quarter cash-flow line</th><th>USD billions</th></tr></thead><tbody>'
+    out += '<thead><tr><th>Quarter cash-flow line</th><th>USD (B or M)</th></tr></thead><tbody>'
     signs = {"capex": -1, "investment_purchases": -1, "dividends": -1, "cp": -1, "debt_repayments": -1}
     for key in ol.FLOWS:
         if key in {"investing", "financing", "change", "unpaid_capex"}:
@@ -94,7 +94,7 @@ def render(snapshot, money):
             'It is noncash in this quarter and is not added to cash capex. Its payment dates and overlap with '
             'purchase commitments are Unavailable.</p></details>')
     out += '<h3>What payments are actually dated?</h3>'
-    out += (f'<p class="lr-meta">At August 31, 2026 · USD billions · '
+    out += (f'<p class="lr-meta">At August 31, 2026 · USD, amounts in B or M · '
             f'<a href="{esc(of.QUARTER_SOURCE)}" target="_blank" rel="noopener noreferrer">10-Q Note 6, pp. 12–13</a>. '
             'Lease amounts are undiscounted payments including interest. Purchase obligations remain separate.</p>')
     schedules = review["schedules"]
