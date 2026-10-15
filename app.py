@@ -36,6 +36,7 @@ from charts import CHART_CONFIG, build_price_chart
 
 # A Cloud worker can retain imported views across entry-point reruns after deployment.
 # These modules have no network calls or state to preserve; load the current view and review registry.
+reload(ui)
 reload(oracle_financing)
 reload(oracle_liquidity)
 reload(oracle_liquidity_view)
@@ -459,7 +460,9 @@ def generate_excel(profiles):
 # --- HEADER ---
 st.markdown(
     "<div class='irt-header'><div class='irt-title' role='heading' aria-level='1'>SEC Filing Research Terminal</div>"
-    "<div class='irt-sub'>SEC filings, market data and AI summaries for public companies. "
+    "<div class='irt-sub'>This project traces SEC filing facts through reconciled calculations to explain "
+    "cash funding, debt and repayment obligations. Saved company reviews show the sources and limits "
+    "of each conclusion. Market data and AI filing summaries are also available. "
     "A research tool, not investment advice.</div></div>",
     unsafe_allow_html=True,
 )

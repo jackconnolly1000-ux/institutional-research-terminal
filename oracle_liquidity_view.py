@@ -4,18 +4,26 @@ import oracle_liquidity as ol
 import oracle_financing as of
 
 CSS = """
-.ol-bridge {margin:18px 0 10px;}
-.ol-step {display:grid;grid-template-columns:170px minmax(50px,1fr) 95px;gap:12px;align-items:center;margin:14px 0;font-size:.82rem;}
-.ol-track {height:16px;position:relative;border-left:1px solid var(--border-strong);border-right:1px solid var(--border);}
-.ol-float {position:absolute;top:2px;height:12px;background:var(--text-muted);min-width:1px;}
-.ol-total {background:var(--text-strong);}
+.ol-bridge {margin:22px 0 12px;}
+.ol-step,.ol-axis {display:grid;grid-template-columns:220px minmax(80px,1fr) 100px;gap:16px;align-items:center;margin:16px 0;font-size:.85rem;}
+.ol-axis {font-size:.75rem;color:var(--text-muted);margin:0 0 12px;}
+.ol-axis-scale {display:flex;justify-content:space-between;}
+.ol-track {display:grid;grid-template-columns:1fr 1fr;height:20px;}
+.ol-side {display:flex;align-items:center;min-width:0;}
+.ol-side:first-child {justify-content:flex-end;border-right:1px solid var(--border-strong);}
+.ol-fill {display:block;height:14px;background:var(--text-muted);min-width:1px;}
 .ol-step strong {text-align:right;white-space:nowrap;font-weight:600;}
+.ol-balances {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--border);margin:18px 0;}
+.ol-balances > div {padding:14px 16px;}
+.ol-balances > div + div {border-left:1px solid var(--border);}
+.ol-balances span {display:block;font-size:.78rem;color:var(--text-muted);}
+.ol-balances strong {font-size:1.3rem;color:var(--text-strong);font-weight:600;}
 .ol-table-wrap {overflow-x:auto;margin:12px 0;}
 .ol-table {width:100%;border-collapse:collapse;font-size:.8rem;}
 .ol-table th,.ol-table td {padding:10px 8px;border-bottom:1px solid var(--border);text-align:right;vertical-align:top;}
 .ol-table th:first-child,.ol-table td:first-child {text-align:left;}
 .ol-table th {font-weight:600;}
-@media(max-width:760px) {.ol-step {grid-template-columns:125px minmax(40px,1fr) 83px;gap:7px;font-size:.75rem;} .ol-table th,.ol-table td {padding:9px 5px;font-size:.72rem;}}
+@media(max-width:760px) {.ol-step {display:flex;flex-wrap:wrap;justify-content:space-between;gap:7px 12px;font-size:.82rem;margin:18px 0;} .ol-step > span {flex:1;max-width:calc(100% - 100px);} .ol-step strong {order:1;width:90px;} .ol-step .ol-track {order:2;flex-basis:100%;width:100%;} .ol-axis {display:block;} .ol-axis > span {display:none;} .ol-balances {grid-template-columns:1fr;} .ol-balances > div {display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;} .ol-balances > div + div {border-left:0;border-top:1px solid var(--border);} .ol-balances strong {font-size:1.15rem;white-space:nowrap;} .ol-table th,.ol-table td {padding:9px 5px;font-size:.72rem;}}
 """
 
 
@@ -35,29 +43,32 @@ def render(snapshot, money):
     out += (f'<p>Operating cash flow of {amount(v["ocf"])} was below cash capital spending of '
             f'{amount(v["capex"])}. Net equity proceeds of {amount(v["equity"])} helped fund the quarter’s '
             'cash uses. Those proceeds are already included in August cash.</p>')
-    steps = [("Opening cash, May 31", v["opening_total"], True),
-             ("OCF less identified prepayments", c["ocf_less_prepay"], False),
-             ("Customer prepayments", v["prepay"], False),
-             ("Equity proceeds, net", v["equity"], False),
-             ("Cash capital spending", -v["capex"], False),
-             ("Debt repayments", -v["debt_repayments"], False),
-             ("Other cash flows, net", c["other_net"], False),
-             ("Closing cash, August 31", v["closing_total"], True)]
-    positions, previous = [], 0
-    for label, value, total in steps:
-        start, end = (0, value) if total else (previous, previous + value)
-        positions.append((label, value, total, start, end))
-        previous = end
-    maximum = max(max(start, end) for _, _, _, start, end in positions) or 1
-    out += '<div class="ol-bridge" role="figure" aria-label="Quarter cash reconciliation including restricted cash">'
-    for label, value, total, start, end in positions:
-        shown = ("+" if value > 0 and not total else "") + money(value, 3)
+    out += '<div class="ol-balances">'
+    for label, value in (("May 31 cash including restricted", v["opening_total"]),
+                         ("Quarter change", v["change"]),
+                         ("August 31 cash including restricted", v["closing_total"])):
+        out += f'<div><span>{esc(label)}</span><strong>{amount(value)}</strong></div>'
+    out += '</div><p><strong>What added to or used cash during the quarter?</strong></p>'
+    steps = [("OCF excluding specified prepayments", c["ocf_less_prepay"]),
+             ("Specified customer prepayments", v["prepay"]),
+             ("Equity proceeds, net", v["equity"]),
+             ("Cash capital spending", -v["capex"]),
+             ("Debt repayments", -v["debt_repayments"]),
+             ("Other cash flows, net", c["other_net"])]
+    # Every bar shares zero. Balance totals sit outside the changes so they cannot be added twice.
+    maximum = 30_000_000_000
+    out += ('<div class="ol-bridge" role="figure" aria-label="Quarter cash contributions: uses left, sources right">'
+            '<div class="ol-axis"><span>Quarter cash contribution</span><div class="ol-axis-scale">'
+            '<span>−$30B · cash used</span><span>0</span><span>cash added · +$30B</span></div><span>USD</span></div>')
+    for label, value in steps:
+        bar = f'<span class="ol-fill" style="width:{abs(value)/maximum*100:.4f}%"></span>'
+        shown = ("+" if value > 0 else "") + money(value, 3)
         out += (f'<div class="ol-step"><span>{esc(label)}</span><div class="ol-track" aria-hidden="true">'
-                f'<span class="ol-float {"ol-total" if total else ""}" '
-                f'style="left:{min(start,end)/maximum*100:.4f}%;width:{abs(end-start)/maximum*100:.4f}%" '
-                f'title="Cash after this row: {amount(end)}"></span></div><strong>{esc(shown)}</strong></div>')
-    out += ('</div><p class="lr-meta">Floating bars start where the previous row ended. Opening and closing '
-            'totals include restricted cash. Prepayments are separated from OCF once, not added to reported OCF.</p>')
+                f'<div class="ol-side">{bar if value < 0 else ""}</div>'
+                f'<div class="ol-side">{bar if value > 0 else ""}</div></div><strong>{esc(shown)}</strong></div>')
+    out += ('</div><p class="lr-meta">The six signed contributions sum to the quarter’s cash increase. '
+            'The first two together equal reported OCF. Prepayments are separated once. '
+            'Other cash flows include dividends, investments and other financing. All rows cover June–August 2026.</p>')
     out += (f'<p>Closing cash including restricted cash was {amount(v["closing_total"])}. Excluding '
             f'{amount(c["restricted_at_end"])} restricted cash leaves {amount(v["closing_cash"])} cash and equivalents '
             'on the balance sheet. That exclusion is not another cash outflow.</p>')

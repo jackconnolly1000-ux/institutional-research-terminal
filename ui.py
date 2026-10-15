@@ -76,8 +76,8 @@ def inject_css() -> None:
 /* Page header: title, then a one-line description under it. A div, not an h1: Streamlit adds a
    link-anchor icon to markdown headings, which pushed the description sideways. */
 .irt-header {{ margin: 0 0 14px 0; }}
-.irt-title {{ font-size: 1.4rem; font-weight: 700; color: var(--text-strong); line-height: 1.25; letter-spacing: -0.01em; }}
-.irt-header .irt-sub {{ color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }}
+.irt-title {{ font-size: 2.25rem; font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: 700; color: var(--text-strong); line-height: 1.18; letter-spacing: -0.025em; }}
+.irt-header .irt-sub {{ color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; max-width: 900px; margin-top: 10px; }}
 p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 
 /* Buttons: one filled primary action (Run). Everything else, including Download, is outlined and compact. */
@@ -137,14 +137,14 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 
 /* Section headers replace the emoji subheaders */
 .irt-h {{ display: flex; align-items: center; gap: 8px; margin: 22px 0 10px 0; padding-bottom: 6px;
-  border-bottom: 1px solid var(--border); color: var(--text-strong); font-size: 1rem; font-weight: 650; }}
+  border-bottom: 1px solid var(--border); color: var(--text-strong); font-size: 1.2rem; font-weight: 650; }}
 .irt-count {{ color: var(--text-muted); font-weight: 500; font-size: 0.85rem; }}
 .irt-note {{ color: var(--text-muted); font-size: 0.8rem; margin: -4px 0 10px 0; }}
 
 /* Company header */
 .irt-company {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 4px 0 12px 0; }}
-.irt-company .tk {{ font-size: 1.35rem; font-weight: 700; color: var(--text-strong); }}
-.irt-company .nm {{ font-size: 1.05rem; color: var(--text); }}
+.irt-company .tk {{ font-size: 1.5rem; font-weight: 700; color: var(--text-strong); }}
+.irt-company .nm {{ font-size: 1.4rem; font-weight: 600; color: var(--text-strong); }}
 .irt-company .meta {{ font-size: 0.85rem; color: var(--text-muted); }}
 
 /* Metrics panel: one grid. Columns: every tile the same width whichever group it's in. Rows: group heading, label,
@@ -229,6 +229,7 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 @media (prefers-reduced-motion: reduce) {{ .irt-row .toggle::after {{ transition: none; }} }}
 /* Phones: a collapsed row is the meta line and headline; summary and implication move into the expanded row */
 @media (max-width: 640px) {{
+  .irt-title {{ font-size: 1.75rem; }}
   /* Streamlit's toolbar overlaps the top of the page on phones; this keeps the title clear of it */
   .main .block-container {{ padding-top: 3.2rem; }}
   .irt-row > summary {{ grid-template-columns: 1fr; padding: 12px 14px; }}

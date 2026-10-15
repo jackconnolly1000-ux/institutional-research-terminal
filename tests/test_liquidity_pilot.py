@@ -2,6 +2,7 @@
 import html
 import json
 import sys
+import tempfile
 import unittest
 from copy import deepcopy
 from io import BytesIO
@@ -105,6 +106,38 @@ class LiquidityPilot(unittest.TestCase):
         self.assertIsNone(wb["Debt and liquidity"]["C2"].value)
         self.assertIsNone(wb["Debt and liquidity"]["C4"].value)
         self.assertEqual(wb["Debt and liquidity"]["G4"].value, "Unavailable")
+
+    def test_styled_saved_export_matches_all_three_snapshots(self):
+        import company_review
+        content = company_review.saved_workbook(self.snapshots)
+        self.assertIsNotNone(content)
+        wb = load_workbook(BytesIO(content), data_only=True)
+        row = 2
+        for snapshot in self.snapshots:
+            for metric in snapshot["metrics"].values():
+                self.assertAlmostEqual(wb["Debt and liquidity"].cell(row, 3).value, metric["value"])
+                row += 1
+        changed = deepcopy(self.snapshots)
+        changed[0]["metrics"]["cash"]["value"] = None
+        self.assertIsNone(company_review.saved_workbook(changed))
+
+    def test_styled_export_refuses_changed_source_or_file(self):
+        import company_review
+        source = ROOT / "samples"
+        names = ("liquidity_pilots.json", "oracle_financing.json", "liquidity_pilots.xlsx",
+                 "liquidity_pilots.manifest.json")
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            for name in names:
+                (folder / name).write_bytes((source / name).read_bytes())
+            self.assertIsNotNone(company_review.saved_workbook(self.snapshots, folder))
+            financing = folder / "oracle_financing.json"
+            original = financing.read_bytes()
+            financing.write_bytes(original + b"\n")
+            self.assertIsNone(company_review.saved_workbook(self.snapshots, folder))
+            financing.write_bytes(original)
+            (folder / "liquidity_pilots.xlsx").write_bytes(b"not the checked workbook")
+            self.assertIsNone(company_review.saved_workbook(self.snapshots, folder))
 
     def test_flow_ratios_refuse_incompatible_dates_missing_or_nonpositive_debt(self):
         m = self.snapshots[1]["metrics"]

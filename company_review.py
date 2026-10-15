@@ -55,8 +55,8 @@ LIMITS = {
 CSS = """<style>
 .lr-review {max-width:1180px; margin:8px auto 0; color:var(--text); font-variant-numeric:tabular-nums;}
 .lr-review * {box-sizing:border-box;}
-.lr-review h2 {font-size:1.5rem;line-height:1.3;letter-spacing:-.02em;padding:0;margin:4px 0 7px;color:var(--text-strong);}
-.lr-review h3 {font-size:1.05rem;line-height:1.4;margin:0 0 7px;padding:0;color:var(--text-strong);}
+.lr-review h2 {font-size:2rem;line-height:1.2;letter-spacing:-.025em;padding:0;margin:6px 0 12px;color:var(--text-strong);}
+.lr-review h3 {font-size:1.25rem;line-height:1.35;margin:0 0 12px;padding:0;color:var(--text-strong);}
 .lr-review p {font-size:.9rem;line-height:1.55;margin:8px 0;}
 .lr-review .lr-meta {font-size:.78rem;color:var(--text-muted);line-height:1.5;}
 .lr-lead {border-bottom:1px solid var(--border);padding:0 0 18px;}
@@ -92,7 +92,7 @@ CSS = """<style>
 .lr-event p {margin:0 0 7px;}
 .lr-review a {color:var(--link);}
 .lr-review + .irt-evidence {max-width:1180px;margin:12px auto;}
-@media(max-width:760px) {.lr-grid {grid-template-columns:1fr;gap:24px;} .lr-summary {grid-template-columns:repeat(2,minmax(0,1fr));} .lr-obligation,.lr-event {grid-template-columns:1fr;gap:4px;} .lr-review h2 {font-size:1.3rem;} .lr-bar-row {grid-template-columns:96px minmax(30px,1fr) 75px;gap:7px;} .lr-stat-value {font-size:1.3rem;}}
+@media(max-width:760px) {.lr-grid {grid-template-columns:1fr;gap:28px;} .lr-summary {grid-template-columns:repeat(2,minmax(0,1fr));} .lr-obligation,.lr-event {grid-template-columns:1fr;gap:4px;} .lr-review h2 {font-size:1.7rem;} .lr-review h3 {font-size:1.15rem;} .lr-bar-row {grid-template-columns:96px minmax(30px,1fr) 75px;gap:7px;} .lr-stat-value {font-size:1.3rem;}}
 </style>"""
 
 # Nested style blocks are parsed as raw text by the Markdown renderer and can hide headings.
@@ -240,12 +240,23 @@ def render(snapshot):
     output += '</div><p class="lr-meta">Historical flows relative to period-end borrowing; these percentages are not repayment forecasts. FCF excludes acquisitions, dividends and other cash uses.</p></section>'
     output += '<section class="lr-section"><h3>What makes up the borrowing?</h3>'
     output += f'<div class="lr-meta">At {esc(end)} · amounts in B or M · same 10-Q as the balance sheet</div>'
+    if snapshot["ticker"] == "ORCL":
+        output += '<p class="lr-meta">Notes payable and other borrowings. This 10-Q does not split them by instrument.</p>'
+    short_labels = {
+        "us-gaap:DebtCurrent": "Current borrowing",
+        "us-gaap:LongTermDebtNoncurrent": "Noncurrent borrowing",
+        "us-gaap:NotesPayableCurrent": "Current",
+        "us-gaap:LongTermNotesAndLoans": "Noncurrent",
+        "us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent": "Long-term debt, current portion",
+        "us-gaap:LongTermDebtAndCapitalLeaseObligations": "Long-term debt, noncurrent",
+    }
     for fact in m["gross_debt"]["inputs"]:
-        label = fact["label"].replace("Long-term debt, less amounts due currently", "Long-term debt, noncurrent")
+        label = short_labels.get(fact["tag"], fact["label"])
         value = money(fact["value"], 3)
         if fact["value"] == 0:
             value = "$0 · reported"
         output += f'<div class="lr-row"><span>{esc(label)}</span><strong>{esc(value)}</strong></div>'
+    output += '<p class="lr-meta">These are borrowing components, separate from total current liabilities below. Full filing labels and tags are in the evidence.</p>'
     assets = m["current_ratio"]["inputs"]["current_assets"]
     liabilities = m["current_ratio"]["inputs"]["current_liabilities"]
     if assets["value"] is not None and liabilities["value"] is not None:
@@ -524,6 +535,30 @@ def workbook(snapshots: list[dict]) -> bytes:
 
 
 
+def saved_workbook(snapshots, folder=None):
+    """Serve the styled export only with the exact source snapshots used to build it."""
+    import hashlib
+    import json
+    from pathlib import Path
+    folder = Path(folder) if folder is not None else Path(__file__).parent / "samples"
+    try:
+        manifest = json.loads((folder / "liquidity_pilots.manifest.json").read_text())
+        saved = json.loads((folder / "liquidity_pilots.json").read_text())
+        if snapshots != saved["snapshots"]:
+            return None
+        for name, digest in manifest["sources"].items():
+            if name not in {"liquidity_pilots.json", "oracle_financing.json"}:
+                return None
+            if hashlib.sha256((folder / name).read_bytes()).hexdigest() != digest:
+                return None
+        if set(manifest["sources"]) != {"liquidity_pilots.json", "oracle_financing.json"}:
+            return None
+        content = (folder / "liquidity_pilots.xlsx").read_bytes()
+        return content if hashlib.sha256(content).hexdigest() == manifest["workbook_sha256"] else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
 def render_app() -> None:
     """Direct app entry point; the complete view loads together rather than through a cached legacy helper."""
     import json
@@ -541,9 +576,13 @@ def render_app() -> None:
             st.error("The saved liquidity pilot could not be loaded.")
             return
         st.caption("Saved filing reviews · source dates shown below · no live or paid request")
-        st.download_button("Download review and evidence", workbook(saved["snapshots"]),
-                           file_name="Liquidity_Pilot_2026-10-14.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        content = saved_workbook(saved["snapshots"])
+        if content:
+            st.download_button("Download review and evidence", content,
+                               file_name="Liquidity_Pilot_2026-10-14.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        else:
+            st.caption("Review workbook Unavailable: its saved sources must match the workbook.")
         for snapshot, tab in zip(saved["snapshots"], st.tabs([s["ticker"] for s in saved["snapshots"]])):
             with tab:
                 if snapshot["ticker"] == "VST":
