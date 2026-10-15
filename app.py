@@ -26,6 +26,8 @@ import company_review
 import oracle_financing
 import oracle_liquidity
 import oracle_liquidity_view
+import vistra_liquidity
+import vistra_liquidity_view
 import market_data
 import sec_data
 import ui
@@ -38,6 +40,8 @@ reload(oracle_financing)
 reload(oracle_liquidity)
 reload(oracle_liquidity_view)
 reload(reviewed_financing)
+reload(vistra_liquidity)
+reload(vistra_liquidity_view)
 reload(company_review)
 
 ET = ZoneInfo("America/New_York")

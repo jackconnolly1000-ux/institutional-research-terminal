@@ -115,7 +115,7 @@ VST = {
         ],
     },
     "0001140361-26-038468": {
-        "form": "8-K", "filed": "2026-10-02", "period": "2026-09-30",
+        "form": "8-K", "filed": "2026-10-05", "period": "2026-09-30",
         "event_date": "2026-09-30", "kind": "Facility maturity change",
         "finding": ("Commodity-linked revolving credit facility maturity was extended "
                     "from September 30, 2026 to September 29, 2027. This filing does "

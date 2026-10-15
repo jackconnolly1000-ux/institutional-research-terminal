@@ -16,6 +16,7 @@ venv/
 !samples/*.csv
 # Checked Oracle evidence is served without a workbook-build dependency in production.
 !samples/oracle_liquidity.xlsx
+!samples/vistra_liquidity.xlsx
 
 # Mac
 .DS_Store
