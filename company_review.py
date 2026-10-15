@@ -46,8 +46,8 @@ NOTES = {
 
 LIMITS = {
     "LLY": "Lease liabilities at June 30 are Unavailable. Selection of major commitments is not complete; contingencies, tax, collaboration and investment notes need further review. Later financing findings are not loaded in this saved view.",
-    "ORCL": "Commercial paper is not separately disclosed in this 10-Q. The capex-financing balance and the later status of the 10-K's $3.3B lessor guarantee remain unresolved. Later financing findings are not loaded in this saved view.",
-    "VST": "June 30 lease liabilities are Unavailable. Derivatives, litigation and the remaining retirement-obligation detail need further review. Credit-support overlaps are unresolved; the selected notes below are not a complete obligations list.",
+    "ORCL": "Commercial paper is not separately disclosed in this 10-Q. The capex-financing balance and the later status of the 10-K's $3.3B lessor guarantee remain unresolved. The May 31 maturity schedule does not establish remaining August 31 payments or current revolver availability.",
+    "VST": "June 30 lease liabilities are Unavailable. Derivatives, litigation and the remaining retirement-obligation detail need further review. Credit-support overlaps are unresolved; the selected notes above are not a complete obligations list.",
 }
 
 CSS = """<style>
@@ -82,9 +82,15 @@ CSS = """<style>
 .lr-obligation p {margin:0 0 5px;}
 .lr-obligation strong {color:var(--text-strong);}
 .lr-limits {padding:15px 0 4px;}
+.lr-maturity {border-top:1px solid var(--border);padding:22px 0;}
+.lr-maturity-row {display:grid;grid-template-columns:85px minmax(20px,1fr) 90px;gap:12px;align-items:center;margin:15px 0;font-size:.82rem;}
+.lr-maturity-track {height:14px;background:var(--surface-raised);}
+.lr-maturity-bar {display:block;height:14px;background:var(--text-muted);}
+.lr-event {display:grid;grid-template-columns:145px minmax(0,1fr);gap:20px;border-top:1px solid var(--border);padding:14px 0;}
+.lr-event p {margin:0 0 7px;}
 .lr-review a {color:var(--link);}
 .lr-review + .irt-evidence {max-width:1180px;margin:12px auto;}
-@media(max-width:760px) {.lr-grid {grid-template-columns:1fr;gap:24px;} .lr-summary {grid-template-columns:repeat(2,minmax(0,1fr));} .lr-obligation {grid-template-columns:1fr;gap:4px;} .lr-review h2 {font-size:1.3rem;} .lr-bar-row {grid-template-columns:96px minmax(30px,1fr) 75px;gap:7px;} .lr-stat-value {font-size:1.3rem;}}
+@media(max-width:760px) {.lr-grid {grid-template-columns:1fr;gap:24px;} .lr-summary {grid-template-columns:repeat(2,minmax(0,1fr));} .lr-obligation,.lr-event {grid-template-columns:1fr;gap:4px;} .lr-review h2 {font-size:1.3rem;} .lr-bar-row {grid-template-columns:96px minmax(30px,1fr) 75px;gap:7px;} .lr-stat-value {font-size:1.3rem;}}
 </style>"""
 
 
@@ -113,6 +119,79 @@ def headline(snapshot):
     if fcf == 0:
         return "Operating cash flow equalled reported capital spending."
     return f"Operating cash flow exceeded reported capital spending by {money(fcf)}."
+
+
+def maturity_html(snapshot):
+    """A historical principal schedule with subsequent disclosures kept on their actual dates."""
+    import oracle_financing as of
+    review = of.for_snapshot(snapshot)
+    if review is None:
+        return ""
+    if review["status"] != "Checked":
+        return ('<section class="lr-maturity"><h3>Debt maturity review</h3>'
+                f'<p>Unavailable: {esc(review["detail"])}</p></section>')
+    output = '<section class="lr-maturity"><h3>When was borrowing scheduled to be repaid?</h3>'
+    output += (f'<p class="lr-meta">Historical schedule at May 31, 2026 · principal in USD billions · '
+               f'<a href="{esc(review["source_url"])}" target="_blank" rel="noopener noreferrer">10-K Note 6, p. 84</a>'
+               ' · fiscal years end May 31</p>')
+    output += ('<p>The saved August 31 10-Q does not disclose an updated debt maturity schedule. '
+               'Fiscal 2027 below includes June–August, which had already elapsed by that balance-sheet date.</p>')
+    output += '<div class="lr-grid"><div>'
+    maximum = max(f["value"] for f in review["buckets"][:5]) or 1
+    for fact in review["buckets"][:5]:
+        output += (f'<div class="lr-maturity-row"><span>{esc(fact["label"].replace("Fiscal", "FY"))}</span>'
+                   f'<div class="lr-maturity-track" aria-hidden="true"><span class="lr-maturity-bar" '
+                   f'style="width:{fact["value"] / maximum * 100:.4f}%"></span></div>'
+                   f'<strong class="lr-bar-value">{esc(money(fact["value"], 3))}</strong></div>')
+    output += (f'<p><strong>{esc(money(review["buckets"][5]["value"], 3))} thereafter</strong>'
+               ' · fiscal 2032 onward, combined. This is not a single-year payment.</p></div><div>')
+    share = f'{review["first_five_share"]:.1%}' if review["first_five_share"] is not None else "Unavailable"
+    output += (f'<p>{esc(money(review["first_five_years"], 3))}, or {share} '
+               f'of the {esc(money(review["total"], 3))} principal total, was scheduled through fiscal 2031 '
+               'at May 31.</p>')
+    c = review["controls"]
+    output += (f'<p class="lr-meta">The schedule excludes interest and leases. Principal of {esc(money(review["total"], 3))} less '
+               f'{esc(money(c["discount_and_costs"]["value"], 3))} of discounts and issuance costs equals '
+               f'{esc(money(c["carrying_debt"]["value"], 3))} carrying debt at May 31. '
+               'This reconciles to the annual balance sheet, not the later August balance sheet.</p>')
+    cash = snapshot["metrics"]["cash"]["value"]
+    current = snapshot["metrics"]["gross_debt"]["inputs"][0]["value"]
+    output += (f'<p>At August 31, the 10-Q reports {esc(money(cash))} cash and '
+               f'{esc(money(current, 3))} current borrowing. Current borrowing is a carrying amount, '
+               'not a replacement for the annual principal schedule.</p>')
+    output += (f'<p class="lr-meta"><a href="{esc(of.QUARTER_SOURCE)}" target="_blank" rel="noopener noreferrer">'
+               '10-Q balance sheet, p. 1</a>. These figures and historical cash flows do not establish '
+               'a funding surplus or shortfall for future payment dates.</p></div></div>')
+    output += '<h3>What financing was reported afterward?</h3>'
+    output += '<div class="lr-event"><div class="lr-meta">Jun 1–Aug 31, 2026</div><div>'
+    for fact in review["quarter_flows"]:
+        output += f'<p><strong>{esc(fact["label"])}: {esc(money(fact["value"], 3))}</strong></p>'
+        if fact["value"] is None:
+            output += f'<p class="lr-meta">Unavailable: {esc(fact["detail"])}</p>'
+    output += ('<p>The cash-flow statement groups senior notes, term loans and other repayments. '
+               'The MD&A separately describes about $3.1B scheduled debt repayment and $1.1B commercial-paper '
+               'repayment, while the cash-flow commercial-paper row shows a dash. This unresolved '
+               'presentation difference prevents assigning repayments to the old maturity buckets.</p>')
+    output += (f'<p class="lr-meta"><a href="{esc(of.QUARTER_SOURCE)}" target="_blank" rel="noopener noreferrer">'
+               '10-Q, pp. 5 and 33–35, filed Sep 11, 2026</a>. Quarter flows already affect the August balance sheet.</p></div></div>')
+    for accession, event in of.FILINGS.items():
+        output += (f'<article class="lr-event"><div class="lr-meta">Event {esc(event["event_date"])}<br>'
+                   f'Filed {esc(event["filed"])}</div><div><p><strong>{esc(event["kind"])}</strong></p>'
+                   f'<p>{esc(event["finding"])}</p><p class="lr-meta">'
+                   f'<a href="{esc(event["source_url"])}" target="_blank" rel="noopener noreferrer">'
+                   f'8-K · {esc(accession)}</a> · '
+                   f'<a href="{esc(event["related"][0][1])}" target="_blank" rel="noopener noreferrer">Exhibit 99.1</a>'
+                   '</p></div></article>')
+    output += ('<p class="lr-meta">These two saved 8-Ks and their exhibits were checked. Neither establishes '
+               'new borrowing after August 31. This saved view does not establish complete coverage of later '
+               'filings; unmatched documents in the live filing index remain Not checked. Events are not added '
+               'to the dated balance-sheet amounts.</p>')
+    output += '<details><summary>Revolver terms and limits of this review</summary>'
+    for term in of.TERMS:
+        output += (f'<p><strong>{esc(term["label"])}</strong> · May 31, 2026<br>{esc(term["detail"])} '
+                   f'<a href="{esc(term["source_url"])}" target="_blank" rel="noopener noreferrer">{esc(term["location"])}</a></p>')
+    output += '<p class="lr-meta">The $10B revolver matures March 6, 2031, subject to the agreement. Capacity is not a payment due in that year.</p></details></section>'
+    return output
 
 
 def render(snapshot):
@@ -170,13 +249,15 @@ def render(snapshot):
         output += (f'<p>Current assets of {esc(money(assets["value"]))} {direction} current liabilities of '
                    f'{esc(money(liabilities["value"]))} by {esc(money(abs(gap)))}.</p>')
     output += '<p class="lr-meta">Current assets include items other than cash. This comparison does not establish whether specific payments can be met; a maturity schedule and financing terms are still needed.</p></section></div>'
+    output += maturity_html(snapshot)
     output += '<section class="lr-obligations"><h3>What sits outside baseline borrowing?</h3><p class="lr-meta">Selected disclosures, each shown separately. Commitments are not all payable now and are not added to debt or to each other.</p>'
     for item in NOTES[snapshot["ticker"]]:
         output += (f'<article class="lr-obligation"><div><p><strong>{esc(item["name"])}</strong></p>'
                    f'<p>{esc(item["amount"])}</p><div class="lr-meta">As of {esc(item["date"])} · {esc(item["kind"])}</div></div>'
                    f'<div><p>{esc(item["detail"])}</p><a class="lr-meta" href="{esc(source)}" target="_blank" rel="noopener noreferrer">{esc(item["location"])}</a></div></article>')
     output += '</section><section class="lr-limits"><h3>What remains unresolved?</h3>'
-    output += f'<p class="lr-meta">{esc(LIMITS[snapshot["ticker"]])} Interest coverage and a full debt maturity review are not included.</p></section></section>'
+    remaining = "Interest coverage is not included." if snapshot["ticker"] == "ORCL" else "Interest coverage and a full debt maturity review are not included."
+    output += f'<p class="lr-meta">{esc(LIMITS[snapshot["ticker"]])} {remaining}</p></section></section>'
     return output
 
 
@@ -216,6 +297,112 @@ def evidence_html(snapshot: dict) -> str:
     output += ''.join(f'<p class="irt-note">{ui.esc(n)}</p>' for n in caveats)
     return output + '</details>'
 
+
+def add_oracle_sheets(wb, snapshot):
+    """Keep principal, carrying value and financing events on their own reporting bases."""
+    import oracle_financing as of
+    from openpyxl.chart import BarChart, Reference
+    from openpyxl.styles import Font
+    from datetime import datetime
+    review = of.for_snapshot(snapshot)
+    if review is None:
+        return
+    schedule = wb.create_sheet("Oracle maturities")
+    schedule.append(["Principal schedule", "Due from", "Due through", "USD (displayed in millions)",
+                     "Reporting basis", "Notes"])
+    if review["status"] != "Checked":
+        schedule.append(["Unavailable", None, None, None, "", review["detail"]])
+        return
+    raw = wb.create_sheet("Oracle debt inputs")
+    raw.append(["Input", "USD (displayed in millions)", "Reporting date", "Due from", "Due through", "Form", "Filed",
+                "Accession", "Tag", "Context ID", "Scale", "Decimals", "Source", "Filing location", "Notes"])
+    stamp = lambda text: datetime.strptime(text, "%Y-%m-%d") if text else None
+    inputs = [*review["buckets"], *review["controls"].values()]
+    labels = [f["label"] for f in review["buckets"]] + ["Reported principal total", "Discounts and issuance costs", "Reported carrying debt"]
+    for fact, label in zip(inputs, labels):
+        raw.append([label, fact["value"], stamp(review["as_of"]), stamp(fact.get("due_start")),
+                    stamp(fact.get("due_end")), review["form"], stamp(review["filed"]), review["accession"],
+                    fact["tag"], fact["context_id"], fact["scale"], fact["decimals"], review["source_url"],
+                    review["location"], "Historical principal schedule; not rolled forward to August 31."])
+        raw.cell(raw.max_row, 2).font = Font(name="Arial", size=10, color="0000FF")
+    for i, fact in enumerate(review["buckets"], 2):
+        schedule.append([fact["label"], stamp(fact["due_start"]), stamp(fact["due_end"]),
+                         f"='Oracle debt inputs'!B{i}", "As of May 31, 2026",
+                         "Fiscal 2032 onward, combined" if i == 7 else
+                         "Full fiscal year; includes elapsed months at the August balance sheet" if i == 2 else ""])
+        schedule.cell(i, 4).font = Font(name="Arial", size=10, color="008000")
+    for label, formula, note in (
+        ("Calculated principal total", "=SUM(D2:D7)", "Excludes interest and leases"),
+        ("Reported principal total", "='Oracle debt inputs'!B8", ""),
+        ("Principal reconciliation difference", "=D8-D9", "Zero means the six buckets equal the reported total"),
+        ("Less: discounts and issuance costs", "='Oracle debt inputs'!B9", ""),
+        ("Calculated carrying debt", "=D8-D11", "Same May 31 date and filing"),
+        ("Reported carrying debt", "='Oracle debt inputs'!B10", ""),
+        ("Carrying reconciliation difference", "=D12-D13", "Zero means principal less costs equals carrying debt"),
+        ("Principal through fiscal 2031", "=SUM(D2:D6)", ""),
+        ("Share through fiscal 2031", "=D15/D8" if review["total"] > 0 else None, "Fraction displayed as %"),
+    ):
+        schedule.append([label, None, None, formula, "As of May 31, 2026", note])
+        if formula and "Oracle debt inputs" in formula:
+            schedule.cell(schedule.max_row, 4).font = Font(name="Arial", size=10, color="008000")
+    schedule["D16"].number_format = '0.0%;(0.0%);"-"'
+    schedule.append(["August schedule", None, None, None, "Unavailable", review["current_schedule_detail"]])
+    schedule.append(["Chart scope", None, None, None, "Annual buckets only", "Thereafter is combined in row 7 and is not plotted as one year."])
+    chart = BarChart()
+    chart.type = "bar"
+    chart.title = "Principal due by fiscal year at May 31, 2026"
+    chart.add_data(Reference(schedule, min_col=4, min_row=2, max_row=6), titles_from_data=False)
+    chart.set_categories(Reference(schedule, min_col=1, min_row=2, max_row=6))
+    chart.legend = None
+    # openpyxl calls the numeric axis y_axis even for a horizontal bar chart.
+    chart.y_axis.title = "USD billions"
+    chart.y_axis.scaling.min = 0
+    chart.y_axis.numFmt = "0.0,,,"
+    chart.x_axis.scaling.orientation = "maxMin"
+    chart.series[0].graphicalProperties.solidFill = "737985"
+    chart.series[0].graphicalProperties.line.solidFill = "737985"
+    chart.height, chart.width = 9, 19
+    schedule.add_chart(chart, "H2")
+    timeline = wb.create_sheet("Oracle financing")
+    timeline.append(["Event date", "Period start", "Period end", "Finding", "USD (displayed in millions)", "Amount basis",
+                     "Form", "Filed", "Accession", "Tag", "Context ID", "Source", "Exhibit", "Notes"])
+    for fact in review["quarter_flows"]:
+        raw.append([fact["label"], fact["value"], stamp(fact["period_end"]), stamp(fact["period_start"]),
+                    stamp(fact["period_end"]), fact["form"], stamp(fact["filed"]), fact["accession"],
+                    fact["tag"], fact.get("context_id"), fact.get("scale"), fact.get("decimals"),
+                    fact["source_url"], fact["location"], fact.get("detail", "")])
+        raw.cell(raw.max_row, 2).font = Font(name="Arial", size=10, color="0000FF")
+        value = f"='Oracle debt inputs'!B{raw.max_row}" if fact["value"] is not None else None
+        timeline.append([None, stamp(fact["period_start"]), stamp(fact["period_end"]), fact["label"], value,
+                         "Quarter cash flow, already in August balance sheet", fact["form"], stamp(fact["filed"]),
+                         fact["accession"], fact["tag"], fact.get("context_id"), fact["source_url"], "",
+                         "Debt repayments are not assigned to May maturity buckets; commercial-paper presentation differs in MD&A."
+                         if fact["label"] == "Debt repayments" else "Equity, not debt; net of issuance costs."])
+        timeline.cell(timeline.max_row, 5).font = Font(name="Arial", size=10, color="008000")
+    for accession, event in of.FILINGS.items():
+        timeline.append([stamp(event["event_date"]), None, None, event["kind"], None,
+                         "Document review; no additional amount summed", event["form"], stamp(event["filed"]),
+                         accession, None, None, event["source_url"], event["related"][0][1], event["finding"]])
+    for term in of.TERMS:
+        timeline.append([None, None, stamp(term["as_of"]), term["label"], term["capacity"],
+                         "Historical facility capacity, not cash or debt" if term["capacity"] is not None else "Contract definition",
+                         "10-K", stamp(review["filed"]), review["accession"], None, None, term["source_url"], None,
+                         term["detail"] + " " + ("Matures " + term["maturity"] if term["maturity"] else term["location"])])
+        if term["capacity"] is not None:
+            timeline.cell(timeline.max_row, 5).font = Font(name="Arial", size=10, color="0000FF")
+    for sheet, columns in ((schedule, (2, 3)), (raw, (3, 4, 5, 7)), (timeline, (1, 2, 3, 8))):
+        for col in columns:
+            for row in range(2, sheet.max_row + 1):
+                sheet.cell(row, col).number_format = "mmm d, yyyy"
+    usd = '#,##0,,;(#,##0,,);"-"'
+    for sheet, col in ((schedule, 4), (raw, 2), (timeline, 5)):
+        for row in range(2, sheet.max_row + 1):
+            if (sheet, row) != (schedule, 16):
+                sheet.cell(row, col).number_format = usd
+    for cell in (schedule["D10"], schedule["D14"]):
+        cell.number_format = '#,##0.00,,;(#,##0.00,,);"-"'
+    for sheet in (schedule, raw, timeline):
+        sheet.auto_filter.ref = f"A1:{sheet.cell(1, sheet.max_column).column_letter}{sheet.max_row}"
 
 
 def workbook(snapshots: list[dict]) -> bytes:
@@ -289,6 +476,9 @@ def workbook(snapshots: list[dict]) -> bytes:
         for item in NOTES[snapshot["ticker"]]:
             obligations.append([snapshot["ticker"], item["name"], item["amount"], item["date"], item["kind"],
                                 item["location"], PILOTS[snapshot["ticker"]]["accession"], snapshot["source_url"], item["detail"]])
+        add_oracle_sheets(wb, snapshot)
+    if "Oracle maturities" in wb.sheetnames:
+        about.append(["Oracle maturity review", "Historical principal schedule at May 31, 2026. Annual buckets exclude interest and leases. August schedule and revolver availability are Unavailable. Inputs and subsequent document checks are in Oracle debt inputs and Oracle financing; no events are rolled into the balance sheet."])
     for sheet in wb:
         sheet.sheet_view.showGridLines = False
         sheet.freeze_panes = "A2"
@@ -303,6 +493,22 @@ def workbook(snapshots: list[dict]) -> bytes:
     raw.column_dimensions["K"].width = 55
     raw.column_dimensions["L"].width = 55
     about.column_dimensions["B"].width = 90
+    if "Oracle maturities" in wb.sheetnames:
+        for name in ("Oracle maturities", "Oracle debt inputs", "Oracle financing"):
+            sheet = wb[name]
+            sheet.column_dimensions["A"].width = 38 if name != "Oracle financing" else 19
+            sheet.row_dimensions[1].height = 32
+            for row in range(2, sheet.max_row + 1):
+                sheet.row_dimensions[row].height = (34 if row < 17 else 65) if name == "Oracle maturities" else 88
+        for row in range(2, wb["Oracle maturities"].max_row + 1):
+            wb["Oracle maturities"].cell(row, 5).alignment = Alignment(vertical="top", wrap_text=True, indent=1)
+        wb["Oracle maturities"].column_dimensions["F"].width = 55
+        wb["Oracle debt inputs"].column_dimensions["M"].width = 55
+        wb["Oracle debt inputs"].column_dimensions["O"].width = 60
+        wb["Oracle financing"].column_dimensions["D"].width = 55
+        wb["Oracle financing"].column_dimensions["L"].width = 55
+        wb["Oracle financing"].column_dimensions["M"].width = 55
+        wb["Oracle financing"].column_dimensions["N"].width = 80
     out = BytesIO()
     wb.save(out)
     return out.getvalue()

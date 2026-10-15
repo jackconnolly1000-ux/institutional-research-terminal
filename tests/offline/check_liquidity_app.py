@@ -1,5 +1,6 @@
 """Run the complete saved-pilot view and the existing sample with all network calls disabled."""
 import os
+import html
 import sys
 from pathlib import Path
 
@@ -32,9 +33,10 @@ assert not app.tabs
 app.session_state["liquidity_pilot_open"] = True
 app.run(timeout=30)
 assert not app.exception and not app.error
-text = "\n".join(m.value for m in app.markdown)
+text = html.unescape("\n".join(m.value for m in app.markdown))
 assert all(value in text for value in ("54.91B", "125.34B", "19.90B", "Financing changes after June 30",
-                                      "288B", "28.72B", "What remained after capital spending?"))
+                                      "288B", "28.72B", "What remained after capital spending?",
+                                      "Historical schedule at May 31, 2026", "$10.145B", "$19.909B"))
 next(b for b in app.button if b.label == "View saved sample").click().run(timeout=30)
 assert not app.exception and not app.error
 assert any("Saved sample. Analysis run" in m.value for m in app.markdown)
