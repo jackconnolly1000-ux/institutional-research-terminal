@@ -159,7 +159,8 @@ Run from the repo:
 
 The fixture keeps all occurrences of selected tags, real contexts and units unchanged from
 the saved filing. Full-document comparison also runs when the raw documents exist locally.
-Build the workbook with `tests/offline/build_vistra_liquidity.mjs` from a temporary directory
+Build the workbook with `tests/offline/build_vistra_liquidity.mjs` and its adjacent
+`tests/offline/workbook_style.mjs` from a temporary directory
 using the Codex spreadsheet runtime and its `node_modules` symlink. The app only serves the
 saved workbook when review/workbook SHA256 hashes match its manifest. Native editable charts,
 formulas, real dates and source provenance are retained; deployment needs no new dependency.

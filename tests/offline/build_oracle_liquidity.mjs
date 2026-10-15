@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { Workbook, SpreadsheetFile } from '@oai/artifact-tool';
+import {frame, header, subtotal} from './workbook_style.mjs';
 
 const root = process.argv[2];
 if (!root) throw new Error('Pass the repository directory');
@@ -42,7 +43,7 @@ for (const [key, value, label, asof] of [
     sourceRows.at(-1)[7] = '0001193125-26-277521';
   }
 }
-data.getRange('A1:O1').values = [['Key','USD unless labelled x','Reported input','Period start','Period end / as of',
+data.getRange('A1:O1').values = [['Key','USD millions unless x','Reported input','Period start','Period end / as of',
   'Form','Filed','Accession','Tag','Context ID','Scale','Decimals','Source','Filing location','Unavailable reason']];
 data.getRange(`A2:O${sourceRows.length+1}`).values = sourceRows;
 data.getRange(`B2:B${sourceRows.length+1}`).setNumberFormat(USD);
@@ -93,19 +94,20 @@ set(main,'A29','Rows 25–26 hold every other reported flow fixed. They are hist
 set(main,'A30','No cash runway or future repayment surplus is calculated. August debt maturity amounts and drawable credit are Unavailable.');
 set(main,'A31','Interest and operating lease cash payments within OCF are not subtracted again.');
 set(main,'A32','The 11.363B prepayment contribution is already in OCF; the 19.909B ATM proceeds are already in August cash.');
-main.getRange('H35:I40').values = [['Quarter measure','USD'],['Reported OCF',null],['OCF less\nprepayments',null],
-  ['Cash capex',null],['OCF less\ncash capex',null],['OCF less prepayments\nand capex',null]];
-for (const [r, source] of [[36,6],[37,8],[38,10],[39,11],[40,12]]) set(main,`I${r}`,`=B${source}`,true);
-main.getRange('I36:I40').setNumberFormat(USD);
-const chart = main.charts.add('bar', main.getRange('H35:I40'));
-chart.title = 'Quarter cash flow and capex (USD billions)';
+main.getRange('H35:I38').values = [['Quarter measure','USD'],['Reported\nOCF',null],['OCF excluding specified\nprepayments',null],['Cash\ncapex',null]];
+for (const [r, source] of [[36,6],[37,8],[38,10]]) set(main,`I${r}`,`=B${source}`,true);
+main.getRange('I36:I38').setNumberFormat(USD);
+const chart = main.charts.add('bar', main.getRange('H35:I38'));
+chart.title = 'Cash capex exceeded operating cash flow';
 chart.titleTextStyle.typeface = 'Arial';
 chart.titleTextStyle.fontSize = 13;
 chart.hasLegend = false;
 chart.xAxis = {axisType:'textAxis',tickLabelPosition:'low',textStyle:{typeface:'Arial',fontSize:11},majorGridlines:null};
-chart.yAxis = {numberFormatCode:'0.0,,,',numberFormatSourceLinked:false,textStyle:{typeface:'Arial',fontSize:11}};
+chart.yAxis = {numberFormatCode:'#,##0,,',numberFormatSourceLinked:false,textStyle:{typeface:'Arial',fontSize:11}};
+chart.yAxis.title.text='USD millions';
 chart.series.items[0].fill = '#737985';
-chart.setPosition('D4','L20');
+chart.setPosition('D5','L20');
+set(main,'D4','June–August 2026. USD millions. The second bar subtracts specified prepayments from OCF.');
 
 set(due,'A2','Oracle payment dates and financing limits');
 set(due,'A3','At August 31, 2026. USD millions. Leases include interest; no combined obligations total.');
@@ -145,7 +147,7 @@ about.getRange('A1:C1').values = [['Topic','Explanation','Source']];
 const notes = [
   ['Snapshot','Saved Oracle review of June 1–August 31, 2026, checked October 15, 2026. Not live data or investment advice.',null],
   ['Workbook','Cash analysis calculates funding contributions. Payment dates keeps contracts on their own bases. Data retains reported inputs and sources.',null],
-  ['Colors and units','Arial 10. Dollar inputs are full USD displayed in millions. Blue inputs, green links, black calculations. A dash is a reported zero; blank capacity is Unavailable.',null],
+  ['Colors and units','Arial 10. Dollar inputs are full USD displayed in millions. Blue inputs, green cross-sheet links, black same-sheet calculations. OCF less specified prepayments stays black because it subtracts two cells on Cash analysis. A dash is a reported zero; blank capacity is Unavailable.',null],
   ['Missing inputs','A missing numeric input produces #N/A in dependent calculations rather than zero. Data is a frozen source record, not forecast assumptions.',null],
   ['Cash basis','Ending total cash of 38.934B includes restricted cash. Balance-sheet cash is 36.369B; the 2.565B difference is derived from these exact rounded-million totals.',review.source_url],
   ['Customer prepayments','11.363B is the specified cash-flow contribution within OCF. Subtracting it does not isolate recurring cash flow or remove future service costs.',review.source_url],
@@ -200,8 +202,14 @@ for (const [sheet,range] of [[main,'A4:B4'],[due,'A5:F5'],[data,'A1:O1'],[about,
 for (const r of [11,12,16,17,20,25,26]) main.getRange(`A${r}:B${r}`).format.font.bold=true;
 for (const r of [19,23]) main.getRange(`B${r}`).setNumberFormat('#,##0.00,,;(#,##0.00,,);0.00');
 for (const r of [16,20]) due.getRange(`B${r}:D${r}`).setNumberFormat('#,##0.00,,;(#,##0.00,,);0.00');
-main.getRange('H35:I40').format.wrapText=true;
-main.getRange('H35:I40').format.rowHeight=38;
+main.getRange('H35:I38').format.wrapText=true;
+main.getRange('H35:H38').format.columnWidth=26;
+main.getRange('H35:I38').format.rowHeight=38;
+main.getRange('D4').format.wrapText=false;
+set(main,'D22','Reported OCF less capex = B6 − B10.');
+set(main,'D23','Excluding specified prepayments = B8 − B10.');
+set(main,'D25','The prepayment exclusion is historical arithmetic, not recurring cash generation.');
+main.getRange('D22:D25').format.wrapText=false;
 data.getRange(`A1:O${sourceRows.length+1}`).format.rowHeight=45;
 data.getRange(`A1:A${sourceRows.length+1}`).format.columnWidth=24;
 data.getRange(`B1:B${sourceRows.length+1}`).format.columnWidth=19;
@@ -218,6 +226,14 @@ about.getRange('C1:C14').format.columnWidth=65;
 about.getUsedRange().format.wrapText=true;
 about.getUsedRange().format.rowHeight=60;
 about.freezePanes.freezeRows(1);
+for (const address of ['A4:B12','A13:B23','A25:B27','H35:I38']) frame(main,address);
+for (const address of ['A5:F20','A22:B22','A24:B27','A33:B33']) frame(due,address);
+for (const [sheet,address] of [[main,'A4:B4'],[main,'H35:I35'],[due,'A5:F5'],[data,'A1:O1'],[about,'A1:C1']]) header(sheet,address);
+for (const n of [8,11,12,16,17,20,25,26]) subtotal(main,`A${n}:B${n}`);
+for (const n of [14,18]) subtotal(due,`A${n}:D${n}`);
+frame(data,`A1:O${sourceRows.length+1}`);frame(about,`A1:C${notes.length+1}`);
+// Formula colors express dependencies, never whether a cash amount is favorable.
+main.getRange('B8').format.font.color='#000000';
 
 wb.recalculate();
 const expected = {B8:11740000000,B11:-5396000000,B12:-16759000000,B16:7645000000,
@@ -246,8 +262,8 @@ await fs.rm(output+'.inspect.ndjson',{force:true});
 const digest = b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({review_sha256:digest(sourceBytes),
   workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');
-for (const [sheet,range,file] of [['Cash analysis','A2:B27','cash'],['Cash analysis','D4:L20','chart'],
-  ['Payment dates','A2:F20','payments'],['Data','A1:G6','inputs'],['About','A1:B14','about']]) {
+for (const [sheet,range,file] of [['Cash analysis','A2:B27','cash'],['Cash analysis','D4:L25','chart'],
+  ['Payment dates','A2:F33','payments'],['Data','A1:G6','inputs'],['Data','H1:O6','provenance'],['About','A1:C14','about']]) {
   const preview=await wb.render({sheetName:sheet,range,scale:1.4,format:'png'});
   await fs.writeFile(path.join(process.cwd(),`oracle-liquidity-${file}.png`),new Uint8Array(await preview.arrayBuffer()));
 }

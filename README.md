@@ -28,6 +28,22 @@ For up to five tickers:
 
 ## Known limits
 
+- The company reviews use larger section headings, concise borrowing labels and an Oracle chart
+  measuring each cash contribution from zero. Opening/closing cash balances remain separate from quarter flows.
+  The three liquidity workbooks outline tables and calculation blocks with light borders.
+  Oracle's native Excel chart compares reported OCF, OCF excluding specified prepayments, and cash
+  capex for June–August 2026 in USD millions. Black subtraction formulas stay black; green indicates
+  cross-sheet links. Sources, numeric inputs, financial formulas and existing research are retained.
+  The combined pilot download is a styled saved export (`samples/liquidity_pilots.xlsx`), bound to
+  both source JSON files by `samples/liquidity_pilots.manifest.json`. It becomes Unavailable when
+  those sources or the workbook differ. The general programmatic export remains available.
+  Workbook styling is rebuilt with `tests/offline/workbook_style.mjs` and
+  `tests/offline/style_pilot_workbook.mjs` using the Codex spreadsheet runtime. The latter imports
+  the current saved export, or accepts a current downloaded pilot workbook as its second argument,
+  verifies every metric against the snapshots, and preserves financial formulas and source rows.
+  The three existing Oracle filter regions are retained as native Excel tables with filter controls.
+  Dedicated Oracle and Vistra builders use the same style helper. No runtime dependency is added.
+
 - Vistra's saved repayment review, checked October 15, adds the January–June cash reconciliation,
   selected repayment dates, project recourse and funding resources by borrower
   (`vistra_liquidity.py`, `vistra_liquidity_sources.py`, `vistra_liquidity_view.py`). Its separate

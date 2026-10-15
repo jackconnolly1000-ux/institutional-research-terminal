@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { Workbook, SpreadsheetFile } from '@oai/artifact-tool';
+import {frame, header, subtotal} from './workbook_style.mjs';
 
 const root=process.argv[2];
 if(!root) throw new Error('Pass repository directory');
@@ -197,6 +198,14 @@ data.getRange('A1:P1').format.font.bold=true;data.freezePanes.freezeRows(1);
 about.getRange(`A1:A${notes.length+1}`).format.columnWidth=35;about.getRange(`B1:B${notes.length+1}`).format.columnWidth=105;
 about.getRange(`C1:D${notes.length+1}`).format.columnWidth=65;about.getUsedRange().format.wrapText=true;
 about.getUsedRange().format.rowHeight=90;about.getRange('A1:D1').format.rowHeight=25;about.getRange('A1:D1').format.font.bold=true;about.freezePanes.freezeRows(1);
+for(const address of ['A5:B8','A10:B14','A16:B23','A25:B35','A37:B39','A41:B49'])frame(main,address);
+for(const address of ['A5:E11','A33:B33','A35:B35','A37:B37','A39:B39','A43:C54','H24:I30'])frame(due,address);
+for(const address of ['A5:E13','A16:B16','A18:B23','A25:B26','A28:B32','A34:B42','A44:B45'])frame(capacity,address);
+frame(data,`A1:P${inputs.length+1}`);frame(about,`A1:D${notes.length+1}`);
+for(const [sheet,address] of [[main,'A5:B5'],[due,'A5:E5'],[due,'A43:C43'],[due,'H24:I24'],[capacity,'A5:E5'],[data,'A1:P1'],[about,'A1:D1']])header(sheet,address);
+for(const n of [8,13,14,23,30,33,37,42,47])subtotal(main,`A${n}:B${n}`);
+for(const n of [16,21,30,36,38,42])subtotal(capacity,`A${n}:B${n}`);
+subtotal(due,'A50:B50');subtotal(due,'A52:B52');
 wb.recalculate();
 for(const [cell,value] of Object.entries({B8:650e6,B13:959e6,B14:-309e6,B23:-162e6,B25:293e6,B32:0,B35:0,B37:-341e6,B39:0,B42:481e6,B44:0,B47:435e6,B49:0})){
   if(main.getRange(cell).values[0][0]!==value)throw new Error('Cash reconciliation '+cell);

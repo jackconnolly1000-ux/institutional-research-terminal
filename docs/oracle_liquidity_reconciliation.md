@@ -146,6 +146,6 @@ editable chart bindings. Missing numeric inputs propagate as unavailable rather 
 
 Rebuild from the repo using `.venv/bin/python tests/fixtures/make_oracle_liquidity_fixture.py`, then
 `.venv/bin/python tests/offline/build_oracle_liquidity.py`. For the Excel file, copy
-`tests/offline/build_oracle_liquidity.mjs` to a temporary directory, symlink that directory's
+`tests/offline/build_oracle_liquidity.mjs` and `tests/offline/workbook_style.mjs` to a temporary directory, symlink that directory's
 `node_modules` to `CODEX_PRIMARY_RUNTIME_NODE_MODULES`, and run it with `CODEX_PRIMARY_RUNTIME_NODE`,
 passing the absolute repo path. This requires the Codex artifact runtime only for rebuilding, not deployment.
