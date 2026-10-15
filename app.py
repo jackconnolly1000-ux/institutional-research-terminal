@@ -6,6 +6,7 @@ import platform
 import requests
 import time
 import traceback
+from importlib import reload
 import openpyxl
 import yfinance as yf
 import pandas as pd
@@ -22,11 +23,18 @@ import budget
 import filing_review
 import reviewed_financing
 import company_review
+import oracle_financing
 import market_data
 import sec_data
 import ui
 import xbrl
 from charts import CHART_CONFIG, build_price_chart
+
+# A Cloud worker can retain imported views across entry-point reruns after deployment.
+# These modules have no network calls or state to preserve; load the current view and review registry.
+reload(oracle_financing)
+reload(reviewed_financing)
+reload(company_review)
 
 ET = ZoneInfo("America/New_York")
 

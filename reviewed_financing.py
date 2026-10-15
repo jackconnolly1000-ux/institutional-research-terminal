@@ -128,17 +128,22 @@ VST = {
 
 
 def annotate(inventory: dict, ticker: str) -> dict:
-    """Add only accession-matched, source-checked Vistra findings to the live index.
+    """Add only accession-matched, source-checked findings to the live index.
 
     Never use a review performed later than the requested index-through date, or apply this
-    June 30 review to another balance sheet. Incomplete indexes keep their incomplete status.
+    checked anchor's review to another balance sheet. Incomplete indexes keep their incomplete status.
     """
+    import oracle_financing
     result = deepcopy(inventory)
-    if ticker.upper() != "VST" or result.get("since") != VST_BALANCE_DATE \
+    company = ticker.upper()
+    checked_filings, balance = ((VST, VST_BALANCE_DATE) if company == "VST" else
+                                (oracle_financing.FILINGS, oracle_financing.ANCHOR) if company == "ORCL" else
+                                ({}, ""))
+    if not checked_filings or result.get("since") != balance \
             or result.get("through", "") < REVIEWED_AS_OF:
         return result
     for row in result.get("filings", []):
-        checked = VST.get(row.get("accession"))
+        checked = checked_filings.get(row.get("accession"))
         # reportDate is an event date for an 8-K; offering forms need not carry one.
         keys = ("form", "filed", "period") if row.get("form") == "8-K" else ("form", "filed")
         if checked and all(row.get(k, "") == checked[k] for k in keys):

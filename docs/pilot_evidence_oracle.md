@@ -175,3 +175,7 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 ## Saved company review: cash generation
 
 The frozen app review now shows checked TTM operating cash flow, reported capital spending, FCF and flow/debt ratios. Full reconciliation, exact source periods, tag definitions and caveats: [pilot_cashflow_reconciliation.md](pilot_cashflow_reconciliation.md). The selected obligations note is incomplete and does not add commitments or lease liabilities to baseline borrowing. Existing open gaps remain open.
+
+## Implemented historical debt maturity review
+
+The saved Oracle company review now shows the May 31, 2026 principal schedule and its reconciliation, exact quarter financing cash flows, and the two checked later 8-Ks above. Full source audit, period distinctions, terms, open gaps and rebuild instructions: [oracle_maturity_reconciliation.md](oracle_maturity_reconciliation.md). The August 31 schedule and revolver availability are Unavailable; the May schedule is not rolled forward.
