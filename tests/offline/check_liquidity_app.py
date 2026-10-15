@@ -39,6 +39,8 @@ assert all(value in text for value in ("54.91B", "125.34B", "19.90B", "Financing
                                       "Historical schedule at May 31, 2026", "$10.145B", "$19.909B"))
 assert all(value in text for value in ("What funded Oracle’s cash balance?", "−$16.759B", "$2.565B",
                                       "Historical funding exclusions", "6.02(c)"))
+assert all(value in text for value in ("How does Vistra fund its repayments?", "$650M", "$959M",
+                                      "$6.295B", "Pulaski", "Current drawable amounts are Unavailable"))
 next(b for b in app.button if b.label == "View saved sample").click().run(timeout=30)
 assert not app.exception and not app.error
 assert any("Saved sample. Analysis run" in m.value for m in app.markdown)

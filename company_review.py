@@ -8,6 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from ui import esc
 from oracle_liquidity_view import CSS as ORACLE_LIQUIDITY_CSS
+from vistra_liquidity_view import CSS as VISTRA_LIQUIDITY_CSS
 
 NOTES = {
     "LLY": [
@@ -95,7 +96,7 @@ CSS = """<style>
 </style>"""
 
 # Nested style blocks are parsed as raw text by the Markdown renderer and can hide headings.
-CSS = CSS.replace("</style>", ORACLE_LIQUIDITY_CSS + "</style>")
+CSS = CSS.replace("</style>", ORACLE_LIQUIDITY_CSS + VISTRA_LIQUIDITY_CSS + "</style>")
 
 
 def money(value, digits=2):
@@ -255,6 +256,8 @@ def render(snapshot):
     output += '<p class="lr-meta">Current assets include items other than cash. This comparison does not establish whether specific payments can be met; a maturity schedule and financing terms are still needed.</p></section></div>'
     from oracle_liquidity_view import render as oracle_liquidity_html
     output += oracle_liquidity_html(snapshot, money)
+    from vistra_liquidity_view import render as vistra_liquidity_html
+    output += vistra_liquidity_html(snapshot, money)
     output += maturity_html(snapshot)
     output += '<section class="lr-obligations"><h3>What sits outside baseline borrowing?</h3><p class="lr-meta">Selected disclosures, each shown separately. Commitments are not all payable now and are not added to debt or to each other.</p>'
     for item in NOTES[snapshot["ticker"]]:
@@ -262,7 +265,7 @@ def render(snapshot):
                    f'<p>{esc(item["amount"])}</p><div class="lr-meta">As of {esc(item["date"])} · {esc(item["kind"])}</div></div>'
                    f'<div><p>{esc(item["detail"])}</p><a class="lr-meta" href="{esc(source)}" target="_blank" rel="noopener noreferrer">{esc(item["location"])}</a></div></article>')
     output += '</section><section class="lr-limits"><h3>What remains unresolved?</h3>'
-    remaining = "Interest coverage is not included." if snapshot["ticker"] == "ORCL" else "Interest coverage and a full debt maturity review are not included."
+    remaining = "Interest coverage is not included." if snapshot["ticker"] in {"ORCL", "VST"} else "Interest coverage and a full debt maturity review are not included."
     output += f'<p class="lr-meta">{esc(LIMITS[snapshot["ticker"]])} {remaining}</p></section></section>'
     return output.replace("$", "&#36;")
 
@@ -543,6 +546,16 @@ def render_app() -> None:
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         for snapshot, tab in zip(saved["snapshots"], st.tabs([s["ticker"] for s in saved["snapshots"]])):
             with tab:
+                if snapshot["ticker"] == "VST":
+                    import vistra_liquidity as vl
+                    review = vl.for_snapshot(snapshot)
+                    content = vl.workbook_bytes(review) if review else None
+                    if content:
+                        st.download_button("Download Vistra repayment analysis and evidence", content,
+                            file_name="Vistra_Liquidity_2026-06-30.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    else:
+                        st.caption("Vistra repayment workbook Unavailable: its saved review must match the workbook.")
                 if snapshot["ticker"] == "ORCL":
                     import oracle_liquidity as ol
                     review = ol.for_snapshot(snapshot)

@@ -74,30 +74,33 @@ def _number(fact: ET.Element) -> tuple[Decimal | None, str]:
     return (-value if fact.get("sign") == "-" else value), ""
 
 
-def read_instant(document: str | Path, accession: str, tag: str, instant: str) -> dict:
+def read_instant(document: str | Path, accession: str, tag: str, instant: str, *, dimensions=()) -> dict:
     """The value of tag (prefix included, e.g. "vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed")
-    as a USD instant at instant (YYYY-MM-DD) with no dimensions, from the inline XBRL document of filing accession.
+    as a USD instant at instant (YYYY-MM-DD), undimensioned by default, from filing accession.
 
     The accession is recorded as given: the document itself does not state it, so the caller is responsible for
-    pairing them. Returns tag, value (int dollars, None when unavailable), period (the instant), context_id,
-    dimensions ([] for a selected fact), unit, scale, decimals, document (file name), accession, facts_found
+    pairing them. A filing-specific caller may supply exact expected dimensions; the default
+    accepts none. Returns tag, value (int dollars, None when unavailable), period (the instant), context_id,
+    dimensions ([] by default), unit, scale, decimals, document (file name), accession, facts_found
     (how many matching facts agreed), note (None or UNAVAILABLE) and detail (why unavailable)."""
-    return _read(document, accession, tag, instant)
+    return _read(document, accession, tag, instant, dimensions=dimensions)
 
 
-def read_duration(document: str | Path, accession: str, tag: str, start: str, end: str) -> dict:
-    """One undimensioned USD fact for the exact start and end dates; never sum quarterly overlaps.
+def read_duration(document: str | Path, accession: str, tag: str, start: str, end: str, *, dimensions=()) -> dict:
+    """One USD fact for the exact start and end dates; never sum quarterly overlaps.
 
     Uses the instant reader's unit, format, duplicate and conflict checks. The caller supplies the accession
-    and is responsible for pairing it with the right source document. No segment-specific rules are implied.
+    and is responsible for pairing it with the right source document. A filing-specific caller
+    may supply exact expected dimensions; no axis or member is inferred.
     """
     from datetime import date
     if date.fromisoformat(start) > date.fromisoformat(end):
         raise ValueError("Duration starts after it ends")
-    return _read(document, accession, tag, end, start=start)
+    return _read(document, accession, tag, end, start=start, dimensions=dimensions)
 
 
-def _read(document: str | Path, accession: str, tag: str, instant: str, start: str | None = None) -> dict:
+def _read(document: str | Path, accession: str, tag: str, instant: str, start: str | None = None,
+          dimensions=()) -> dict:
     """Shared fact selection and conversion; start distinguishes a duration from an instant."""
     document = Path(document)
     result = {"tag": tag, "value": None, "period": instant, "context_id": None, "dimensions": [], "unit": None,
@@ -136,7 +139,9 @@ def _read(document: str | Path, accession: str, tag: str, instant: str, start: s
             if (ctx["start"], ctx["end"]) != (start, instant):
                 other_dates.add(f"{ctx['start']} to {ctx['end']}")
                 continue
-        if ctx["dimensions"]:
+        # A caller may name an exact, filing-checked dimensional breakdown. Extra or missing
+        # axes never match; the default continues to accept only undimensioned facts.
+        if sorted(ctx["dimensions"]) != sorted(tuple(d) for d in dimensions):
             dimensioned.append(f.get("contextRef"))
             continue
         unit = units.get(f.get("unitRef"))
@@ -148,8 +153,10 @@ def _read(document: str | Path, accession: str, tag: str, instant: str, start: s
     if not candidates:
         reasons = []
         if dimensioned:
-            reasons.append(f"only dimensioned contexts at {instant} ({', '.join(sorted(set(dimensioned)))}), which "
-                           f"report a part or breakdown rather than the line item")
+            reasons.append((f"only dimensioned contexts at {instant} ({', '.join(sorted(set(dimensioned)))}), "
+                            "which report a part or breakdown rather than the line item") if not dimensions else
+                           f"no contexts with the exact expected dimensions at {instant}; rejected "
+                           f"{', '.join(sorted(set(dimensioned)))}")
         if other_units:
             reasons.append(f"units other than {USD} at {instant} ({', '.join(sorted(other_units))})")
         if other_dates:
@@ -159,7 +166,8 @@ def _read(document: str | Path, accession: str, tag: str, instant: str, start: s
             reasons.append(f"{durations} duration fact(s), not instants" if start is None
                            else f"{durations} instant fact(s), not durations")
         period = f"instant at {instant}" if start is None else f"duration from {start} to {instant}"
-        return unavailable(f"no undimensioned {USD} {period} for {tag}; the document has "
+        scope = "undimensioned" if not dimensions else "expected-dimension"
+        return unavailable(f"no {scope} {USD} {period} for {tag}; the document has "
                            + "; ".join(reasons))
 
     values = []
@@ -180,6 +188,7 @@ def _read(document: str | Path, accession: str, tag: str, instant: str, start: s
         return unavailable(f"{tag} facts at {instant} sit in more than one undimensioned context "
                            f"({', '.join(ctx_ids)}); which one is the line item is not established")
     selected = {**result, "value": int(value), "context_id": ctx_ids[0], "unit": USD,
+            "dimensions": [list(d) for d in contexts[ctx_ids[0]]["dimensions"]],
             "scale": int(first.get("scale") or 0), "decimals": first.get("decimals"),
             "facts_found": len(values), "note": None}
     if start is not None:

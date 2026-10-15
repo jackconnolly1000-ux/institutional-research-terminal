@@ -28,6 +28,17 @@ For up to five tickers:
 
 ## Known limits
 
+- Vistra's saved repayment review, checked October 15, adds the January–June cash reconciliation,
+  selected repayment dates, project recourse and funding resources by borrower
+  (`vistra_liquidity.py`, `vistra_liquidity_sources.py`, `vistra_liquidity_view.py`). Its separate
+  five-sheet Excel download has formulas, a native payment chart and filing/context evidence.
+  `samples/vistra_liquidity.manifest.json` binds the workbook to its source JSON. June reported liquidity
+  is not current drawable credit or cash all held at Parent. Current capacity, covenant headroom,
+  parent-accessible cash and Helix calls remain Unavailable. Project debt and LC amounts are not added
+  twice; the December 2025 maturity schedule is not rolled forward after refinancing. The September 30
+  amendment's filing date is corrected to October 5 (accepted October 2 after hours). Sources, limits
+  and rebuild steps: `docs/vistra_liquidity_reconciliation.md`. Existing reviews and research are preserved.
+
 - Oracle's saved review also includes a June–August cash reconciliation and funding analysis
   (`oracle_liquidity.py`, `oracle_liquidity_view.py`). It separates the specified customer-prepayment
   contribution from other OCF and equity proceeds, shows dated lease and purchase payments, and links
