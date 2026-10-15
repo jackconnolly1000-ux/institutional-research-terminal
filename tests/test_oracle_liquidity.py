@@ -141,6 +141,20 @@ class OracleLiquidity(unittest.TestCase):
         self.assertNotIn("6.02(e)",shown)
         self.assertEqual(view.render(self.snapshots[0],money),"")
 
+    def test_markdown_has_one_leading_style_and_no_currency_math(self):
+        import company_review
+        fragment = view.render(self.snapshots[1],money)
+        self.assertNotIn("<style>",fragment)
+        self.assertNotIn("$",fragment)
+        shown = company_review.render(self.snapshots[1])
+        self.assertEqual(shown.count("<style>"),1)
+        self.assertNotIn("$",shown)
+        from bs4 import BeautifulSoup
+        parsed = BeautifulSoup(shown,"html.parser")
+        self.assertFalse(parsed.select('section style'))
+        self.assertTrue(any(h.get_text() == 'What payments are actually dated?' for h in parsed.find_all('h3')))
+        self.assertTrue(any('scheduled to be repaid' in h.get_text() for h in parsed.find_all('h3')))
+
     def test_excel_preserves_formulas_values_sources_dates_and_missing_capacity(self):
         content=ol.workbook_bytes(self.saved)
         formulas=load_workbook(BytesIO(content),data_only=False)

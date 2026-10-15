@@ -3,7 +3,7 @@ from ui import esc
 import oracle_liquidity as ol
 import oracle_financing as of
 
-CSS = """<style>
+CSS = """
 .ol-bridge {margin:18px 0 10px;}
 .ol-step {display:grid;grid-template-columns:170px minmax(50px,1fr) 95px;gap:12px;align-items:center;margin:14px 0;font-size:.82rem;}
 .ol-track {height:16px;position:relative;border-left:1px solid var(--border-strong);border-right:1px solid var(--border);}
@@ -16,14 +16,14 @@ CSS = """<style>
 .ol-table th:first-child,.ol-table td:first-child {text-align:left;}
 .ol-table th {font-weight:600;}
 @media(max-width:760px) {.ol-step {grid-template-columns:125px minmax(40px,1fr) 83px;gap:7px;font-size:.75rem;} .ol-table th,.ol-table td {padding:9px 5px;font-size:.72rem;}}
-</style>"""
+"""
 
 
 def render(snapshot, money):
     review = ol.for_snapshot(snapshot)
     if review is None:
         return ""
-    out = CSS + '<section class="lr-maturity"><h3>What funded Oracle’s cash balance?</h3>'
+    out = '<section class="lr-maturity"><h3>What funded Oracle’s cash balance?</h3>'
     if review["status"] != "Checked":
         return out + f'<p>Unavailable: {esc(review["detail"])}</p></section>'
     inputs, c = review["inputs"], review["cash"]
@@ -135,4 +135,5 @@ def render(snapshot, money):
             'is Unavailable: remaining debt principal at August 31, current drawable credit and future '
             'operating cash generation have not been established. The two later saved 8-Ks checked below '
             'do not establish additional corporate borrowing.</p></section>')
-    return out
+    # Streamlit's Markdown math parser otherwise consumes prose between currency signs.
+    return out.replace("$", "&#36;")
