@@ -24,6 +24,8 @@ import filing_review
 import reviewed_financing
 import company_review
 import oracle_financing
+import oracle_liquidity
+import oracle_liquidity_view
 import market_data
 import sec_data
 import ui
@@ -33,6 +35,8 @@ from charts import CHART_CONFIG, build_price_chart
 # A Cloud worker can retain imported views across entry-point reruns after deployment.
 # These modules have no network calls or state to preserve; load the current view and review registry.
 reload(oracle_financing)
+reload(oracle_liquidity)
+reload(oracle_liquidity_view)
 reload(reviewed_financing)
 reload(company_review)
 

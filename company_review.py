@@ -249,6 +249,8 @@ def render(snapshot):
         output += (f'<p>Current assets of {esc(money(assets["value"]))} {direction} current liabilities of '
                    f'{esc(money(liabilities["value"]))} by {esc(money(abs(gap)))}.</p>')
     output += '<p class="lr-meta">Current assets include items other than cash. This comparison does not establish whether specific payments can be met; a maturity schedule and financing terms are still needed.</p></section></div>'
+    from oracle_liquidity_view import render as oracle_liquidity_html
+    output += oracle_liquidity_html(snapshot, money)
     output += maturity_html(snapshot)
     output += '<section class="lr-obligations"><h3>What sits outside baseline borrowing?</h3><p class="lr-meta">Selected disclosures, each shown separately. Commitments are not all payable now and are not added to debt or to each other.</p>'
     for item in NOTES[snapshot["ticker"]]:
@@ -531,10 +533,20 @@ def render_app() -> None:
         except (OSError, ValueError):
             st.error("The saved liquidity pilot could not be loaded.")
             return
-        st.caption("Saved filing review · checked Oct 14, 2026 · no live or paid request")
+        st.caption("Saved filing reviews · source dates shown below · no live or paid request")
         st.download_button("Download review and evidence", workbook(saved["snapshots"]),
                            file_name="Liquidity_Pilot_2026-10-14.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         for snapshot, tab in zip(saved["snapshots"], st.tabs([s["ticker"] for s in saved["snapshots"]])):
             with tab:
+                if snapshot["ticker"] == "ORCL":
+                    import oracle_liquidity as ol
+                    review = ol.for_snapshot(snapshot)
+                    content = ol.workbook_bytes(review) if review else None
+                    if content:
+                        st.download_button("Download Oracle cash analysis and evidence", content,
+                            file_name="Oracle_Liquidity_2026-08-31.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    else:
+                        st.caption("Oracle cash-analysis workbook Unavailable: its saved source review must match the workbook.")
                 st.markdown(render(snapshot) + evidence_html(snapshot) + (financing_html(snapshot) if snapshot["ticker"] == "VST" else ""), unsafe_allow_html=True)

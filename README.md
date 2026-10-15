@@ -28,6 +28,15 @@ For up to five tickers:
 
 ## Known limits
 
+- Oracle's saved review also includes a June–August cash reconciliation and funding analysis
+  (`oracle_liquidity.py`, `oracle_liquidity_view.py`). It separates the specified customer-prepayment
+  contribution from other OCF and equity proceeds, shows dated lease and purchase payments, and links
+  the reviewed revolver agreement. The Oracle cash-analysis download contains formulas, sources and a
+  native chart; `samples/oracle_liquidity.manifest.json` binds it to the checked JSON review.
+  The original combined evidence download is preserved. Historical funding exclusions are not forecasts
+  or estimates of recurring OCF. August drawable credit, covenant headroom and remaining debt principal
+  dates remain Unavailable. Source audit and rebuild instructions: `docs/oracle_liquidity_reconciliation.md`.
+
 - A free saved debt and liquidity pilot is available for LLY, ORCL and VST, checked October 14, 2026. It shows each company's dated cash, baseline gross debt, net debt and current ratio, their reported inputs and source 10-Q, and a separate Excel evidence download with formulas. Vistra's checked subsequent financing changes are included. The saved company reviews also show checked TTM operating cash flow, reported capital spending, free cash flow and flow/debt ratios, a borrowing breakdown, and selected obligations with their dates and recognition status. Oracle's customer prepayments and Vistra's capex definition are stated beside the flows. This is a frozen review, not a live update or a complete obligations analysis; interest coverage is not included. Oracle now includes its historical May 31 principal maturity schedule, its reconciliation to carrying debt, and two checked later 8-Ks. No August maturity schedule or current revolver availability is inferred; see `docs/oracle_maturity_reconciliation.md`. Reconciliation: `docs/pilot_cashflow_reconciliation.md`. The existing AAPL/STRL saved analysis is separate.
 
 - Live results include a dated EDGAR index of 8-Ks, debt-offering form candidates and periodic-report amendments since the latest balance sheet. For Vistra's June 30, 2026 balance sheet, ten filings through October 14 were manually screened for financing, with source documents linked; the September offering documents refer to one completed $1.5 billion issuance. Oracle’s August 31 anchor also joins its two checked September 8-Ks and exhibits. Other companies and later or unmatched filings remain "Not checked." A retrieval gap is labeled incomplete. The saved sample predates this index.
