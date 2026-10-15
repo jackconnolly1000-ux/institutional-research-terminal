@@ -178,3 +178,157 @@ def render(snapshot):
     output += '</section><section class="lr-limits"><h3>What remains unresolved?</h3>'
     output += f'<p class="lr-meta">{esc(LIMITS[snapshot["ticker"]])} Interest coverage and a full debt maturity review are not included.</p></section></section>'
     return output
+
+
+def evidence_html(snapshot: dict) -> str:
+    """Read-only display; every input keeps its filing and selection information."""
+    import ui
+    from liquidity_pilot import leaf_inputs
+    metrics = snapshot["metrics"]
+    output = '<details class="irt-evidence"><summary>Calculations and filing evidence</summary>'
+    for metric in metrics.values():
+        output += f'<p><strong>{ui.esc(metric["label"])}</strong>'
+        if metric.get("formula"):
+            output += f' · {ui.esc(metric["formula"])}'
+        if metric["value"] is None:
+            output += f'<br>Unavailable: {ui.esc(metric["detail"])}'
+        for note in metric.get("notes", []):
+            output += f'<br>{ui.esc(note)}'
+        output += '</p><ul class="irt-ol" style="overflow-wrap:anywhere">'
+        # Ratios and net debt reference the metrics already documented above.
+        facts = [] if metric.get("unit") == "fraction" or metric["label"] in {"Net debt", "Free cash flow"} else leaf_inputs(metric)
+        for fact in facts:
+            value = f"{fact['value']:,.0f} USD" if fact["value"] is not None else "Unavailable"
+            context = (f" · Context {fact['context_id']}, scale {fact['scale']}, decimals {fact['decimals']}"
+                       if fact.get("context_id") else "")
+            period = ((fact["period_start"] + " to ") if fact.get("period_start") else "") + fact["period_end"]
+            output += (f'<li>{ui.esc(fact["label"])}: {ui.esc(value)} · {ui.esc(fact["tag"])}<br>'
+                       f'Period {ui.esc(period)} · {ui.esc(fact.get("form") or "Form unavailable")} '
+                       f'filed {ui.esc(fact.get("filed") or "Unavailable")} · '
+                       f'{ui.esc(fact.get("accession") or "Accession unavailable")}<br>'
+                       f'{ui.esc(fact.get("selection_rule") or fact.get("detail", ""))}{ui.esc(context)}'
+                       f'<br><a href="{ui.esc(fact.get("source_url") or snapshot["source_url"])}" target="_blank" rel="noopener noreferrer">Source filing</a></li>')
+        output += '</ul>'
+    debt = metrics["gross_debt"]
+    caveats = [*debt.get("caveats", []), *debt.get("notes", [])]
+    if debt.get("not_added"):
+        caveats.append("Excluded from baseline debt: " + debt["not_added"])
+    output += ''.join(f'<p class="irt-note">{ui.esc(n)}</p>' for n in caveats)
+    return output + '</details>'
+
+
+
+def workbook(snapshots: list[dict]) -> bytes:
+    """A row per reported input, with Excel formulas referencing those rows for derived results."""
+    from io import BytesIO
+    from liquidity_pilot import PILOTS, leaf_inputs
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Debt and liquidity"
+    ws.append(["Ticker", "Metric", "Value", "Unit", "Period end", "Formula", "Status", "Notes"])
+    raw = wb.create_sheet("Liquidity inputs")
+    raw.append(["Ticker", "Metric", "Reported input", "Value (USD)", "Period end", "Form", "Filed",
+                "Accession", "Tag", "Selection rule", "Source document", "Notes",
+                "Context ID", "Scale", "Decimals", "Period start", "TTM role", "Coefficient"])
+    usd_format = '#,##0,,;(#,##0,,);"-"'
+    for snapshot in snapshots:
+        metric_rows = {}
+        for key, metric in snapshot["metrics"].items():
+            metric_rows[key] = ws.max_row + 1
+            refs = []
+            # Net debt references the two already exported metrics; no duplicate input rows.
+            derived_refs = {"net_debt": ("gross_debt", "cash", "-"),
+                            "free_cash_flow": ("operating_cash_flow", "capital_spending", "-"),
+                            "ocf_to_debt": ("operating_cash_flow", "gross_debt", "/"),
+                            "fcf_to_debt": ("free_cash_flow", "gross_debt", "/")}
+            if key not in derived_refs:
+                for fact in leaf_inputs(metric):
+                    raw.append([snapshot["ticker"], metric["label"], fact["label"], fact["value"],
+                                fact["period_end"], fact.get("form"), fact.get("filed"), fact.get("accession"),
+                                fact.get("tag"), fact.get("selection_rule"), fact.get("source_url") or snapshot["source_url"],
+                                "; ".join(fact.get("notes", [])) or fact.get("detail", ""),
+                                fact.get("context_id"), fact.get("scale"), fact.get("decimals"),
+                                fact.get("period_start"), fact.get("role"), fact.get("coefficient")])
+                    raw.cell(raw.max_row, 4).number_format = usd_format
+                    raw.cell(raw.max_row, 4).font = Font(name="Arial", size=10, color="0000FF")
+                    refs.append((fact.get("coefficient", 1), f"'Liquidity inputs'!D{raw.max_row}"))
+            value = None
+            if metric["value"] is not None:
+                if key in derived_refs:
+                    a, b, op = derived_refs[key]
+                    value = f"=C{metric_rows[a]}{op}C{metric_rows[b]}"
+                elif key == "current_ratio":
+                    value = "=" + "/".join(ref for _, ref in refs)
+                else:
+                    value = "=" + refs[0][1] + "".join(("-" if sign < 0 else "+") + ref for sign, ref in refs[1:])
+            notes = [*metric.get("notes", []), *metric.get("caveats", [])]
+            if metric.get("not_added"):
+                notes.append("Excluded: " + metric["not_added"])
+            ws.append([snapshot["ticker"], metric["label"], value,
+                       "USD (displayed in millions)" if metric["unit"] == "USD" else
+                       "fraction (displayed as %)" if metric["unit"] == "fraction" else "ratio",
+                       metric["period_end"], metric.get("formula") or metric.get("tag"),
+                       ("Reported" if key == "cash" else "Calculated") if metric["value"] is not None else "Unavailable",
+                       "; ".join(notes) or metric.get("detail", "")])
+            ws.cell(ws.max_row, 3).number_format = (usd_format if metric["unit"] == "USD" else
+                                                   '0.0%;(0.0%);"-"' if metric["unit"] == "fraction" else '0.00"x"')
+            if key == "cash":
+                ws.cell(ws.max_row, 3).font = Font(name="Arial", size=10, color="008000")
+    about = wb.create_sheet("About")
+    about.append(["Item", "Description"])
+    about.append(["Snapshot", "Saved pilot evidence checked October 14, 2026. Not live data or investment advice."])
+    about.append(["Units", "Dollar inputs are stored in USD and displayed in millions. Ratios are multiples."])
+    about.append(["Calculation", "Excel recalculates formulas when opened. Each formula traces to reported inputs."])
+    about.append(["Colors", "Blue numbers are reported inputs. Green formulas link a reported value from another sheet. Black formulas calculate results."])
+    about.append(["Scope", "Baseline borrowing excludes leases. FCF subtracts the reported capital-spending line from OCF; acquisitions are excluded. Historical flow/debt ratios are not repayment forecasts. This is not a complete obligations analysis."])
+    obligations = wb.create_sheet("Other obligations")
+    obligations.append(["Ticker", "Disclosure", "Amount as disclosed", "Reporting date", "Classification", "Filing location", "Accession", "Source", "Notes"])
+    for snapshot in snapshots:
+        for item in NOTES[snapshot["ticker"]]:
+            obligations.append([snapshot["ticker"], item["name"], item["amount"], item["date"], item["kind"],
+                                item["location"], PILOTS[snapshot["ticker"]]["accession"], snapshot["source_url"], item["detail"]])
+    for sheet in wb:
+        sheet.sheet_view.showGridLines = False
+        sheet.freeze_panes = "A2"
+        for row in sheet:
+            for cell in row:
+                color = cell.font.color.rgb if cell.font.color and cell.font.color.type == "rgb" else "000000"
+                cell.font = Font(name="Arial", size=10, color=color, bold=cell.row == 1)
+                cell.alignment = Alignment(vertical="top", wrap_text=True)
+        for col in sheet.columns:
+            sheet.column_dimensions[col[0].column_letter].width = 23
+    ws.column_dimensions["H"].width = 65
+    raw.column_dimensions["K"].width = 55
+    raw.column_dimensions["L"].width = 55
+    about.column_dimensions["B"].width = 90
+    out = BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+
+def render_app() -> None:
+    """Direct app entry point; the complete view loads together rather than through a cached legacy helper."""
+    import json
+    import streamlit as st
+    from liquidity_pilot import SAMPLE, financing_html
+    panel = st.expander("Debt and liquidity · company reviews",
+                        key="liquidity_pilot_open", on_change="rerun")
+    # Closed pilots need no workbook build and contribute no hidden tabs to the existing analysis.
+    if not panel.open:
+        return
+    with panel:
+        try:
+            saved = json.loads(SAMPLE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            st.error("The saved liquidity pilot could not be loaded.")
+            return
+        st.caption("Saved filing review · checked Oct 14, 2026 · no live or paid request")
+        st.download_button("Download review and evidence", workbook(saved["snapshots"]),
+                           file_name="Liquidity_Pilot_2026-10-14.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        for snapshot, tab in zip(saved["snapshots"], st.tabs([s["ticker"] for s in saved["snapshots"]])):
+            with tab:
+                st.markdown(render(snapshot) + evidence_html(snapshot) + (financing_html(snapshot) if snapshot["ticker"] == "VST" else ""), unsafe_allow_html=True)

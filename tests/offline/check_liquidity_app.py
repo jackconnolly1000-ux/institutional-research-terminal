@@ -11,6 +11,18 @@ os.environ["SEC_CONTACT_EMAIL"] = "offline-test@example.com"
 import mocks  # noqa: E402
 mocks.install()
 from streamlit.testing.v1 import AppTest  # noqa: E402
+import liquidity_pilot  # noqa: E402
+
+
+def stale_view(*args, **kwargs):
+    raise AssertionError("The app called a cached legacy view instead of the directly imported review module")
+
+
+# Reproduce a long-lived process retaining the previous helper's UI functions after a code update.
+liquidity_pilot.render = stale_view
+liquidity_pilot.render_html = stale_view
+liquidity_pilot.evidence_html = stale_view
+liquidity_pilot.workbook = stale_view
 
 app = AppTest.from_file(str(ROOT / "app.py"))
 app.secrets["ANTHROPIC_API_KEY"] = "offline-placeholder"
