@@ -1,6 +1,6 @@
 # Debt and liquidity: first-release plan
 
-Status (Oct 14, 2026): **partly implemented.** A saved pilot view shows dated cash, baseline gross debt, net debt and current ratio for LLY, ORCL and VST with an evidence export. Only the items under "Existing code" are implemented; the rest remains a plan.
+Status (Oct 14, 2026): **partly implemented.** Saved company reviews show dated cash, baseline gross debt, net debt, current ratio, checked TTM OCF and reported capital spending, FCF, flow/debt ratios, and selected obligations for LLY, ORCL and VST with a formula-based evidence export. Only the items under "Existing code" are implemented; the rest remains a plan.
 
 ## Goal
 
@@ -17,7 +17,7 @@ The tool is for my own stock research and to show accounting, analysis, product 
 
 | Item | Where | Status |
 |---|---|---|
-| TTM free cash flow: `NetCashProvidedByUsedInOperatingActivities` minus `PaymentsToAcquirePropertyPlantAndEquipment`, with period end, form, filed date and accession | `xbrl.py` | Implemented and unit-tested on AAPL, STRL and JPM fixtures. **Not yet validated against the three pilot companies.** |
+| TTM free cash flow: `NetCashProvidedByUsedInOperatingActivities` minus `PaymentsToAcquirePropertyPlantAndEquipment`, with period end, form, filed date and accession | `xbrl.py` | Implemented and unit-tested on AAPL, STRL and JPM fixtures. **Generic FCF reconciles for ORCL and VST. LLY uses another capex tag; the saved review reads all six checked source filings through `cash_generation.py`.** See `pilot_cashflow_reconciliation.md`. |
 | TTM revenue, gross margin, operating margin (`OperatingIncomeLoss` is the operating income input coverage would use) | `xbrl.py` | Implemented and unit-tested on fixtures. Not validated against the pilots. |
 | "Financing and liquidity" category on AI findings (`FINANCING_LIQUIDITY`) | `analysis.py`, `ui.py` | Exists. It is Claude's unverified label, not a calculation. |
 | Cash and cash equivalents at the latest 10-K/10-Q balance-sheet date (`xbrl.cash_and_equivalents`): the anchor filing's own USD instant, with form, filed date, accession, tag, units and selection rule; amendments to that period replace it with a note; differing later comparatives are flagged, not used | `xbrl.py` | Implemented and unit-tested; matches the LLY, ORCL and VST evidence values. Shown in the frozen pilot view; not yet part of live analysis. |
@@ -26,7 +26,8 @@ The tool is for my own stock research and to show accounting, analysis, product 
 | Filing-level inline XBRL reader (`filing_xbrl.read_instant`): one USD instant fact by exact prefixed tag and date, undimensioned, with context, unit, scale, sign and fixed-zero handling; conflicting, wrong-period, wrong-unit or dimensioned facts return Unavailable | `filing_xbrl.py` | Tested on saved filing data: VST accounts receivable financing 300M (context c-8); used by `baseline_gross_debt` when the checked filing document is supplied by accession. |
 | Dated EDGAR filing inventory: candidate 8-K, 424B, FWP, S-3 and periodic-report amendment forms since the latest balance sheet; retrieves relevant older submission pages or labels gaps incomplete | `sec_data.py`, `filing_review.py`, `app.py` | Indexed links shown in an app expander and Excel Filing review sheet. `reviewed_financing.py` joins ten accession-specific, manually checked Vistra filings for the June 30, 2026 anchor: six 8-Ks and four offering documents. The offering documents support one completed issuance. Later or unmatched candidates stay Not checked; an incomplete index remains incomplete. Other companies have no reviewed financing notice yet. |
 | Saved pilot display and Excel evidence: cash, gross debt, same-filing net debt and current ratio for the three pilots | `liquidity_pilot.py`, `samples/liquidity_pilots.json` | Free frozen view, checked Oct 14, 2026; does not overwrite existing analysis results or make a Claude call. Each metric traces to its inputs. Net debt refuses missing inputs, differing dates, units or filing versions and keeps valid negative results. Excel uses formulas referencing reported input rows. Live analysis does not yet fetch the VST document or populate these metrics. |
-| Leases, interest expense, flow ratios | none | Not built |
+| Checked TTM OCF, reported capital spending, FCF and flow/debt ratios | `cash_generation.py`, `filing_xbrl.read_duration`, `liquidity_pilot.py` | Six source filings checked and shown in frozen company reviews; LLY has a specifically verified capex tag. Exact durations and CIK checked. Selected obligations and Oracle lease disclosures shown separately through `liquidity_review.py`; no amount is added to borrowing. See `pilot_cashflow_reconciliation.md`. |
+| Interest expense and coverage, complete lease extraction and obligations review | none | Not built; selected manually checked disclosures do not establish completeness. |
 
 ## First-release scope (planned)
 

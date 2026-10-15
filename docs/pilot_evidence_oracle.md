@@ -171,3 +171,7 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 4. Confirm by hand the balance-sheet lines that hold current operating lease liabilities and finance lease liabilities.
 5. The overlap between the leases not yet commenced and the unconditional purchase obligations is not stated; keep them separate.
 6. Uncertain tax position amounts not extracted (tax liabilities, outside the financing scope).
+
+## Saved company review: cash generation
+
+The frozen app review now shows checked TTM operating cash flow, reported capital spending, FCF and flow/debt ratios. Full reconciliation, exact source periods, tag definitions and caveats: [pilot_cashflow_reconciliation.md](pilot_cashflow_reconciliation.md). The selected obligations note is incomplete and does not add commitments or lease liabilities to baseline borrowing. Existing open gaps remain open.

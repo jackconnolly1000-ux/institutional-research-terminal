@@ -12,6 +12,7 @@ from openpyxl import load_workbook
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import liquidity_pilot as pilot  # noqa: E402
+import cash_generation  # noqa: E402
 
 
 class LiquidityPilot(unittest.TestCase):
@@ -30,7 +31,9 @@ class LiquidityPilot(unittest.TestCase):
             self.assertAlmostEqual(m["current_ratio"]["value"], expected[ticker][3])
             facts = json.loads((ROOT / "tests/fixtures" / f"{ticker}_companyfacts.json").read_text())
             docs = {pilot.PILOTS[ticker]["accession"]: ROOT / "tests/fixtures/VST_2026Q2_ixbrl.htm"}
-            self.assertEqual(pilot.build_snapshot(facts, ticker, docs), saved)
+            flows = {cash_generation.SOURCES[ticker][role][0]: ROOT / f"tests/fixtures/{ticker}_{role}_cashflow.htm"
+                     for role in ("annual", "quarter")}
+            self.assertEqual(pilot.build_snapshot(facts, ticker, docs, flows), saved)
             self.assertIsNone(m["net_debt"]["tag"])
 
     def test_every_reported_input_keeps_source_metadata(self):
@@ -62,12 +65,15 @@ class LiquidityPilot(unittest.TestCase):
 
     def test_display_has_dates_source_links_and_caveats(self):
         rendered = html.unescape(pilot.render_html(self.snapshots[1]))
-        self.assertIn("$125,337M", rendered)
+        self.assertIn("$125.34B", rendered)
         self.assertIn("2026-08-31", rendered)
         self.assertIn("0001193125-26-389274", rendered)
         self.assertIn("commercial paper", rendered)
-        self.assertIn("Open the source 10-Q", rendered)
+        self.assertIn("Source 10-Q", rendered)
         self.assertIn("excludes leases", rendered)
+        self.assertIn("$288B", rendered)
+        self.assertIn("$11.4B of customer prepayments", rendered)
+        self.assertIn("−$28.72B", rendered)
 
     def test_excel_stores_dollars_and_calculates_from_input_cells(self):
         wb = load_workbook(BytesIO(pilot.workbook(self.snapshots)))
@@ -79,6 +85,13 @@ class LiquidityPilot(unittest.TestCase):
         self.assertEqual(ws["C5"].value, "='Liquidity inputs'!D5/'Liquidity inputs'!D6")
         self.assertEqual(raw["H2"].value, "0000059478-26-000081")
         self.assertEqual(raw["I2"].value, "us-gaap:CashAndCashEquivalentsAtCarryingValue")
+        self.assertEqual(ws["C6"].value, "='Liquidity inputs'!D7+'Liquidity inputs'!D8-'Liquidity inputs'!D9")
+        self.assertEqual(ws["C8"].value, "=C6-C7")
+        self.assertEqual(ws["C9"].value, "=C6/C3")
+        self.assertEqual(ws["C10"].value, "=C8/C3")
+        self.assertEqual(raw["H7"].value, "0000059478-26-000013")
+        self.assertIn("lly-20251231.htm", raw["K7"].value)
+        self.assertIn("Other obligations", wb.sheetnames)
         self.assertFalse(ws.sheet_view.showGridLines)
         self.assertEqual(ws["C2"].font.name, "Arial")
         self.assertIn("About", wb.sheetnames)
@@ -92,6 +105,14 @@ class LiquidityPilot(unittest.TestCase):
         self.assertIsNone(wb["Debt and liquidity"]["C2"].value)
         self.assertIsNone(wb["Debt and liquidity"]["C4"].value)
         self.assertEqual(wb["Debt and liquidity"]["G4"].value, "Unavailable")
+
+    def test_flow_ratios_refuse_incompatible_dates_missing_or_nonpositive_debt(self):
+        m = self.snapshots[1]["metrics"]
+        flow, debt = m["free_cash_flow"], m["gross_debt"]
+        self.assertLess(pilot.flow_to_debt(flow, debt)["value"], 0)
+        for changes in ({"period_end": "2026-06-30"}, {"value": None}, {"value": 0},
+                        {"value": -1}, {"unit": "EUR"}):
+            self.assertIsNone(pilot.flow_to_debt(flow, {**debt, **changes})["value"])
 
 
 if __name__ == "__main__":

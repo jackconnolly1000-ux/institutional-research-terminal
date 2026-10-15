@@ -29,15 +29,18 @@ Stock Project/
 │   ├── analysis.py  evidence blocks, token budget, prompt and schema, response checks, excerpt matching (tested)
 │   ├── market_data.py  Yahoo values as numbers with unit, period, source, retrieval time (tested)
 │   ├── xbrl.py      TTM figures and dated balance-sheet metrics from companyfacts; verified debt can also use filing_xbrl for extension facts (no Streamlit, tested)
-│   ├── filing_xbrl.py   one fact from a filing's own inline XBRL (extension tags companyfacts lacks), with context, unit and checks (no Streamlit, tested)
+│   ├── filing_xbrl.py   one exact instant or duration from a filing's own inline XBRL, with context, unit and checks (no Streamlit, tested)
 │   ├── filing_review.py  display the subsequent-filing index and its review status
 │   ├── reviewed_financing.py  ten accession-specific Vistra financing filing checks; unknown filings stay Not checked
-│   ├── liquidity_pilot.py  frozen LLY/ORCL/VST debt and liquidity view, same-filing net debt and formula-based Excel export; samples/liquidity_pilots.json is rebuilt by tests/offline/build_liquidity_pilot.py
+│   ├── cash_generation.py  exact-duration OCF and capital spending for six checked pilot filings; includes the LLY-specific capex tag
+│   ├── liquidity_review.py  company review: cash-flow chart, borrowing breakdown, selected obligations and unresolved questions
+│   ├── liquidity_pilot.py  frozen LLY/ORCL/VST company reviews, same-filing net debt, flow/debt ratios and formula-based Excel export; samples/liquidity_pilots.json is rebuilt by tests/offline/build_liquidity_pilot.py
 │   ├── budget.py    daily spending ledger for Claude calls, prices, how API errors are charged (no Streamlit, tested)
 │   ├── theme.py     color tokens, named by meaning (the one place colors are defined)
 │   ├── ui.py        CSS built from theme.py, finding rows, metrics panel, skeleton loaders, progress strip
 │   ├── charts.py    price chart (drawing only, no network)
 │   ├── samples/     the saved AAPL + STRL sample (profiles, price CSVs, manifest), built by tests/offline/build_sample.py
+│   ├── docs/pilot_cashflow_reconciliation.md  six checked source periods, capex definitions and independent TTM calculations
 │   ├── docs/debt_liquidity_plan.md  debt and liquidity plan (planned work, tracked)
 │   ├── docs/pilot_evidence_lly.md   Eli Lilly pilot evidence: filing values with sources, checks and open gaps
 │   ├── docs/pilot_evidence_oracle.md  Oracle pilot evidence: filing values with sources, checks and open gaps
@@ -84,7 +87,7 @@ Repo: https://github.com/jackconnolly1000-ux/sec-filing-research-terminal
 | Failure states: start the app | `$env:MOCK_DELAY='2'; $env:MOCK_CUTOFF='STRL'; $env:MOCK_ONE_10K='FAST'; $env:MOCK_FAIL_ONCE='yahoo,8k'; .venv\Scripts\streamlit run tests/offline/run_offline.py --server.port 8601 -- app.py` | `MOCK_DELAY=2 MOCK_CUTOFF=STRL MOCK_ONE_10K=FAST MOCK_FAIL_ONCE=yahoo,8k .venv/bin/streamlit run tests/offline/run_offline.py --server.port 8601 -- app.py` |
 | Failure states: check (second terminal) | `.venv\Scripts\python tests/offline/check_states.py 8601 tests/offline/shots/states` | `.venv/bin/python tests/offline/check_states.py 8601 tests/offline/shots/states` |
 
-PowerShell's `$env:` settings last for that terminal session, so stop the app and open a fresh terminal before switching scenarios. The 8 real-filing tests read cached filings from `C:\Users\jackc\Stock Project\data\raw\sec` (outside the repo) and skip on a machine without them.
+PowerShell's `$env:` settings last for that terminal session, so stop the app and open a fresh terminal before switching scenarios. The 9 original full-document checks (8 section/comparison checks and the Vistra reader check), plus the six-document cash-flow reconciliation, read cached filings from `C:\Users\jackc\Stock Project\data\raw\sec` (outside the repo) and skip on a machine without them.
 
 ## What the app does today
 
@@ -107,11 +110,11 @@ These features render. That does not mean they're correct. AI-written findings a
 
 `course_analytics.py` does not exist. Course features have to be built from scratch, starting with the benchmark tests.
 
-## Debt and liquidity project (planned)
+## Debt and liquidity project (partly implemented)
 
-**Planned, not built (Oct 14, 2026).** Full plan: [docs/debt_liquidity_plan.md](docs/debt_liquidity_plan.md), covering the goal, scope, definitions, source rules, pilot companies (Eli Lilly, Oracle, Vistra), delivery sequence and acceptance criteria. Goal: show what a nonfinancial company owes, what cash and cash generation support it, what changed, and the SEC evidence for each conclusion.
+**Partly implemented (Oct 14, 2026).** Full plan: [docs/debt_liquidity_plan.md](docs/debt_liquidity_plan.md), covering the goal, scope, definitions, source rules, pilot companies (Eli Lilly, Oracle, Vistra), delivery sequence and acceptance criteria. Goal: show what a nonfinancial company owes, what cash and cash generation support it, what changed, and the SEC evidence for each conclusion.
 
-- **Exists today:** TTM free cash flow in `xbrl.py` (operating cash flow minus purchases of PP&E). It's implemented and unit-tested on fixtures, **but not yet validated against the three pilot companies**. Since Oct 14: `xbrl.cash_and_equivalents` returns cash and cash equivalents at the latest 10-K/10-Q balance-sheet date from that filing's own USD instant fact, with its source metadata, or Unavailable; tested on the three pilots. `xbrl.current_ratio` returns current assets and current liabilities from that same filing and date (an amendment counts only if it covers both, or repeats the unchanged one) and their ratio, which has no tag; a zero or negative denominator gets an explanation, not a ratio. Pilots: LLY 1.35, ORCL 1.17, VST 0.97. `xbrl.baseline_gross_debt` adds a company's verified borrowing components (LLY: 54,908M at Jun 30, 2026; ORCL: 125,337M at Aug 31, 2026; VST: 19,895M at Jun 30, 2026 only when the checked filing document is supplied by accession), checks one filing's components against its reported total when present, and returns Unavailable for unchecked presentations or missing extension documents. The app does not fetch a document for this calculation or show these figures yet.
+- **Exists today:** TTM free cash flow in `xbrl.py` (operating cash flow minus purchases of PP&E). It's implemented and unit-tested on fixtures, **the generic FCF path reconciles for ORCL and VST; LLY uses another capex tag, so the saved company review reads its checked filings through `cash_generation.py`.** See `docs/pilot_cashflow_reconciliation.md`. Since Oct 14: `xbrl.cash_and_equivalents` returns cash and cash equivalents at the latest 10-K/10-Q balance-sheet date from that filing's own USD instant fact, with its source metadata, or Unavailable; tested on the three pilots. `xbrl.current_ratio` returns current assets and current liabilities from that same filing and date (an amendment counts only if it covers both, or repeats the unchanged one) and their ratio, which has no tag; a zero or negative denominator gets an explanation, not a ratio. Pilots: LLY 1.35, ORCL 1.17, VST 0.97. `xbrl.baseline_gross_debt` adds a company's verified borrowing components (LLY: 54,908M at Jun 30, 2026; ORCL: 125,337M at Aug 31, 2026; VST: 19,895M at Jun 30, 2026 only when the checked filing document is supplied by accession), checks one filing's components against its reported total when present, and returns Unavailable for unchecked presentations or missing extension documents. The frozen company reviews show these figures and the checked TTM cash flows; live analysis still does not fetch a document for this borrowing calculation.
 - **Filing review index:** live results list candidate 8-K, 424B, FWP, S-3 and 10-K/A or 10-Q/A filings dated from the latest balance sheet through the run date, using EDGAR's submissions index and relevant older pages. Each entry links to its EDGAR filing page and says Not checked because contents and exhibits have not been read by this feature. An incomplete index says so. The Excel Filing review sheet carries the same status; the frozen saved sample has no index. This does not yet implement the financing notice.
 - **Planned:** cash (cash and cash equivalents excluding restricted cash, "Unavailable" when the fact can't be established), baseline gross debt, separate leases, net debt, current ratio, OCF/debt, FCF/debt, operating-income interest coverage, findings, two charts, Excel evidence export, reconciliation.
 - **Open:** debt, interest and cash tag mappings are decided from the pilot filings, not guessed.

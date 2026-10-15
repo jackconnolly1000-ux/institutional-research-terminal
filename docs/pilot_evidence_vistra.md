@@ -220,3 +220,7 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 8. Not fully reviewed: litigation and regulatory proceedings (10-Q pp. 40-43), the rest of Note 15 (asset retirement obligations), Note 13 (derivatives), and the 10-K's full commitments, contingencies, guarantees and litigation text.
 9. Possible additions to the obligations note from the sections not yet reviewed (gap 8). The items listed above are the decided first-release scope; this gap does not reopen them.
 10. Vistra-specific limits to state in the app's README "Known limits": borrowing-like lines beyond long-term debt, non-recourse project debt, affiliate collateral financing, a mixed interest line whose borrowing component uses an extension tag.
+
+## Saved company review: cash generation
+
+The frozen app review now shows checked TTM operating cash flow, reported capital spending, FCF and flow/debt ratios. Full reconciliation, exact source periods, tag definitions and caveats: [pilot_cashflow_reconciliation.md](pilot_cashflow_reconciliation.md). The selected obligations note is incomplete and does not add commitments or lease liabilities to baseline borrowing. Existing open gaps remain open.

@@ -21,7 +21,8 @@ app.session_state["liquidity_pilot_open"] = True
 app.run(timeout=30)
 assert not app.exception and not app.error
 text = "\n".join(m.value for m in app.markdown)
-assert all(value in text for value in ("54,908M", "125,337M", "19,895M", "Financing changes after June 30"))
+assert all(value in text for value in ("54.91B", "125.34B", "19.90B", "Financing changes after June 30",
+                                      "288B", "28.72B", "What remained after capital spending?"))
 next(b for b in app.button if b.label == "View saved sample").click().run(timeout=30)
 assert not app.exception and not app.error
 assert any("Saved sample. Analysis run" in m.value for m in app.markdown)
