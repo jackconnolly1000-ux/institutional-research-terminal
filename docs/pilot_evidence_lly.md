@@ -108,3 +108,7 @@ Related, not commitments: in July 2026, after the balance sheet, Lilly paid abou
 2. Build and test an extractor for LLY's segment-dimensioned interest facts before any TTM coverage is shown.
 3. Contingencies, income tax, collaboration and investment notes not reviewed for commitment amounts.
 4. Debt source for the app: decided Oct 14, 2026 as presentation A (balance sheet, `DebtCurrent` + `LongTermDebtNoncurrent`), implemented in `xbrl.baseline_gross_debt`. Presentation B is not added.
+
+## Saved company review: cash generation
+
+The frozen app review now shows checked TTM operating cash flow, reported capital spending, FCF and flow/debt ratios. Full reconciliation, exact source periods, tag definitions and caveats: [pilot_cashflow_reconciliation.md](pilot_cashflow_reconciliation.md). The selected obligations note is incomplete and does not add commitments or lease liabilities to baseline borrowing. Existing open gaps remain open.

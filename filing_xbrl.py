@@ -6,7 +6,7 @@ Why this exists: SEC companyfacts (xbrl.py) carries only standard taxonomies. A 
 such as Vistra's vistra:AccountsReceivableSecuritizationProgramAmountsBorrowed, appear only in the filing. This
 reader takes the filing as the source and checks each fact before trusting it:
 - the tag must match exactly, prefix included; another tag is never substituted;
-- the context must be an instant at the expected date with no dimensions (a dimensioned context reports a part or
+- the context must have the exact requested instant or duration with no dimensions (a dimensioned context reports a part or
   a breakdown, not the line item itself);
 - the unit must be iso4217:USD;
 - the displayed number is converted with the fact's scale, sign and format (ixt:fixed-zero is a reported zero);
@@ -40,7 +40,8 @@ def _contexts(root: ET.Element) -> dict:
         dims += [(m.get("dimension"), "typed") for m in c.iter(f"{{{XBRLDI}}}typedMember")]
         get = lambda tag: (period.findtext(f"xbrli:{tag}", default=None, namespaces=NS) or "").strip() or None
         out[c.get("id")] = {"instant": get("instant"), "start": get("startDate"), "end": get("endDate"),
-                            "dimensions": dims}
+                            "dimensions": dims,
+                            "entity_identifier": c.findtext("xbrli:entity/xbrli:identifier", namespaces=NS)}
     return out
 
 
@@ -81,10 +82,30 @@ def read_instant(document: str | Path, accession: str, tag: str, instant: str) -
     pairing them. Returns tag, value (int dollars, None when unavailable), period (the instant), context_id,
     dimensions ([] for a selected fact), unit, scale, decimals, document (file name), accession, facts_found
     (how many matching facts agreed), note (None or UNAVAILABLE) and detail (why unavailable)."""
+    return _read(document, accession, tag, instant)
+
+
+def read_duration(document: str | Path, accession: str, tag: str, start: str, end: str) -> dict:
+    """One undimensioned USD fact for the exact start and end dates; never sum quarterly overlaps.
+
+    Uses the instant reader's unit, format, duplicate and conflict checks. The caller supplies the accession
+    and is responsible for pairing it with the right source document. No segment-specific rules are implied.
+    """
+    from datetime import date
+    if date.fromisoformat(start) > date.fromisoformat(end):
+        raise ValueError("Duration starts after it ends")
+    return _read(document, accession, tag, end, start=start)
+
+
+def _read(document: str | Path, accession: str, tag: str, instant: str, start: str | None = None) -> dict:
+    """Shared fact selection and conversion; start distinguishes a duration from an instant."""
     document = Path(document)
     result = {"tag": tag, "value": None, "period": instant, "context_id": None, "dimensions": [], "unit": None,
               "scale": None, "decimals": None, "document": document.name, "accession": accession,
               "facts_found": 0, "note": UNAVAILABLE, "detail": ""}
+
+    if start is not None:
+        result.update(start=start, end=instant, entity_identifier=None)
 
     def unavailable(why):
         return {**result, "detail": why}
@@ -101,12 +122,20 @@ def read_instant(document: str | Path, accession: str, tag: str, instant: str) -
         if ctx is None:
             return unavailable(f"a {tag} fact refers to context {f.get('contextRef')!r}, which the document does "
                                f"not define")
-        if ctx["instant"] is None:
-            durations += 1
-            continue
-        if ctx["instant"] != instant:
-            other_dates.add(ctx["instant"])
-            continue
+        if start is None:
+            if ctx["instant"] is None:
+                durations += 1
+                continue
+            if ctx["instant"] != instant:
+                other_dates.add(ctx["instant"])
+                continue
+        else:
+            if ctx["instant"] is not None:
+                durations += 1
+                continue
+            if (ctx["start"], ctx["end"]) != (start, instant):
+                other_dates.add(f"{ctx['start']} to {ctx['end']}")
+                continue
         if ctx["dimensions"]:
             dimensioned.append(f.get("contextRef"))
             continue
@@ -124,10 +153,13 @@ def read_instant(document: str | Path, accession: str, tag: str, instant: str) -
         if other_units:
             reasons.append(f"units other than {USD} at {instant} ({', '.join(sorted(other_units))})")
         if other_dates:
-            reasons.append(f"instants at other dates ({', '.join(sorted(other_dates))})")
+            kind = "instants" if start is None else "durations"
+            reasons.append(f"{kind} at other dates ({', '.join(sorted(other_dates))})")
         if durations:
-            reasons.append(f"{durations} duration fact(s), not instants")
-        return unavailable(f"no undimensioned {USD} instant for {tag} at {instant}; the document has "
+            reasons.append(f"{durations} duration fact(s), not instants" if start is None
+                           else f"{durations} instant fact(s), not durations")
+        period = f"instant at {instant}" if start is None else f"duration from {start} to {instant}"
+        return unavailable(f"no undimensioned {USD} {period} for {tag}; the document has "
                            + "; ".join(reasons))
 
     values = []
@@ -147,6 +179,9 @@ def read_instant(document: str | Path, accession: str, tag: str, instant: str) -
     if len(ctx_ids) > 1:
         return unavailable(f"{tag} facts at {instant} sit in more than one undimensioned context "
                            f"({', '.join(ctx_ids)}); which one is the line item is not established")
-    return {**result, "value": int(value), "context_id": ctx_ids[0], "unit": USD,
+    selected = {**result, "value": int(value), "context_id": ctx_ids[0], "unit": USD,
             "scale": int(first.get("scale") or 0), "decimals": first.get("decimals"),
             "facts_found": len(values), "note": None}
+    if start is not None:
+        selected["entity_identifier"] = contexts[ctx_ids[0]]["entity_identifier"]
+    return selected
