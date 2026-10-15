@@ -2,6 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import { Workbook, SpreadsheetFile } from '@oai/artifact-tool';
 import {frame, header, subtotal} from './workbook_style.mjs';
 
@@ -10,10 +11,17 @@ if (!root) throw new Error('Pass the repository directory');
 const samplePath = path.join(root, 'samples/oracle_liquidity.json');
 const sourceBytes = await fs.readFile(samplePath);
 const review = JSON.parse(sourceBytes);
+const annualBytes=await fs.readFile(path.join(root,'samples/oracle_financing.json'));
+const annual=JSON.parse(annualBytes);
+// Reuse the app's evidence model rather than maintaining another repayment interpretation in JS.
+const repayment=JSON.parse(execFileSync(process.env.CODEX_PRIMARY_RUNTIME_PYTHON,['-c',
+  'import json,oracle_repayment as r,oracle_liquidity as l,oracle_financing as f;print(json.dumps(r.build(json.loads(l.SAMPLE.read_text()),json.loads(f.SAMPLE.read_text()))))'],{cwd:root,encoding:'utf8'}));
+if(repayment.status!=='Checked')throw new Error(repayment.detail);
 if (review.status !== 'Checked' || Object.values(review.schedules).some(s => s.status !== 'Checked')) {
   throw new Error('Source review has incomplete reconciliations');
 }
 const wb = Workbook.create();
+const repay = wb.worksheets.add('Repayment review');
 const main = wb.worksheets.add('Cash analysis');
 const due = wb.worksheets.add('Payment dates');
 const data = wb.worksheets.add('Data');
@@ -27,6 +35,12 @@ const sourceRows = Object.entries(review.inputs).map(([key, f], i) => {
     toDate(f.filed), f.accession, f.tag, f.context_id, f.scale, f.decimals,
     f.source_url, f.location, f.detail || null];
 });
+for(const [i,f] of annual.buckets.entries()){
+ rows.set('annual_'+i,sourceRows.length+2);
+ sourceRows.push(['annual_'+i,f.value,'Historical May principal: '+f.label,null,toDate(annual.as_of),annual.form,
+  toDate(annual.filed),annual.accession,f.tag,f.context_id,f.scale,f.decimals,annual.source_url,annual.location,
+  'Historical principal. Not rolled forward to August; excludes interest and leases.']);
+}
 for (const [key, value, label, asof] of [
   ['facility_commitment', review.facility.commitment, 'Original revolver commitment', review.facility.agreement_date],
   ['facility_drawn', review.facility.drawn, 'Revolver drawn, May 31 only', review.facility.drawn_as_of],
@@ -143,10 +157,46 @@ set(due,'A30','The $20B gross ATM program was fully used in Q1. It is not unused
 set(due,'A31','Purchase obligations, unpaid capex and leases may overlap. No aggregate funding requirement is inferred.');
 entry(due,33,'Unpaid capex, noncash disclosure',link('unpaid_capex'),'Payment dates and overlap with purchase obligations are Unavailable.');
 
+set(repay,'A2','Oracle repayment funding review');
+set(repay,'A3','At August 31, 2026. USD millions. Future coverage is Unavailable; no combined funding total.');
+repay.getRange('A5:E5').values=[['Resource','USD millions','Date / period','Available for future payments?','Evidence / condition']];
+repayment.resources.forEach((resource,i)=>{
+ const n=i+6;
+ set(repay,`A${n}`,resource.label);
+ set(repay,`B${n}`,resource.key==='restricted'?"='Cash analysis'!B21":link(resource.input_key),true);
+ set(repay,`C${n}`,resource.period_start===resource.period_end?resource.period_end:resource.period_start+' to '+resource.period_end);
+ set(repay,`D${n}`,resource.key==='restricted'?'Excluded':resource.key==='cash'?'Not allocated; future availability Unavailable':resource.key==='revolver'?'Drawable capacity Unavailable':'Historical flow; already in cash');
+ set(repay,`E${n}`,resource.detail);
+});
+set(repay,'A13','One shared cash pool. OCF, prepayments and equity proceeds are not added to closing cash again.');
+repay.getRange('A15:G15').values=[['Due period','Obligation','USD millions','Potential funding','Confirmed funds at due date, USD millions','Coverage (x)','Competing uses / missing evidence']];
+repayment.obligations.forEach((o,i)=>{
+ const n=i+16;
+ repay.getRange(`A${n}:G${n}`).values=[[o.period,o.label,null,o.candidate_resources,null,'Unavailable',o.competing_uses+' '+o.coverage_detail]];
+ set(repay,`C${n}`,link(o.key),true);
+});
+set(repay,'A38','Dates are fiscal buckets, not specific payment days. See Payment dates for exact period boundaries.');
+set(repay,'A39','Blank confirmed funding is Unavailable, not zero. No cash pool is allocated to several obligations.');
+set(repay,'A40','Remaining August borrowing principal and interest dates are Unavailable. Current borrowing is carrying value.');
+set(repay,'A42','Historical debt principal at May 31, 2026 — not the remaining August schedule');
+repay.getRange('A43:F43').values=[['Historical bucket','USD millions','Due from','Due through','Basis','Why not used for coverage?']];
+repayment.historical_debt.forEach((o,i)=>{
+ const n=i+44;
+ repay.getRange(`A${n}:F${n}`).values=[[o.label,null,toDate(o.due_start),toDate(o.due_end),'May 31 principal, excluding interest and leases','Quarter repayments cannot be assigned to these buckets; no August roll-forward is inferred.']];
+ set(repay,`B${n}`,link('annual_'+i),true);
+});
+repay.getRange('C44:D49').setNumberFormat('mmm d, yyyy');
+set(repay,'A51','Obligations without usable payment dates');
+repay.getRange('A52:D52').values=[['Disclosure','USD millions','Payment timing','Limitation']];
+repayment.gaps.forEach((g,i)=>{
+ const n=i+53;set(repay,`A${n}`,g.label);set(repay,`C${n}`,'Unavailable');set(repay,`D${n}`,g.detail);
+ if(i>0)set(repay,`B${n}`,link(i===1?'not_commenced':'unpaid_capex'),true);
+});
+
 about.getRange('A1:C1').values = [['Topic','Explanation','Source']];
 const notes = [
   ['Snapshot','Saved Oracle review of June 1–August 31, 2026, checked October 15, 2026. Not live data or investment advice.',null],
-  ['Workbook','Cash analysis calculates funding contributions. Payment dates keeps contracts on their own bases. Data retains reported inputs and sources.',null],
+  ['Workbook','Repayment review pairs obligations with resource evidence and explicit gaps. Cash analysis calculates historical contributions. Payment dates keeps contracts on their own bases. Data retains reported inputs and sources.',null],
   ['Colors and units','Arial 10. Dollar inputs are full USD displayed in millions. Blue inputs, green cross-sheet links, black same-sheet calculations. OCF less specified prepayments stays black because it subtracts two cells on Cash analysis. A dash is a reported zero; blank capacity is Unavailable.',null],
   ['Missing inputs','A missing numeric input produces #N/A in dependent calculations rather than zero. Data is a frozen source record, not forecast assumptions.',null],
   ['Cash basis','Ending total cash of 38.934B includes restricted cash. Balance-sheet cash is 36.369B; the 2.565B difference is derived from these exact rounded-million totals.',review.source_url],
@@ -161,7 +211,7 @@ const notes = [
 ];
 about.getRange(`A2:C${notes.length+1}`).values = notes;
 
-for (const sheet of [main,due,data,about]) {
+for (const sheet of [repay,main,due,data,about]) {
   sheet.showGridLines=false;
   const used=sheet.getUsedRange();
   // Set the common font without overwriting the financial input/link colors already applied.
@@ -232,6 +282,17 @@ for (const [sheet,address] of [[main,'A4:B4'],[main,'H35:I35'],[due,'A5:F5'],[da
 for (const n of [8,11,12,16,17,20,25,26]) subtotal(main,`A${n}:B${n}`);
 for (const n of [14,18]) subtotal(due,`A${n}:D${n}`);
 frame(data,`A1:O${sourceRows.length+1}`);frame(about,`A1:C${notes.length+1}`);
+repay.getRange('A2').format.font.bold=true;repay.getRange('A2').format.font.size=14;
+for(const [i,width] of [26,31,23,66,36,26,100].entries())repay.getRangeByIndexes(0,i,55,1).format.columnWidth=width;
+repay.getRange('A5:G55').format.wrapText=true;
+repay.getRange('A6:E11').format.rowHeight=100;
+repay.getRange('A16:G36').format.rowHeight=65;
+repay.getRange('A44:F49').format.rowHeight=65;
+repay.getRange('A53:D55').format.rowHeight=100;
+for(const a of ['B6:B11','C16:C36','E16:E36','B44:B49','B53:B55'])repay.getRange(a).setNumberFormat(USD);
+for(const a of ['B6:B11','C16:C36','B44:B49','B53:B55'])repay.getRange(a).format.font.color='#008000';
+for(const a of ['A5:E11','A15:G36','A43:F49','A52:D55'])frame(repay,a);
+for(const a of ['A5:E5','A15:G15','A43:F43','A52:D52']){header(repay,a);repay.getRange(a).format.rowHeight=48;}
 // Formula colors express dependencies, never whether a cash amount is favorable.
 main.getRange('B8').format.font.color='#000000';
 
@@ -261,8 +322,11 @@ await (await SpreadsheetFile.exportXlsx(wb)).save(output);
 await fs.rm(output+'.inspect.ndjson',{force:true});
 const digest = b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({review_sha256:digest(sourceBytes),
+  financing_sha256:digest(annualBytes),
   workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');
-for (const [sheet,range,file] of [['Cash analysis','A2:B27','cash'],['Cash analysis','D4:L25','chart'],
+for (const [sheet,range,file] of [['Repayment review','A2:E11','resources'],['Repayment review','A15:D21','repayment'],
+  ['Repayment review','E15:G21','funding-gaps'],['Repayment review','A43:F49','historical'],['Repayment review','A51:D55','undated'],
+  ['Cash analysis','A2:B27','cash'],['Cash analysis','D4:L25','chart'],
   ['Payment dates','A2:F33','payments'],['Data','A1:G6','inputs'],['Data','H1:O6','provenance'],['About','A1:C14','about']]) {
   const preview=await wb.render({sheetName:sheet,range,scale:1.4,format:'png'});
   await fs.writeFile(path.join(process.cwd(),`oracle-liquidity-${file}.png`),new Uint8Array(await preview.arrayBuffer()));

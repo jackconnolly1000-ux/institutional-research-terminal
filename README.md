@@ -28,6 +28,23 @@ For up to five tickers:
 
 ## Known limits
 
+- Each saved company tab now has its own primary Excel download, including a Lilly-only
+  review with calculations and source facts. The combined pilot export is under
+  **Optional combined export**. All four saved workbooks use light vertical column separators
+  and outside table/block borders. Financial inputs, formulas, source records and chart bindings
+  are retained. `tests/offline/build_lly_liquidity.mjs` builds the Lilly workbook with the same
+  `workbook_style.mjs` helper and artifact runtime as the other workbook builders.
+- `oracle_repayment.py` matches all 21 checked lease and purchase payment buckets to dated
+  resource evidence. The app and Oracle workbook use the same model. August cash is one shared,
+  unallocated pool. Restricted cash is excluded; historical OCF, prepayments and equity proceeds
+  are not added again. Conditional revolver funding stops at the original March 2031 expiry.
+  Future coverage remains Unavailable: dated funding allocations, future OCF, drawable credit,
+  remaining August debt principal/interest dates and several obligation overlaps are unresolved.
+  The old May principal schedule is preserved as historical evidence, without a roll-forward.
+  The Oracle workbook manifest now checks both the quarterly liquidity JSON and annual financing
+  JSON. The builder invokes the pure Python repayment model using `CODEX_PRIMARY_RUNTIME_PYTHON`;
+  deployment only reads the checked workbook and requires no additional dependency.
+
 - The company reviews use larger section headings, concise borrowing labels and an Oracle chart
   measuring each cash contribution from zero. Opening/closing cash balances remain separate from quarter flows.
   The three liquidity workbooks outline tables and calculation blocks with light borders.

@@ -141,6 +141,13 @@ class OracleLiquidity(unittest.TestCase):
         self.assertNotIn("6.02(e)",shown)
         self.assertEqual(view.render(self.snapshots[0],money),"")
 
+    def test_workbook_refuses_a_changed_annual_maturity_source(self):
+        with tempfile.TemporaryDirectory() as folder:
+            changed=Path(folder)/"annual.json"
+            changed.write_bytes(ol.of.SAMPLE.read_bytes()+b"\n")
+            with patch.object(ol.of,"SAMPLE",changed):
+                self.assertIsNone(ol.workbook_bytes(self.saved))
+
     def test_markdown_has_one_leading_style_and_no_currency_math(self):
         import company_review
         fragment = view.render(self.snapshots[1],money)
@@ -159,7 +166,7 @@ class OracleLiquidity(unittest.TestCase):
         content=ol.workbook_bytes(self.saved)
         formulas=load_workbook(BytesIO(content),data_only=False)
         values=load_workbook(BytesIO(content),data_only=True)
-        self.assertEqual(formulas.sheetnames,["Cash analysis","Payment dates","Data","About"])
+        self.assertEqual(formulas.sheetnames,["Repayment review","Cash analysis","Payment dates","Data","About"])
         self.assertEqual(formulas["Cash analysis"]["B12"].value,"=B8-B10")
         self.assertEqual(values["Cash analysis"]["B12"].value,-16759*M)
         self.assertEqual(values["Cash analysis"]["B19"].value,0)
@@ -177,6 +184,10 @@ class OracleLiquidity(unittest.TestCase):
         self.assertEqual(data.cell(row,9).value,ol.PREPAY)
         self.assertEqual(data.cell(row,13).value,ol.of.QUARTER_SOURCE)
         self.assertEqual(data.cell(keys["facility_drawn"],8).value,ol.of.ACCESSION)
+        self.assertIsNone(values["Repayment review"]["E16"].value)
+        self.assertEqual(values["Repayment review"]["F16"].value,"Unavailable")
+        self.assertEqual(values["Repayment review"]["C16"].value,3219*M)
+        self.assertEqual(values["Repayment review"]["B44"].value,7210*M)
 
     @unittest.skipUnless((RAW/"orcl-20260831.htm").exists(),"Full saved Oracle filing not available")
     def test_full_saved_filing_matches_trimmed_fixture_and_credit_terms(self):

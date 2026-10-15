@@ -41,6 +41,12 @@ assert all(value in text for value in ("What funded Oracle’s cash balance?", "
                                       "Historical funding exclusions", "6.02(c)"))
 assert all(value in text for value in ("How does Vistra fund its repayments?", "$650M", "$959M",
                                       "$6.295B", "Pulaski", "Current drawable amounts are Unavailable"))
+assert all(value in text for value in ("Which resources could fund the dated payments?",
+                                      "expires within this bucket", "expires before this bucket",
+                                      "funding coverage Unavailable"))
+buttons=[element.proto.label for element in app.get("download_button")]
+assert set(("Download LLY review and evidence", "Download ORCL review and evidence",
+            "Download VST review and evidence", "Download all three company reviews (optional)")) <= set(buttons)
 next(b for b in app.button if b.label == "View saved sample").click().run(timeout=30)
 assert not app.exception and not app.error
 assert any("Saved sample. Analysis run" in m.value for m in app.markdown)
