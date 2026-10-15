@@ -21,7 +21,7 @@ import analysis
 import budget
 import filing_review
 import reviewed_financing
-import liquidity_pilot
+import company_review
 import market_data
 import sec_data
 import ui
@@ -473,7 +473,8 @@ with col_run:
 st.markdown("<p class='irt-note'>Live analysis is limited to about one ticker a day. The saved sample is always available.</p>",
             unsafe_allow_html=True)
 st.button("View saved sample", on_click=load_sample)
-liquidity_pilot.render()
+# Import the complete view directly: long-lived workers can retain an older model helper after deployment.
+company_review.render_app()
 
 # Owner bypass: only when OWNER_PASSCODE is set in Streamlit Secrets. Typed in the sidebar, kept in the
 # session, never in a URL. Owner runs still count against the ledger, so visitors see a true remainder.

@@ -33,7 +33,7 @@ Stock Project/
 │   ├── filing_review.py  display the subsequent-filing index and its review status
 │   ├── reviewed_financing.py  ten accession-specific Vistra financing filing checks; unknown filings stay Not checked
 │   ├── cash_generation.py  exact-duration OCF and capital spending for six checked pilot filings; includes the LLY-specific capex tag
-│   ├── liquidity_review.py  company review: cash-flow chart, borrowing breakdown, selected obligations and unresolved questions
+│   ├── company_review.py  company review: cash-flow chart, borrowing breakdown, selected obligations and unresolved questions
 │   ├── liquidity_pilot.py  frozen LLY/ORCL/VST company reviews, same-filing net debt, flow/debt ratios and formula-based Excel export; samples/liquidity_pilots.json is rebuilt by tests/offline/build_liquidity_pilot.py
 │   ├── budget.py    daily spending ledger for Claude calls, prices, how API errors are charged (no Streamlit, tested)
 │   ├── theme.py     color tokens, named by meaning (the one place colors are defined)
