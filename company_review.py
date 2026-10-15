@@ -7,6 +7,7 @@ from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
 from ui import esc
+from oracle_liquidity_view import CSS as ORACLE_LIQUIDITY_CSS
 
 NOTES = {
     "LLY": [
@@ -92,6 +93,9 @@ CSS = """<style>
 .lr-review + .irt-evidence {max-width:1180px;margin:12px auto;}
 @media(max-width:760px) {.lr-grid {grid-template-columns:1fr;gap:24px;} .lr-summary {grid-template-columns:repeat(2,minmax(0,1fr));} .lr-obligation,.lr-event {grid-template-columns:1fr;gap:4px;} .lr-review h2 {font-size:1.3rem;} .lr-bar-row {grid-template-columns:96px minmax(30px,1fr) 75px;gap:7px;} .lr-stat-value {font-size:1.3rem;}}
 </style>"""
+
+# Nested style blocks are parsed as raw text by the Markdown renderer and can hide headings.
+CSS = CSS.replace("</style>", ORACLE_LIQUIDITY_CSS + "</style>")
 
 
 def money(value, digits=2):
@@ -191,7 +195,7 @@ def maturity_html(snapshot):
         output += (f'<p><strong>{esc(term["label"])}</strong> · May 31, 2026<br>{esc(term["detail"])} '
                    f'<a href="{esc(term["source_url"])}" target="_blank" rel="noopener noreferrer">{esc(term["location"])}</a></p>')
     output += '<p class="lr-meta">The $10B revolver matures March 6, 2031, subject to the agreement. Capacity is not a payment due in that year.</p></details></section>'
-    return output
+    return output.replace("$", "&#36;")
 
 
 def render(snapshot):
@@ -260,7 +264,7 @@ def render(snapshot):
     output += '</section><section class="lr-limits"><h3>What remains unresolved?</h3>'
     remaining = "Interest coverage is not included." if snapshot["ticker"] == "ORCL" else "Interest coverage and a full debt maturity review are not included."
     output += f'<p class="lr-meta">{esc(LIMITS[snapshot["ticker"]])} {remaining}</p></section></section>'
-    return output
+    return output.replace("$", "&#36;")
 
 
 def evidence_html(snapshot: dict) -> str:
