@@ -273,6 +273,8 @@ def render(snapshot):
     output += lilly_liquidity_html(snapshot, money)
     from lly_interest_view import render as lilly_interest_html
     output += lilly_interest_html(snapshot, money)
+    from oracle_interest_view import render as oracle_interest_html
+    output += oracle_interest_html(snapshot, money)
     output += maturity_html(snapshot)
     output += '<section class="lr-obligations"><h3>What sits outside baseline borrowing?</h3><p class="lr-meta">Selected disclosures, each shown separately. Commitments are not all payable now and are not added to debt or to each other.</p>'
     for item in NOTES[snapshot["ticker"]]:
@@ -280,7 +282,9 @@ def render(snapshot):
                    f'<p>{esc(item["amount"])}</p><div class="lr-meta">As of {esc(item["date"])} · {esc(item["kind"])}</div></div>'
                    f'<div><p>{esc(item["detail"])}</p><a class="lr-meta" href="{esc(source)}" target="_blank" rel="noopener noreferrer">{esc(item["location"])}</a></div></article>')
     output += '</section><section class="lr-limits"><h3>What remains unresolved?</h3>'
-    remaining = "Interest coverage is not included." if snapshot["ticker"] in {"ORCL", "VST"} else "Historical interest coverage uses derived operating income; its capitalization and other limits are stated above."
+    remaining = {"VST": "Interest coverage is not included.",
+                 "ORCL": "Historical reported-line interest coverage is shown above; borrowing-only coverage, capitalization basis and covenant headroom remain Unavailable.",
+                 "LLY": "Historical interest coverage uses derived operating income; its capitalization and other limits are stated above."}[snapshot["ticker"]]
     output += f'<p class="lr-meta">{esc(LIMITS[snapshot["ticker"]])} {remaining}</p></section></section>'
     return output.replace("$", "&#36;")
 

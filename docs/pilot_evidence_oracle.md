@@ -2,7 +2,7 @@
 
 Evidence for the second debt and liquidity pilot (see `debt_liquidity_plan.md`): filing values with sources and checks, hand calculations labeled as such, and open gaps. Checked values are the pilot's expected answers; Unavailable items and open gaps are not. Checked Oct 14, 2026. The saved debt and liquidity pilot uses the checked cash, borrowing and current-position values; other sections retain their own status.
 
-**How it was checked:** each amount was read from the filing's HTML text and matched to the inline XBRL fact on that row (tag, period, dimensions, unit, scale), then compared with SEC companyfacts. Page numbers are the filing's printed page footers, found by splitting the document at its page breaks. In the 10-Q, printed page 1 is the balance sheet. Raw downloads are kept outside the repo in `Stock Project/data/raw/` (`xbrl/ORCL_*`, `sec/ORCL/`).
+**How it was checked:** each amount was read from the filing's HTML text and matched to the inline XBRL fact on that row (tag, period, dimensions, unit, scale), then compared with SEC companyfacts. Page numbers are the filing's printed page footers, found by splitting the document at its page breaks. In the 10-Q, printed page 1 is the balance sheet. Raw downloads are retained outside the repository. The reviewed filing names, accessions and source fingerprints are recorded in the evidence and reproducible builders.
 
 **Rounding rule:** as in the plan. A figure stated in billions to one decimal (for example "$125.0 billion") covers a range of ±$0.05 billion and is never treated as an exact millions figure.
 
@@ -111,6 +111,8 @@ The balance-sheet line items that hold the current operating lease liabilities a
   - Finance lease interest (126 in the quarter, Note 6 p. 12) is reported within finance lease expense; whether it is also inside the "Interest expense" line is not stated.
   - Interest on significant financing components of customer contracts is "recognized separately from revenue" and was "immaterial" in the quarter (p. 7); the line it is recorded in is not stated.
 - Cash paid for interest, fiscal 2026: 3,896 (10-K p. 68). Context only.
+
+**Implemented historical coverage (October 16, 2026):** reported operating income 20,606 + 6,728 − 4,277 = 23,057M, divided by reported Interest expense 5,104M = **4.52x**, TTM to August 31. This is reported-line earnings coverage. Borrowing-only coverage, capitalization basis and covenant headroom remain Unavailable. Lease-note interest of 279 + 126 − 48 = 357M is not added because overlap is not established. The annual revenue policy p. 71 also discusses contract interest in non-operating income (expenses), net; both prepayment notes call the amounts immaterial without an exact amount or line reconciliation. See [the checked coverage review](oracle_interest_coverage.md) for exact contexts, periods, basis and limitations. The app and primary Oracle Excel use the same saved model.
 
 ## Customer prepayments with a significant financing component
 

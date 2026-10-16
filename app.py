@@ -25,6 +25,8 @@ import reviewed_financing
 import company_review
 import oracle_financing
 import oracle_liquidity
+import oracle_interest
+import oracle_interest_view
 import oracle_liquidity_view
 import lly_liquidity
 import lly_financing
@@ -46,6 +48,8 @@ from charts import CHART_CONFIG, build_price_chart
 reload(ui)
 reload(oracle_financing)
 reload(oracle_liquidity)
+reload(oracle_interest)
+reload(oracle_interest_view)
 reload(oracle_revolver)
 reload(oracle_repayment)
 reload(oracle_liquidity_view)
