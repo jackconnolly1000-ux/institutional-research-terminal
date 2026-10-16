@@ -28,6 +28,13 @@ For up to five tickers:
 
 ## Known limits
 
+- `vistra_interest.py` adds historical coverage of the separately reported interest component:
+  TTM to June 30, 2026 operating income 3,563M / interest 1,117M = 3.19x. The app and primary
+  Vistra Excel reconcile swaps, amortization, extinguishment, capitalized interest and Other to
+  the mixed 1,132M total, retaining raw XBRL signs. The original H1 2025 filing independently
+  agrees. Receivables/Nuveen allocation, Other detail and all-in financing cost remain Unavailable.
+  Rebuild with `tests/offline/build_vistra_interest.py` then `tests/offline/build_vistra_liquidity.mjs`.
+  Exact periods, definitions and limits: `docs/vistra_interest_coverage.md`.
 - `oracle_interest.py` adds historical reported-line interest coverage to Oracle's app review and
   primary workbook: TTM to August 31, 2026 operating income 23,057M / reported Interest expense
   5,104M = 4.52x. Exact consolidated periods and source facts are retained. Capitalization basis,
@@ -94,7 +101,7 @@ For up to five tickers:
   or estimates of recurring OCF. August drawable credit, covenant headroom and remaining debt principal
   dates remain Unavailable. Source audit and rebuild instructions: `docs/oracle_liquidity_reconciliation.md`.
 
-- A free saved debt and liquidity pilot is available for LLY, ORCL and VST, checked October 14, 2026. It shows each company's dated cash, baseline gross debt, net debt and current ratio, their reported inputs and source 10-Q, and a separate Excel evidence download with formulas. Vistra's checked subsequent financing changes are included. The saved company reviews also show checked TTM operating cash flow, reported capital spending, free cash flow and flow/debt ratios, a borrowing breakdown, and selected obligations with their dates and recognition status. Oracle's customer prepayments and Vistra's capex definition are stated beside the flows. This is a frozen review, not a live update or a complete obligations analysis; historical earnings coverage is shown for Lilly and Oracle with their stated basis limits, while Vistra coverage remains Unavailable. Oracle now includes its historical May 31 principal maturity schedule, its reconciliation to carrying debt, and two checked later 8-Ks. No August maturity schedule or current revolver availability is inferred; see `docs/oracle_maturity_reconciliation.md`. Reconciliation: `docs/pilot_cashflow_reconciliation.md`. The existing AAPL/STRL saved analysis is separate.
+- A free saved debt and liquidity pilot is available for LLY, ORCL and VST, checked October 14, 2026. It shows each company's dated cash, baseline gross debt, net debt and current ratio, their reported inputs and source 10-Q, and a separate Excel evidence download with formulas. Vistra's checked subsequent financing changes are included. The saved company reviews also show checked TTM operating cash flow, reported capital spending, free cash flow and flow/debt ratios, a borrowing breakdown, and selected obligations with their dates and recognition status. Oracle's customer prepayments and Vistra's capex definition are stated beside the flows. This is a frozen review, not a live update or a complete obligations analysis; historical earnings coverage is shown for all three companies with their distinct interest-component and capitalization limits. Oracle now includes its historical May 31 principal maturity schedule, its reconciliation to carrying debt, and two checked later 8-Ks. No August maturity schedule or current revolver availability is inferred; see `docs/oracle_maturity_reconciliation.md`. Reconciliation: `docs/pilot_cashflow_reconciliation.md`. The existing AAPL/STRL saved analysis is separate.
 
 - Live results include a dated EDGAR index of 8-Ks, debt-offering form candidates and periodic-report amendments since the latest balance sheet. For Vistra's June 30, 2026 balance sheet, ten filings through October 14 were manually screened for financing, with source documents linked; the September offering documents refer to one completed $1.5 billion issuance. Oracle’s August 31 anchor also joins its two checked September 8-Ks and exhibits. Other companies and later or unmatched filings remain "Not checked." A retrieval gap is labeled incomplete. The saved sample predates this index.
 - "No close match in the prior 10-K" is a text test. A heavily rewritten paragraph can be labeled that way; the closest prior paragraph is shown as context.

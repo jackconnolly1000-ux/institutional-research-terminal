@@ -9,6 +9,7 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import filing_xbrl as fx
+import vistra_interest
 from reviewed_financing import BASE, VST
 from vistra_liquidity_sources import PAYMENTS, RESOURCES, TERMS, LIMITS
 
@@ -213,7 +214,10 @@ def workbook_bytes(review):
     try:
         content=WORKBOOK.read_bytes()
         m=json.loads(WORKBOOK.with_suffix('.manifest.json').read_text())
-        if review.get('status')=='Checked' and m['review_sha256']==hashlib.sha256(SAMPLE.read_bytes()).hexdigest() and m['workbook_sha256']==hashlib.sha256(content).hexdigest():
+        if (review.get('status')=='Checked' and m['review_sha256']==hashlib.sha256(SAMPLE.read_bytes()).hexdigest()
+                and m['workbook_sha256']==hashlib.sha256(content).hexdigest()
+                and m['interest_sha256']==hashlib.sha256(vistra_interest.SAMPLE.read_bytes()).hexdigest()
+                and vistra_interest.load() is not None):
             return content
     except (OSError,ValueError,KeyError): pass
     return None

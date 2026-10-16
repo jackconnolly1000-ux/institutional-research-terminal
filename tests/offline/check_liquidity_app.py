@@ -50,6 +50,7 @@ assert all(value in text for value in ("What funded Lilly’s cash balance?", "$
 assert all(value in text for value in ("Which May debt maturities are documented?", "2028-05-20", "4.150%", "initial issue amounts", "SEC financing check through October 15, 2026"))
 assert all(value in text for value in ("How did operating earnings cover reported interest?", "31.17x", "$33.633B", "$1.079B", "without explicitly stating its capitalization basis"))
 assert all(value in text for value in ("How did Oracle’s operating earnings cover reported interest?", "4.52x", "$23.057B", "$5.104B", "Borrowing-only interest coverage is Unavailable"))
+assert all(value in text for value in ("How did Vistra’s operating earnings cover reported interest?", "3.19x", "$3.563B", "$1.117B", "gain-positive", "Other's detailed composition is Unavailable"))
 buttons=[element.proto.label for element in app.get("download_button")]
 assert set(("Download LLY review and evidence", "Download ORCL review and evidence",
             "Download VST review and evidence", "Download all three company reviews (optional)")) <= set(buttons)
