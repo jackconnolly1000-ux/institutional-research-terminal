@@ -51,6 +51,11 @@ assert all(value in text for value in ("Which May debt maturities are documented
 assert all(value in text for value in ("How did operating earnings cover reported interest?", "31.17x", "$33.633B", "$1.079B", "without explicitly stating its capitalization basis"))
 assert all(value in text for value in ("How did Oracle’s operating earnings cover reported interest?", "4.52x", "$23.057B", "$5.104B", "Borrowing-only interest coverage is Unavailable"))
 assert all(value in text for value in ("How did Vistra’s operating earnings cover reported interest?", "3.19x", "$3.563B", "$1.117B", "gain-positive", "Other's detailed composition is Unavailable"))
+assert text.count('Funding conclusion</h3>') == 3
+assert all(value in text for value in ('Acquisition and manufacturing spending compete',
+    'Equity proceeds and specified customer prepayments contributed',
+    'June reported liquidity cannot be treated as current cash available to Parent',
+    'Coverage bases differ:', 'Future funding coverage: Unavailable'))
 buttons=[element.proto.label for element in app.get("download_button")]
 assert set(("Download LLY review and evidence", "Download ORCL review and evidence",
             "Download VST review and evidence", "Download all three company reviews (optional)")) <= set(buttons)

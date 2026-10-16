@@ -92,6 +92,13 @@ CSS = """<style>
 .lr-event p {margin:0 0 7px;}
 .lr-review a {color:var(--link);}
 .lr-review + .irt-evidence {max-width:1180px;margin:12px auto;}
+.lr-funding {padding:22px 0;border-bottom:1px solid var(--border);}
+.lr-funding-row {display:grid;grid-template-columns:165px minmax(0,1fr);gap:20px;padding:12px 0;border-top:1px solid var(--border);}
+.lr-funding-row h4 {font-size:.9rem;margin:8px 0;font-weight:600;}
+.lr-funding-row p {margin-top:6px;}
+.lr-funding .lr-meta {overflow-wrap:anywhere;}
+.lr-funding details {margin-top:14px;font-size:.85rem;}
+@media(max-width:760px) {.lr-funding-row {grid-template-columns:1fr;gap:0;}}
 @media(max-width:760px) {.lr-grid {grid-template-columns:1fr;gap:28px;} .lr-summary {grid-template-columns:repeat(2,minmax(0,1fr));} .lr-obligation,.lr-event {grid-template-columns:1fr;gap:4px;} .lr-review h2 {font-size:1.7rem;} .lr-review h3 {font-size:1.15rem;} .lr-bar-row {grid-template-columns:96px minmax(30px,1fr) 75px;gap:7px;} .lr-stat-value {font-size:1.3rem;}}
 </style>"""
 
@@ -218,7 +225,9 @@ def render(snapshot):
         ("Current ratio", f'{m["current_ratio"]["value"]:.2f}x' if m["current_ratio"]["value"] is not None else "Unavailable", "Current assets / liabilities"),
     ):
         output += f'<div><div class="lr-stat-label">{esc(label)}</div><div class="lr-stat-value">{esc(value)}</div><div class="lr-stat-detail">{esc(detail)}</div></div>'
-    output += '</div><div class="lr-grid"><section class="lr-section"><h3>What remained after capital spending?</h3>'
+    from funding_conclusions import render as funding_html
+    output += '</div>' + funding_html(snapshot)
+    output += '<div class="lr-grid"><section class="lr-section"><h3>What remained after capital spending?</h3>'
     output += f'<div class="lr-meta">TTM ended {esc(end)} · USD billions · 10-K and 10-Q cash-flow statements</div>'
     bars = [("Operating cash flow", m["operating_cash_flow"]["value"]),
             ("Capital spending", -m["capital_spending"]["value"] if m["capital_spending"]["value"] is not None else None),
@@ -559,6 +568,10 @@ def saved_workbook(snapshots, folder=None, ticker=None):
         saved = json.loads((folder / "liquidity_pilots.json").read_text())
         if snapshots != saved["snapshots"]:
             return None
+        if ticker == "LLY":
+            import funding_conclusions as funding
+            if manifest.get("funding_sha256") != funding.fingerprint() or funding.load(ticker) is None:
+                return None
         expected = {"liquidity_pilots.json", "lly_liquidity.json", "lly_financing.json", "lly_interest.json"} if ticker else {"liquidity_pilots.json", "oracle_financing.json"}
         for name, digest in manifest["sources"].items():
             if name not in expected:

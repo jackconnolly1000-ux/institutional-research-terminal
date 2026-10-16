@@ -1,3 +1,4 @@
+import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Run from a temporary directory using the Codex artifact runtime; deployment only serves the saved file.
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -28,6 +29,7 @@ if (review.status !== 'Checked' || Object.values(review.schedules).some(s => s.s
   throw new Error('Source review has incomplete reconciliations');
 }
 const wb = Workbook.create();
+const funding=addFundingSheet(wb,root,'ORCL');
 const repay = wb.worksheets.add('Repayment review');
 const main = wb.worksheets.add('Cash analysis');
 const due = wb.worksheets.add('Payment dates');
@@ -449,16 +451,17 @@ if(Math.abs(main.getRange('B49').values[0][0]-(interestReview.calculation.operat
 opInput.values=opOriginal;wb.recalculate();
 console.log((await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A|#NUM!|#NULL!|#SPILL!',
   options:{useRegex:true,maxResults:20},maxChars:1200})).ndjson);
+const fundingManifest=await finishFundingSheet(wb,root,'ORCL',funding);
 const output=path.join(root,'samples/oracle_liquidity.xlsx');
 await (await SpreadsheetFile.exportXlsx(wb)).save(output);
 await fs.rm(output+'.inspect.ndjson',{force:true});
 const digest = b=>crypto.createHash('sha256').update(b).digest('hex');
-await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({review_sha256:digest(sourceBytes),
+await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({...fundingManifest,review_sha256:digest(sourceBytes),
   financing_sha256:digest(annualBytes),
   revolver_sha256:digest(revolverBytes),
   interest_sha256:digest(interestBytes),
   workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');
-for (const [sheet,range,file] of [['Repayment review','A2:E11','resources'],['Repayment review','A15:D21','repayment'],
+if(process.env.SKIP_UNCHANGED_RENDERS!=='1') for (const [sheet,range,file] of [['Repayment review','A2:E11','resources'],['Repayment review','A15:D21','repayment'],
   ['Repayment review','E15:G21','funding-gaps'],['Repayment review','A43:F49','historical'],['Repayment review','A51:D55','undated'],
   ['Cash analysis','A2:B27','cash'],['Cash analysis','D4:L25','chart'],
   ['Cash analysis','A41:E54','interest'],
