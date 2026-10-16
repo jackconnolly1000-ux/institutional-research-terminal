@@ -1,0 +1,181 @@
+{
+  "status": "Checked",
+  "ticker": "ORCL",
+  "anchor": "2026-08-31",
+  "checked_as_of": "2026-10-15",
+  "scope": "Seven saved documents: the May 31 10-K, August 31 10-Q, March 6 credit agreement, and the September 10 and September 14 8-Ks with their exhibits. The latest saved filing is September 14, 2026. This is not a complete later-filing inventory.",
+  "sources": {
+    "annual": {
+      "document": "orcl-20260531.htm",
+      "form": "10-K",
+      "filed": "2026-06-22",
+      "accession": "0001193125-26-277521",
+      "period": "2026-05-31",
+      "sha256": "61a353e222f961e516bb3e8eed024a5245cfadbf30e3cc16a4a520129f1bdf63",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526277521/orcl-20260531.htm"
+    },
+    "quarter": {
+      "document": "orcl-20260831.htm",
+      "form": "10-Q",
+      "filed": "2026-09-11",
+      "accession": "0001193125-26-389274",
+      "period": "2026-08-31",
+      "sha256": "051dd4893fa497f36d99c8a355cbc90107f56e1a628c78e38c76e7dca0d4a6fd",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389274/orcl-20260831.htm"
+    },
+    "agreement": {
+      "document": "orcl-ex10_17.htm",
+      "form": "10-Q Ex. 10.17",
+      "filed": "2026-03-11",
+      "accession": "0001193125-26-101045",
+      "period": "2026-03-06",
+      "sha256": "df6152c36ea03e85eeef7153f4a9778cf170bfefd2ffd682c80aa401711478a0",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526101045/orcl-ex10_17.htm"
+    },
+    "earnings": {
+      "document": "orcl-20260910.htm",
+      "form": "8-K",
+      "filed": "2026-09-10",
+      "accession": "0001193125-26-387905",
+      "period": "2026-09-10",
+      "sha256": "159c0926d92ff240406168337f5361dd67b314a0c465306dcae903aa67107d5c",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526387905/orcl-20260910.htm"
+    },
+    "earnings_exhibit": {
+      "document": "orcl-ex99_1.htm",
+      "form": "8-K Ex. 99.1",
+      "filed": "2026-09-10",
+      "accession": "0001193125-26-387905",
+      "period": "2026-09-10",
+      "sha256": "805d1f0650b1498f845c40fd18d7ed2da0db5035165fe6086b35eb856c177eed",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526387905/orcl-ex99_1.htm"
+    },
+    "plan": {
+      "document": "d20034d8k.htm",
+      "form": "8-K",
+      "filed": "2026-09-14",
+      "accession": "0001193125-26-389753",
+      "period": "2026-09-12",
+      "sha256": "d3c88d191e5e9ad5a1e62298e67e10d5f1e3b419dda8e4647a8bca0cd8afefb1",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389753/d20034d8k.htm"
+    },
+    "plan_exhibit": {
+      "document": "d20034dex991.htm",
+      "form": "8-K Ex. 99.1",
+      "filed": "2026-09-14",
+      "accession": "0001193125-26-389753",
+      "period": "2026-09-12",
+      "sha256": "d934b837abf4c1f17b79c765e48365d76a89f73ee66b6023c14de722b3f8d0b3",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526389753/d20034dex991.htm"
+    }
+  },
+  "dates": [
+    {
+      "date": "2026-03-06",
+      "source": "agreement",
+      "location": "Title; \u00a7\u00a71.01, 2.01, 2.04\u20132.06",
+      "commitment": 10000000000,
+      "drawn": null,
+      "compliance": "Unavailable: no borrowing-date compliance evidence in the agreement.",
+      "detail": "Original contractual commitment. The agreement does not establish actual borrowings on this date.",
+      "undrawn": null,
+      "drawable": null,
+      "drawable_detail": "Unavailable: same-date commitment, outstanding advances and draw conditions are not established."
+    },
+    {
+      "date": "2026-05-31",
+      "source": "annual",
+      "location": "Note 6, pp. 84\u201385",
+      "commitment": 10000000000,
+      "drawn": 0,
+      "compliance": "Reported compliant with debt-related covenants at May 31. Ratio and headroom not disclosed.",
+      "detail": "The 10-K confirms the $10B facility and zero outstanding borrowing. Undrawn commitment is arithmetic, not a verified draw authorization.",
+      "undrawn": 10000000000,
+      "drawable": null,
+      "drawable_detail": "Unavailable: public evidence does not establish all conditions for a specific borrowing."
+    },
+    {
+      "date": "2026-08-31",
+      "source": "quarter",
+      "location": "Note 5 p. 11; MD&A liquidity pp. 33\u201335",
+      "commitment": null,
+      "drawn": null,
+      "compliance": "Unavailable: no updated revolver compliance statement or contract ratio in this 10-Q.",
+      "detail": "The 10-Q does not update the revolver commitment or borrowing balance. Other borrowing and repayment lines cannot identify revolver use.",
+      "undrawn": null,
+      "drawable": null,
+      "drawable_detail": "Unavailable: same-date commitment, outstanding advances and draw conditions are not established."
+    }
+  ],
+  "terms": [
+    {
+      "label": "Replacement of the old facility",
+      "location": "10-K Note 6, p. 85",
+      "detail": "The old $6B revolver was terminated on March 6, 2026 when the new $10B facility was entered. They are not two concurrent commitments.",
+      "source": "annual"
+    },
+    {
+      "label": "Exposure and letters of credit",
+      "location": "\u00a71.01 Revolving Credit Exposure; \u00a72.01",
+      "detail": "Exposure is defined as outstanding advances. No letter-of-credit issuance subfacility or LC deduction is specified in these operative provisions. Generic Debt and interest definitions mention LCs; they do not create a facility LC sublimit. Company-wide LC usage is Unavailable, not assumed zero.",
+      "source": "agreement"
+    },
+    {
+      "label": "Reductions and termination",
+      "location": "\u00a7\u00a72.04, 7.01",
+      "detail": "Oracle may reduce unused commitments on at least three business days' notice. Partial reductions are at least $10M, then $1M increments, and cannot leave commitments below outstanding exposure. Terminated commitments cannot be reinstated. Default provisions can accelerate advances and terminate commitments. No later reduction amount is established by the saved filings.",
+      "source": "agreement"
+    },
+    {
+      "label": "Conditional increase ceiling",
+      "location": "\u00a72.05, especially (d)",
+      "detail": "The agreement permits aggregate commitments up to $12B, subject to conditions and willing existing or additional lenders. This is an option ceiling, not a $12B commitment or $2B of available funding. No exercised increase is established by the saved filings.",
+      "source": "agreement"
+    },
+    {
+      "label": "Borrowing procedure and conditions",
+      "location": "\u00a7\u00a72.02, 4.02",
+      "detail": "Notice is due by 11 a.m. New York time three business days before a Term SOFR borrowing, or on the borrowing day for Base Rate. Specified representations must hold, subject to the agreement's exceptions and materiality terms, before and after the borrowing and use of proceeds. No Default or Event of Default may be continuing or result. Public filings do not supply a borrowing-specific confirmation.",
+      "source": "agreement"
+    },
+    {
+      "label": "Covenant and evidence needed",
+      "location": "\u00a7\u00a71.01, 6.01(f)(iii), 6.02(c)",
+      "detail": "The contract ratio must be at least 3.0x at fiscal quarter-end. It uses four-quarter contract EBITDA and net cash interest, with specified adjustments and acquisition rules. EBITDA includes specified cash and noncash addbacks. Cash interest includes finance-lease interest and net swap costs, excludes LC fees, and is reduced by cash interest income. The agreement requires a no-default certificate with financial reports; no such separate certificate is in the saved set. Generic operating-income coverage cannot establish covenant headroom.",
+      "source": "agreement"
+    },
+    {
+      "label": "Permitted uses",
+      "location": "\u00a7\u00a72.21, 6.01(g)",
+      "detail": "Working capital and other general corporate purposes, subject to Regulation U/X and sanctions, anti-corruption, anti-bribery and anti-money-laundering restrictions. No allocation to a particular repayment is established.",
+      "source": "agreement"
+    },
+    {
+      "label": "Expiration and extensions",
+      "location": "\u00a7\u00a71.01, 2.06, 2.07",
+      "detail": "Original maturity is March 6, 2031, subject to earlier termination. Up to two 365-day extensions may be requested. Each lender elects independently; extending and replacement commitments must exceed 50% of the prior total, and extension conditions apply. Non-extending lenders keep their dates. No exercised extension is established by the saved filings.",
+      "source": "agreement"
+    }
+  ],
+  "later": [
+    {
+      "date": "2026-09-10",
+      "sources": [
+        "earnings",
+        "earnings_exhibit"
+      ],
+      "detail": "Results, the already completed equity sale and dividends. No updated revolver balance, increase, reduction, extension or drawable amount established."
+    },
+    {
+      "date": "2026-09-14",
+      "sources": [
+        "plan",
+        "plan_exhibit"
+      ],
+      "detail": "Filed September 14 for the September 12 insider trading-plan cancellation. No corporate revolver update established."
+    }
+  ],
+  "increase_ceiling": 12000000000,
+  "original_maturity": "2031-03-06",
+  "conclusion": "May 31 undrawn commitment is $10B. Actual drawable capacity is Unavailable at every reviewed date. No saved later disclosure establishes a new amount. Commercial-paper program size is not added to revolver capacity or automatically deducted from it."
+}

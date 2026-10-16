@@ -10,6 +10,7 @@ from xml.etree import ElementTree as ET
 
 import filing_xbrl as fx
 import oracle_financing as of
+import oracle_revolver
 
 SAMPLE = Path(__file__).parent / "samples/oracle_liquidity.json"
 WORKBOOK = SAMPLE.with_suffix(".xlsx")
@@ -196,6 +197,8 @@ def workbook_bytes(review: dict) -> bytes | None:
         if (metadata["review_sha256"] != hashlib.sha256(SAMPLE.read_bytes()).hexdigest()
                 or metadata["workbook_sha256"] != hashlib.sha256(content).hexdigest()
                 or metadata["financing_sha256"] != hashlib.sha256(of.SAMPLE.read_bytes()).hexdigest()
+                or metadata["revolver_sha256"] != hashlib.sha256(oracle_revolver.SAMPLE.read_bytes()).hexdigest()
+                or oracle_revolver.load().get("status") != "Checked"
                 or review != json.loads(SAMPLE.read_text()) or review.get("status") != "Checked"):
             return None
         return content

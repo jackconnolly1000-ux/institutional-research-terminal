@@ -27,6 +27,7 @@ import oracle_financing
 import oracle_liquidity
 import oracle_liquidity_view
 import oracle_repayment
+import oracle_revolver
 import vistra_liquidity
 import vistra_liquidity_view
 import market_data
@@ -40,6 +41,7 @@ from charts import CHART_CONFIG, build_price_chart
 reload(ui)
 reload(oracle_financing)
 reload(oracle_liquidity)
+reload(oracle_revolver)
 reload(oracle_repayment)
 reload(oracle_liquidity_view)
 reload(reviewed_financing)
