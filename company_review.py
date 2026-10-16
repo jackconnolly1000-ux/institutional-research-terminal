@@ -551,7 +551,7 @@ def saved_workbook(snapshots, folder=None, ticker=None):
         saved = json.loads((folder / "liquidity_pilots.json").read_text())
         if snapshots != saved["snapshots"]:
             return None
-        expected = {"liquidity_pilots.json", "lly_liquidity.json"} if ticker else {"liquidity_pilots.json", "oracle_financing.json"}
+        expected = {"liquidity_pilots.json", "lly_liquidity.json", "lly_financing.json"} if ticker else {"liquidity_pilots.json", "oracle_financing.json"}
         for name, digest in manifest["sources"].items():
             if name not in expected:
                 return None
