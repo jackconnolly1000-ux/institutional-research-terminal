@@ -127,7 +127,7 @@ class LiquidityPilot(unittest.TestCase):
         self.assertIsNotNone(content)
         values=load_workbook(BytesIO(content),data_only=True)
         formulas=load_workbook(BytesIO(content),data_only=False)
-        self.assertEqual(values.sheetnames,["Funding conclusion","Debt and liquidity","Repayment review","Data","About"])
+        self.assertEqual(values.sheetnames,["Funding conclusion","Borrowing and leases","Debt and liquidity","Repayment review","Data","About"])
         for row,metric in enumerate(self.snapshots[0]["metrics"].values(),6):
             self.assertAlmostEqual(values["Debt and liquidity"].cell(row,2).value,metric["value"])
             self.assertTrue(formulas["Debt and liquidity"].cell(row,2).value.startswith("="))

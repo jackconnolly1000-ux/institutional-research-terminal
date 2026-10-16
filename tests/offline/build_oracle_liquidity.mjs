@@ -1,3 +1,4 @@
+import {addBorrowingLeaseSheet,finishBorrowingLeaseSheet} from './borrowing_lease_sheet.mjs';
 import {documentationLinks} from './workbook_style.mjs';
 import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Run from a temporary directory using the Codex artifact runtime; deployment only serves the saved file.
@@ -31,6 +32,7 @@ if (review.status !== 'Checked' || Object.values(review.schedules).some(s => s.s
 }
 const wb = Workbook.create();
 const funding=addFundingSheet(wb,root,'ORCL');
+const borrowingLeases=addBorrowingLeaseSheet(wb,root,'ORCL');
 const repay = wb.worksheets.add('Repayment review');
 const main = wb.worksheets.add('Cash analysis');
 const due = wb.worksheets.add('Payment dates');
@@ -456,6 +458,7 @@ console.log((await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#N
   options:{useRegex:true,maxResults:20},maxChars:1200})).ndjson);
 documentationLinks(about);
 const fundingManifest=await finishFundingSheet(wb,root,'ORCL',funding);
+Object.assign(fundingManifest,await finishBorrowingLeaseSheet(wb,root,'ORCL',borrowingLeases));
 const output=path.join(root,'samples/oracle_liquidity.xlsx');
 await (await SpreadsheetFile.exportXlsx(wb)).save(output);
 await fs.rm(output+'.inspect.ndjson',{force:true});

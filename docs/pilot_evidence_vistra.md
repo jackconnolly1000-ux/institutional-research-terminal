@@ -63,7 +63,7 @@ Checked in the 10-Q's inline XBRL (accession 0001692819-26-000019) and in SEC co
 - 1,876 + 17,719 = 19,595, which is the table's "Long-term debt including amounts due currently" (`us-gaap:LongTermDebt` and `LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities`, c-8).
 - Note 12's itemized debt lists senior notes, credit facilities, project-level loans, revenue bonds, equipment financing agreements (46) and other (4); there is no lease line. The balance-sheet tag names include "CapitalLeaseObligations", but the itemization shows debt only. The 10-K (p. 122) places lease liabilities in other current liabilities and other noncurrent liabilities and deferred credits.
 
-**Result:** the three `us-gaap` components come from companyfacts; the 300 comes from the filing's own inline XBRL. Given a document mapped to checked accession 0001692819-26-000019, `xbrl.baseline_gross_debt` calculates 1,876 + 17,719 + 0 + 300 = **19,895M** at June 30, 2026 and keeps the extension fact's context c-8 and document name in its inputs. Without that document it returns Unavailable, keeps the three companyfacts components for review, and never treats the missing 300 as zero. This result is not shown in the app.
+**Result:** the three `us-gaap` components come from companyfacts; the 300 comes from the filing's own inline XBRL. Given a document mapped to checked accession 0001692819-26-000019, `xbrl.baseline_gross_debt` calculates 1,876 + 17,719 + 0 + 300 = **19,895M** at June 30, 2026 and keeps the extension fact's context c-8 and document name in its inputs. Without that document it returns Unavailable, keeps the three companyfacts components for review, and never treats the missing 300 as zero. This result is shown in the frozen company review; live general research does not fetch the extension document.
 
 **Remaining uncertainty:**
 - At Dec 31, 2025 the balance-sheet line was 1,225 while the Receivables Facility's outstanding borrowings were "$1.1 billion" (p. 27) and the repurchase facility had 125 outstanding (p. 28). 1,100 + 125 = 1,225 (calculation) suggests the balance-sheet line includes both facilities; the filing does not say so explicitly. At June 30, 2026 the repurchase facility had no borrowings, so the line and the Receivables Facility agree at 300.
@@ -224,3 +224,7 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 ## Saved company review: cash generation
 
 The frozen app review now shows checked TTM operating cash flow, reported capital spending, FCF and flow/debt ratios. Full reconciliation, exact source periods, tag definitions and caveats: [pilot_cashflow_reconciliation.md](pilot_cashflow_reconciliation.md). The selected obligations note is incomplete and does not add commitments or lease liabilities to baseline borrowing. Existing open gaps remain open.
+
+## Release 1 borrowing and lease presentation (October 16, 2026)
+
+The app and individual workbook now separate the checked borrowing components, recognized lease liabilities and leases not yet commenced. All amounts keep their own dates; missing latest-date lease amounts remain Unavailable. No borrowing, net-debt or coverage value changes. See [the reconciliation and remaining gaps](borrowing_lease_presentation.md).
