@@ -14,6 +14,10 @@ const review = JSON.parse(sourceBytes);
 const annualBytes=await fs.readFile(path.join(root,'samples/oracle_financing.json'));
 const annual=JSON.parse(annualBytes);
 const revolverBytes=await fs.readFile(path.join(root,'samples/oracle_revolver.json'));
+const interestBytes=await fs.readFile(path.join(root,'samples/oracle_interest.json'));
+const interestReview=JSON.parse(execFileSync(process.env.CODEX_PRIMARY_RUNTIME_PYTHON,['-c',
+ 'import json,oracle_interest as i;r=i.load();assert r is not None;print(json.dumps(r))'],{cwd:root,encoding:'utf8'}));
+if(interestReview.calculation.value===null)throw new Error('Checked interest coverage is incomplete');
 // Reuse the app's evidence model rather than maintaining another repayment interpretation in JS.
 const repayment=JSON.parse(execFileSync(process.env.CODEX_PRIMARY_RUNTIME_PYTHON,['-c',
   'import json,oracle_repayment as r,oracle_liquidity as l,oracle_financing as f;print(json.dumps(r.build(json.loads(l.SAMPLE.read_text()),json.loads(f.SAMPLE.read_text()))))'],{cwd:root,encoding:'utf8'}));
@@ -74,9 +78,16 @@ for(const [i,t] of revolver.terms.entries())auditSource('revolver_term_'+i,null,
 for(const [key,s] of Object.entries(revolver.sources))auditSource('revolver_source_'+key,null,
  'Saved document reviewed: '+s.document,key,s.period,'Revolver audit source set',
  'Exact reviewed saved bytes, SHA256 '+s.sha256+'. Latest saved filing September 14; no complete later inventory.');
-data.getRange('A1:O1').values = [['Key','USD millions unless x','Reported input','Period start','Period end / as of',
-  'Form','Filed','Accession','Tag','Context ID','Scale','Decimals','Source','Filing location','Finding / Unavailable reason']];
-data.getRange(`A2:O${sourceRows.length+1}`).values = sourceRows;
+for(const [key,f] of Object.entries(interestReview.inputs)){
+ rows.set('coverage_'+key,sourceRows.length+2);
+ sourceRows.push(['coverage_'+key,f.value,f.label,toDate(f.period_start),toDate(f.period_end),f.form,toDate(f.filed),
+  f.accession,f.tag,f.context_id,f.scale,f.decimals,f.source_url,f.location,f.detail||'',
+  JSON.stringify(f.dimensions),f.source_sha256,f.unit+'; '+f.selection_rule]);
+}
+data.getRange('A1:R1').values = [['Key','USD millions unless x','Reported input','Period start','Period end / as of',
+  'Form','Filed','Accession','Tag','Context ID','Scale','Decimals','Source','Filing location','Finding / Unavailable reason',
+  'Dimensions','Reviewed source SHA256','Unit and selection rule']];
+data.getRange(`A2:R${sourceRows.length+1}`).values = sourceRows.map(r=>r.concat(Array(18-r.length).fill(null)));
 data.getRange(`B2:B${sourceRows.length+1}`).setNumberFormat(USD);
 data.getRange(`B${rows.get('covenant_minimum')}`).setNumberFormat('0.0"x"');
 data.getRange(`B2:B${sourceRows.length+1}`).format.font.color = '#0000FF';
@@ -128,6 +139,21 @@ set(main,'A32','The 11.363B prepayment contribution is already in OCF; the 19.90
 main.getRange('H35:I38').values = [['Quarter measure','USD'],['Reported\nOCF',null],['OCF excluding specified\nprepayments',null],['Cash\ncapex',null]];
 for (const [r, source] of [[36,6],[37,8],[38,10]]) set(main,`I${r}`,`=B${source}`,true);
 main.getRange('I36:I38').setNumberFormat(USD);
+set(main,'A41','Historical operating-income interest coverage');
+set(main,'A42','TTM September 1, 2025–August 31, 2026. Reported interest line; capitalization basis Unavailable.');
+main.getRange('A44:E44').values=[['Build, USD millions','FY2026','+ Q1 FY2027','− Q1 FY2026','TTM']];
+for(const [n,key,label] of [[45,'operating_income','Reported operating income'],[46,'interest','Reported Interest expense'],
+ [47,'lease_interest','Lease-note interest, context only']]){
+ set(main,`A${n}`,label);
+ ['fy','current','prior'].forEach((role,i)=>set(main,`${'BCD'[i]}${n}`,link('coverage_'+role+'_'+key),true));
+ set(main,`E${n}`,`=B${n}+C${n}-D${n}`,true);
+}
+set(main,'A49','Historical reported-line interest coverage');
+set(main,'B49','=IF(E46>0,E45/E46,NA())',true);
+set(main,'A51','Capitalization basis: Unavailable. See About.');
+set(main,'A52','Borrowing-only coverage: Unavailable. See About.');
+set(main,'A53','Covenant headroom: Unavailable. Different contract formula.');
+set(main,'A54','Lease overlap: Unavailable; row 47 is not added.');
 const chart = main.charts.add('bar', main.getRange('H35:I38'));
 chart.title = 'Cash capex exceeded operating cash flow';
 chart.titleTextStyle.typeface = 'Arial';
@@ -252,6 +278,11 @@ const notes = [
   ['Repayment limits','Remaining August debt principal dates, drawable credit and future operating cash generation are Unavailable. No overall future repayment surplus or shortfall can be established.',null],
   ['Revolver audit',revolver.conclusion+' '+revolver.scope,null],
   ['Revolver arithmetic','May 31 undrawn commitment = reported commitment less outstanding advances. This is not a verified drawable amount. March 6 and August 31 undrawn cells stay blank because advances or the current commitment are not established.',null],
+  ['Historical interest coverage',interestReview.formula+'. '+interestReview.ttm_formula+'. Reported operating income is used without adjusted earnings addbacks. This is a historical accrual measure, not future repayment coverage.','docs/oracle_interest_coverage.md'],
+  ['Interest capitalization basis',interestReview.basis,interestReview.inputs.fy_interest.source_url],
+  ['Interest composition',interestReview.composition,interestReview.inputs.fy_interest.source_url],
+  ['Borrowing and covenant limits',interestReview.limitations,review.facility.source_url],
+  ['Lease interest context','279M annual + 126M current quarter − 48M comparative = 357M TTM. This separately reported expense is not added to or subtracted from the selected interest line because overlap is not established.','10-K Leases Note 9 p. 88; 10-Q Leases Note 6 p. 12'],
 ];
 about.getRange(`A2:C${notes.length+1}`).values = notes;
 
@@ -304,7 +335,7 @@ set(main,'D22','Reported OCF less capex = B6 − B10.');
 set(main,'D23','Excluding specified prepayments = B8 − B10.');
 set(main,'D25','The prepayment exclusion is historical arithmetic, not recurring cash generation.');
 main.getRange('D22:D25').format.wrapText=false;
-data.getRange(`A1:O${sourceRows.length+1}`).format.rowHeight=45;
+data.getRange(`A1:R${sourceRows.length+1}`).format.rowHeight=45;
 data.getRange(`A1:A${sourceRows.length+1}`).format.columnWidth=24;
 data.getRange(`B1:B${sourceRows.length+1}`).format.columnWidth=19;
 data.getRange(`C1:C${sourceRows.length+1}`).format.columnWidth=48;
@@ -312,6 +343,8 @@ data.getRange(`D1:G${sourceRows.length+1}`).format.columnWidth=19;
 data.getRange(`H1:J${sourceRows.length+1}`).format.columnWidth=48;
 data.getRange(`K1:L${sourceRows.length+1}`).format.columnWidth=12;
 data.getRange(`M1:O${sourceRows.length+1}`).format.columnWidth=65;
+data.getRange(`P1:Q${sourceRows.length+1}`).format.columnWidth=45;
+data.getRange(`R1:R${sourceRows.length+1}`).format.columnWidth=80;
 data.getUsedRange().format.wrapText=true;
 for(const [i,t] of revolver.terms.entries()){
  const n=rows.get('revolver_term_'+i);
@@ -329,7 +362,18 @@ for (const address of ['A5:F20','A22:B22','A24:B27','A33:B33']) frame(due,addres
 for (const [sheet,address] of [[main,'A4:B4'],[main,'H35:I35'],[due,'A5:F5'],[data,'A1:O1'],[about,'A1:C1']]) header(sheet,address);
 for (const n of [8,11,12,16,17,20,25,26]) subtotal(main,`A${n}:B${n}`);
 for (const n of [14,18]) subtotal(due,`A${n}:D${n}`);
-frame(data,`A1:O${sourceRows.length+1}`);frame(about,`A1:C${notes.length+1}`);
+frame(data,`A1:R${sourceRows.length+1}`);frame(about,`A1:C${notes.length+1}`);
+header(data,'A1:R1');
+main.getRange('A41').format.font.bold=true;main.getRange('A41').format.font.size=14;
+main.getRange('A44:E49').format.font.name='Arial';main.getRange('A44:E49').format.font.size=10;
+main.getRange('A44:E49').format.rowHeight=32;main.getRange('A44:E49').format.verticalAlignment='center';
+main.getRange('A44:E44').format.wrapText=true;
+main.getRange('B45:E47').setNumberFormat(USD);main.getRange('B45:D47').format.font.color='#008000';
+main.getRange('E45:E47').format.font.color='#000000';
+main.getRange('B49').setNumberFormat('0.00"x"');main.getRange('A49:B49').format.font.italic=true;
+header(main,'A44:E44');frame(main,'A44:E47');subtotal(main,'A49:B49');
+main.getRange('A51:A54').format.font.size=10;main.getRange('A51:A54').format.rowHeight=26;
+for(let n=notes.length-3;n<=notes.length+1;n++)about.getRange(`A${n}:C${n}`).format.rowHeight=115;
 repay.getRange('A2').format.font.bold=true;repay.getRange('A2').format.font.size=14;
 for(const [i,width] of [26,31,23,66,36,26,100].entries())repay.getRangeByIndexes(0,i,55,1).format.columnWidth=width;
 repay.getRange('A5:G55').format.wrapText=true;
@@ -388,6 +432,21 @@ mayInput.values=[[mayOriginal[0][0]-1000000]];wb.recalculate();
 if(repay.getRange('D60').values[0][0]!==9999000000)throw new Error('Undrawn commitment does not recalculate');
 mayInput.values=mayOriginal;wb.recalculate();
 console.log(JSON.stringify({cash:expected,payments:due.getRange('B14:D20').values}));
+for(const [cell,key] of [['E45','operating_income'],['E46','interest'],['E47','lease_interest'],['B49','value']]){
+ if(main.getRange(cell).values[0][0]!==interestReview.calculation[key])throw new Error('Interest reconciliation '+cell);
+}
+const interestInput=data.getRange(`B${rows.get('coverage_current_interest')}`),interestOriginal=interestInput.values;
+interestInput.values=[[null]];wb.recalculate();
+if(typeof main.getRange('B49').values[0][0]==='number')throw new Error('Missing interest became coverage');
+interestInput.values=interestOriginal;
+const interestCells=['fy','current','prior'].map(p=>data.getRange(`B${rows.get('coverage_'+p+'_interest')}`));
+const originals=interestCells.map(c=>c.values);interestCells.forEach(c=>c.values=[[0]]);wb.recalculate();
+if(typeof main.getRange('B49').values[0][0]==='number')throw new Error('Zero interest divided');
+interestCells.forEach((c,i)=>c.values=originals[i]);
+const opInput=data.getRange(`B${rows.get('coverage_current_operating_income')}`),opOriginal=opInput.values;
+opInput.values=[[opOriginal[0][0]+1e6]];wb.recalculate();
+if(Math.abs(main.getRange('B49').values[0][0]-(interestReview.calculation.operating_income+1e6)/interestReview.calculation.interest)>1e-12)throw new Error('Coverage does not recalculate');
+opInput.values=opOriginal;wb.recalculate();
 console.log((await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A|#NUM!|#NULL!|#SPILL!',
   options:{useRegex:true,maxResults:20},maxChars:1200})).ndjson);
 const output=path.join(root,'samples/oracle_liquidity.xlsx');
@@ -397,10 +456,14 @@ const digest = b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({review_sha256:digest(sourceBytes),
   financing_sha256:digest(annualBytes),
   revolver_sha256:digest(revolverBytes),
+  interest_sha256:digest(interestBytes),
   workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');
 for (const [sheet,range,file] of [['Repayment review','A2:E11','resources'],['Repayment review','A15:D21','repayment'],
   ['Repayment review','E15:G21','funding-gaps'],['Repayment review','A43:F49','historical'],['Repayment review','A51:D55','undated'],
   ['Cash analysis','A2:B27','cash'],['Cash analysis','D4:L25','chart'],
+  ['Cash analysis','A41:E54','interest'],
+  ['Data',`A${rows.get('coverage_fy_operating_income')}:H${sourceRows.length+1}`,'interest-inputs'],
+  ['Data',`I${rows.get('coverage_fy_operating_income')}:R${sourceRows.length+1}`,'interest-contexts'],
   ['Repayment review','A57:D61','revolver-amounts'],['Repayment review','E58:G61','revolver-limits'],
   ['Repayment review','A63:D68','revolver-terms-1'],['Repayment review','A69:D72','revolver-terms-2'],
   ['Repayment review','A74:D81','revolver-later'],
