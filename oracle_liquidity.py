@@ -195,6 +195,9 @@ def workbook_bytes(review: dict) -> bytes | None:
     try:
         content = WORKBOOK.read_bytes()
         metadata = json.loads(WORKBOOK.with_suffix(".manifest.json").read_text())
+        import funding_conclusions as funding
+        if metadata.get("funding_sha256") != funding.fingerprint() or funding.load("ORCL") is None:
+            return None
         if (metadata["review_sha256"] != hashlib.sha256(SAMPLE.read_bytes()).hexdigest()
                 or metadata["workbook_sha256"] != hashlib.sha256(content).hexdigest()
                 or metadata["financing_sha256"] != hashlib.sha256(of.SAMPLE.read_bytes()).hexdigest()

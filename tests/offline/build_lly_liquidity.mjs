@@ -1,3 +1,4 @@
+import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Build only Lilly's checked review. No network or application dependency is required.
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -17,7 +18,9 @@ const interestReview=JSON.parse(interestBytes),ic=interestReview.calculation;
 if(ic.value===null||ic.detail)throw new Error('Incomplete interest coverage');
 if(financing.status!=='Checked'||financing.rows.length!==8||financing.initial_principal_total!==financing.reported_issue_total)throw new Error('Incomplete financing audit');
 if(!review.cash||!review.notes_schedule||review.disclosures.length!==10)throw new Error('Incomplete Lilly evidence');
-const wb=Workbook.create(),main=wb.worksheets.add('Debt and liquidity');
+const wb=Workbook.create();
+const funding=addFundingSheet(wb,root,'LLY');
+const main=wb.worksheets.add('Debt and liquidity');
 const repayment=wb.worksheets.add('Repayment review');
 const data=wb.worksheets.add('Data'),about=wb.worksheets.add('About');
 const USD='#,##0,,;(#,##0,,);"-"',date=s=>s?new Date(s+'T00:00:00Z'):null;
@@ -320,10 +323,11 @@ for(const [i,key] of order.entries())if(main.getRange(`B${i+6}`).values[0][0]!==
 const cashCell=data.getRange('B2'),original=cashCell.values;cashCell.values=[[null]];wb.recalculate();
 if(typeof main.getRange('B8').values[0][0]==='number')throw new Error('Missing cash became zero');
 cashCell.values=original;wb.recalculate();
+const fundingManifest=await finishFundingSheet(wb,root,'LLY',funding);
 const out=path.join(root,'samples/lly_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(out);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
-await fs.writeFile(out.replace('.xlsx','.manifest.json'),JSON.stringify({sources:{'liquidity_pilots.json':digest(source),'lly_liquidity.json':digest(reviewBytes),'lly_financing.json':digest(financingBytes),'lly_interest.json':digest(interestBytes)},workbook_sha256:digest(await fs.readFile(out))},null,2)+'\n');
-for(const [sheet,range,file] of [['Debt and liquidity','A2:D15','review'],['Debt and liquidity','A17:D26','obligations'],['Data','A1:G6','inputs'],['Data','H1:O6','provenance'],['Data',`A${disclosureHeader}:I${disclosureHeader+2}`,'disclosures'],['About','A1:C12','about'],['Repayment review','A2:D26','cash-build'],['Repayment review','F6:P24','cash-chart'],['Repayment review','A29:D35','facilities'],['Repayment review','A38:D50','commitments'],['Repayment review','A53:D71','notes'],['Data',`A${auditHeader}:H${auditHeader+6}`,'review-inputs'],['Data',`I${auditHeader}:L${auditHeader+6}`,'review-contexts'],['Data',`M${auditHeader}:R${auditHeader+6}`,'review-provenance'],['Repayment review','A74:D89','may-maturities'],['Repayment review','A91:D96','financing-limits'],['Data',`A${auditRows.get('may_notes_0')}:H${auditRows.get('may_issue_control')}`,'contract-inputs'],['Data',`M${auditRows.get('may_notes_0')}:T${auditRows.get('may_issue_control')}`,'contract-provenance'],['Debt and liquidity','A30:D50','coverage-build'],['Debt and liquidity','A52:D55','coverage-basis'],['Data',`A${auditRows.get('coverage_fy_revenue')}:H${auditRows.get('coverage_fy_interest')}`,'coverage-inputs'],['Data',`I${auditRows.get('coverage_current_interest')}:Q${auditRows.get('coverage_prior_interest')}`,'coverage-contexts']]){
+await fs.writeFile(out.replace('.xlsx','.manifest.json'),JSON.stringify({...fundingManifest,sources:{'liquidity_pilots.json':digest(source),'lly_liquidity.json':digest(reviewBytes),'lly_financing.json':digest(financingBytes),'lly_interest.json':digest(interestBytes)},workbook_sha256:digest(await fs.readFile(out))},null,2)+'\n');
+if(process.env.SKIP_UNCHANGED_RENDERS!=='1') for(const [sheet,range,file] of [['Debt and liquidity','A2:D15','review'],['Debt and liquidity','A17:D26','obligations'],['Data','A1:G6','inputs'],['Data','H1:O6','provenance'],['Data',`A${disclosureHeader}:I${disclosureHeader+2}`,'disclosures'],['About','A1:C12','about'],['Repayment review','A2:D26','cash-build'],['Repayment review','F6:P24','cash-chart'],['Repayment review','A29:D35','facilities'],['Repayment review','A38:D50','commitments'],['Repayment review','A53:D71','notes'],['Data',`A${auditHeader}:H${auditHeader+6}`,'review-inputs'],['Data',`I${auditHeader}:L${auditHeader+6}`,'review-contexts'],['Data',`M${auditHeader}:R${auditHeader+6}`,'review-provenance'],['Repayment review','A74:D89','may-maturities'],['Repayment review','A91:D96','financing-limits'],['Data',`A${auditRows.get('may_notes_0')}:H${auditRows.get('may_issue_control')}`,'contract-inputs'],['Data',`M${auditRows.get('may_notes_0')}:T${auditRows.get('may_issue_control')}`,'contract-provenance'],['Debt and liquidity','A30:D50','coverage-build'],['Debt and liquidity','A52:D55','coverage-basis'],['Data',`A${auditRows.get('coverage_fy_revenue')}:H${auditRows.get('coverage_fy_interest')}`,'coverage-inputs'],['Data',`I${auditRows.get('coverage_current_interest')}:Q${auditRows.get('coverage_prior_interest')}`,'coverage-contexts']]){
  const img=await wb.render({sheetName:sheet,range,scale:1.1,format:'png'});await fs.writeFile(`lly-${file}.png`,new Uint8Array(await img.arrayBuffer()));
 }
 await fs.rm(out+'.inspect.ndjson',{force:true});

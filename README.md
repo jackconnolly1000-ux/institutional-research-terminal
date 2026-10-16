@@ -28,6 +28,13 @@ For up to five tickers:
 
 ## Known limits
 
+- `funding_conclusions.py` adds dated funding conclusions to LLY, ORCL and VST using their
+  existing checked evidence. The app and individual Excel exports show near-term obligations,
+  resource access, competing uses and decisive unknowns. Historical interest definitions and
+  periods differ; no funding-strength ranking or future coverage is inferred. Each individual
+  export opens with Funding conclusion and retains its detail, sources and calculations.
+  Changed evidence or interpretation refuses a stale conclusion/download. Method and limits:
+  `docs/funding_conclusions.md`; shared export layout: `tests/offline/funding_sheet.mjs`.
 - `vistra_interest.py` adds historical coverage of the separately reported interest component:
   TTM to June 30, 2026 operating income 3,563M / interest 1,117M = 3.19x. The app and primary
   Vistra Excel reconcile swaps, amortization, extinguishment, capitalized interest and Other to

@@ -23,6 +23,7 @@ import budget
 import filing_review
 import reviewed_financing
 import company_review
+import funding_conclusions
 import oracle_financing
 import oracle_liquidity
 import oracle_interest
@@ -66,6 +67,7 @@ reload(lly_interest)
 reload(lly_interest_view)
 reload(lly_liquidity_view)
 reload(company_review)
+reload(funding_conclusions)
 
 ET = ZoneInfo("America/New_York")
 

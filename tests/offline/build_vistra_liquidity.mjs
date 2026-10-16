@@ -1,3 +1,4 @@
+import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Build with the Codex spreadsheet runtime in a temporary directory; the app serves saved bytes.
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -16,6 +17,7 @@ const interest=JSON.parse(execFileSync(process.env.CODEX_PRIMARY_RUNTIME_PYTHON,
 if(interest.calculation.value===null)throw new Error('Interest review is incomplete');
 if(r.status!=='Checked'||!r.capacity||!r.debt||!r.annual) throw new Error('Source reconciliations incomplete');
 const wb=Workbook.create();
+const funding=addFundingSheet(wb,root,'VST');
 const main=wb.worksheets.add('Cash review'), due=wb.worksheets.add('Payment dates');
 const capacity=wb.worksheets.add('Financing capacity'), data=wb.worksheets.add('Data'), about=wb.worksheets.add('About');
 const USD='#,##0,,;(#,##0,,);"-"', diff='#,##0.00,,;(#,##0.00,,);0.00';
@@ -306,10 +308,11 @@ const op=data.getRange(`B${rows.get('coverage_current_operating_income')}`),opo=
 op.values=[[opo[0][0]+1e6]];wb.recalculate();if(Math.abs(main.getRange('B79').values[0][0]-3564/1117)>1e-12)throw new Error('Coverage does not recalculate');
 op.values=opo;wb.recalculate();
 console.log((await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A|#NUM!|#NULL!|#SPILL!',options:{useRegex:true,maxResults:10},maxChars:1500})).ndjson);
+const fundingManifest=await finishFundingSheet(wb,root,'VST',funding);
 const output=path.join(root,'samples/vistra_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(output);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
-await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({review_sha256:digest(bytes),interest_sha256:digest(interestBytes),workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');
-for(const [sheet,range,name] of [['Cash review','A2:B23','cash'],['Payment dates','A5:E11','payments'],['Payment dates','A14:F31','chart'],['Financing capacity','A5:E13','capacity'],['Data','A1:H6','data'],['About','A1:B10','about'],
+await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({...fundingManifest,review_sha256:digest(bytes),interest_sha256:digest(interestBytes),workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');
+if(process.env.SKIP_UNCHANGED_RENDERS!=='1') for(const [sheet,range,name] of [['Cash review','A2:B23','cash'],['Payment dates','A5:E11','payments'],['Payment dates','A14:F31','chart'],['Financing capacity','A5:E13','capacity'],['Data','A1:H6','data'],['About','A1:B10','about'],
  ['Cash review','A52:D65','interest-periods'],['Cash review','A68:B79','interest-ttm'],['Cash review','A82:D95','interest-comparatives'],
  ['Data',`A${rows.get('coverage_fy_operating_income')}:H${rows.get('coverage_current_operating_income')-1}`,'interest-inputs'],
  ['Data',`I${rows.get('coverage_current_operating_income')}:R${rows.get('coverage_prior_operating_income')-1}`,'interest-contexts'],
