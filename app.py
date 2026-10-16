@@ -73,7 +73,7 @@ ET = ZoneInfo("America/New_York")
 
 # --- STREAMLIT PAGE CONFIG + STYLING (colors live in theme.py, CSS in ui.py) ---
 st.set_page_config(
-    page_title="SEC Filing Research Terminal",
+    page_title="Debt & Liquidity Research Terminal",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -91,26 +91,34 @@ def log_versions() -> None:
 log_versions()
 
 # --- API KEY AND SEC CONTACT (from Streamlit Secrets) ---
-try:
-    if "ANTHROPIC_API_KEY" not in st.secrets:
-        st.error("ANTHROPIC_API_KEY was not found in Streamlit Secrets.")
-        st.stop()
-    raw_key = st.secrets["ANTHROPIC_API_KEY"]
-    clean_key = str(raw_key).strip().replace("\n", "").replace(" ", "").replace("\r", "")
-    client = Anthropic(api_key=clean_key, timeout=60.0)
-except Exception as e:
-    st.error(f"Initialization Error: {e}")
-    st.stop()
+# Read only by general filing research. The saved debt and liquidity reviews are the default page and need
+# neither, so a deployment without these secrets still serves them.
+def secret(name: str) -> str | None:
+    try:
+        return st.secrets.get(name)
+    except Exception:   # no secrets file at all
+        return None
 
-# SEC EDGAR asks every automated request to name a real contact (its fair-access policy).
-# The environment fallback exists for the offline test harness, which has no secrets file.
-try:
-    SEC_CONTACT = st.secrets.get("SEC_CONTACT_EMAIL") or os.environ.get("SEC_CONTACT_EMAIL")
-except Exception:
-    SEC_CONTACT = os.environ.get("SEC_CONTACT_EMAIL")
-if not SEC_CONTACT:
-    st.error("SEC_CONTACT_EMAIL is not set in Streamlit Secrets. SEC EDGAR requires a contact email on every request.")
-    st.stop()
+def sec_contact() -> str | None:
+    """SEC EDGAR asks every automated request to name a real contact (its fair-access policy).
+    The environment fallback exists for the offline test harness, which has no secrets file."""
+    return secret("SEC_CONTACT_EMAIL") or os.environ.get("SEC_CONTACT_EMAIL")
+
+@st.cache_resource(show_spinner=False)
+def _anthropic_client(clean_key: str) -> Anthropic:
+    return Anthropic(api_key=clean_key, timeout=60.0)
+
+def anthropic_client() -> Anthropic:
+    """Built on first use by a live analysis, never on page load. Raises KeyError when the key isn't set."""
+    raw_key = secret("ANTHROPIC_API_KEY")
+    if not raw_key:
+        raise KeyError("ANTHROPIC_API_KEY")
+    return _anthropic_client(str(raw_key).strip().replace("\n", "").replace(" ", "").replace("\r", ""))
+
+def live_setup_problems() -> list[str]:
+    """What a live run would be missing. An empty list means Run analysis can work."""
+    return [f"{name} is not set in Streamlit Secrets" for name, ok in
+            (("ANTHROPIC_API_KEY", secret("ANTHROPIC_API_KEY")), ("SEC_CONTACT_EMAIL", sec_contact())) if not ok]
 
 # --- BACKEND ---
 # Cached functions RAISE on failure instead of returning None or a fallback:
@@ -126,8 +134,6 @@ class TickerSkipped(Exception):
         super().__init__(kind)
         self.kind = kind
 
-SEC_HEADERS = {"User-Agent": f"SEC Filing Research Terminal {SEC_CONTACT}"}
-
 FALLBACK_DIRECTORY = pd.DataFrame([
     {"ticker": "AAPL", "name": "Apple Inc.", "cik": "320193"},
     {"ticker": "MSFT", "name": "Microsoft Corp.", "cik": "789019"},
@@ -140,9 +146,10 @@ FALLBACK_DIRECTORY = pd.DataFrame([
 def sec_get(url: str, retries: int = 3) -> bytes:
     """GET from SEC EDGAR with retries. Raises if every attempt fails."""
     last = "no response"
+    headers = {"User-Agent": f"SEC Filing Research Terminal {sec_contact()}"}
     for attempt in range(retries):
         try:
-            resp = requests.get(url, headers=SEC_HEADERS, timeout=12)
+            resp = requests.get(url, headers=headers, timeout=12)
             if resp.status_code == 200:
                 return resp.content
             last = f"HTTP {resp.status_code}"
@@ -159,7 +166,10 @@ def _fetch_sec_directory() -> pd.DataFrame:
     return pd.DataFrame(rows).drop_duplicates("ticker")
 
 def load_sec_directory() -> tuple[pd.DataFrame, bool]:
-    """Returns (directory, used_fallback). Not cached itself, so the fallback is never cached."""
+    """Returns (directory, used_fallback). Not cached itself, so the fallback is never cached.
+    Without a contact email no SEC request is allowed, so the short list is used."""
+    if not sec_contact():
+        return FALLBACK_DIRECTORY, True
     try:
         return _fetch_sec_directory(), False
     except Exception:
@@ -262,7 +272,7 @@ def is_owner() -> bool:
 # Local diagnostics only: set SAVE_AI_RESPONSES_DIR to keep each raw Claude answer and the profile built from it
 SAVE_DIR = os.environ.get("SAVE_AI_RESPONSES_DIR")
 
-def count_request_tokens(prompt: str, tool: dict, method: dict) -> int:
+def count_request_tokens(client: Anthropic, prompt: str, tool: dict, method: dict) -> int:
     """Token count for the whole request from Anthropic's free counting endpoint.
     Falls back to a conservative estimate (3 characters per token) if that call fails."""
     try:
@@ -276,9 +286,10 @@ def count_request_tokens(prompt: str, tool: dict, method: dict) -> int:
 def run_analysis(ticker: str, evidence: dict) -> dict:
     sources = evidence["sources"]
     method = {"method": "measured"}
+    client = anthropic_client()
     try:
         req = analysis.fit_to_budget(ticker, evidence["company_name"], sources,
-                                     lambda p, t: count_request_tokens(p, t, method))
+                                     lambda p, t: count_request_tokens(client, p, t, method))
     except ValueError as e:
         return analysis.failed_result(sources, str(e))
     key = hashlib.sha256(analysis.request_fingerprint(req["prompt"], req["tool"]).encode()).hexdigest()
@@ -359,7 +370,7 @@ def analyze_ticker(ticker: str, cik: str, progress) -> dict:
             json.dump(profile, fh, indent=1, default=str)
     return profile
 
-# --- SAVED SAMPLE: a frozen AAPL + STRL run in samples/, rendered with no network calls ---
+# --- ARCHIVED EXAMPLE: the frozen AAPL + STRL filing-research run in samples/, rendered with no network calls ---
 SAMPLES = Path(__file__).parent / "samples"
 
 def load_sample() -> None:
@@ -481,62 +492,6 @@ def generate_excel(profiles):
     wb.save(buf)
     return buf.getvalue()
 
-# --- HEADER ---
-st.markdown(
-    "<div class='irt-header'><div class='irt-title' role='heading' aria-level='1'>SEC Filing Research Terminal</div>"
-    "<div class='irt-sub'>This project traces SEC filing facts through reconciled calculations to explain "
-    "cash funding, debt and repayment obligations. Saved company reviews show the sources and limits "
-    "of each conclusion. Market data and AI filing summaries are also available. "
-    "A research tool, not investment advice.</div></div>",
-    unsafe_allow_html=True,
-)
-
-# --- TOOLBAR: TICKER PICKER, ONE PRIMARY ACTION, THE SAVED SAMPLE ---
-sec_directory, used_fallback = load_sec_directory()
-ticker_names = dict(zip(sec_directory["ticker"], sec_directory["name"]))
-ticker_ciks = dict(zip(sec_directory["ticker"], sec_directory["cik"]))
-
-# Drop any saved ticker that isn't in today's options (e.g. after a fallback), or the multiselect raises
-st.session_state.ticker_select = [t for t in st.session_state.get("ticker_select", ["AAPL"]) if t in ticker_names]
-
-col_pick, col_run = st.columns([5, 1])
-with col_pick:
-    st.multiselect(
-        "Tickers",
-        options=list(ticker_names),
-        format_func=lambda t: f"{t} · {ticker_names[t]}",
-        key="ticker_select",
-        placeholder="Search by ticker or company name",
-        max_selections=5,
-        label_visibility="collapsed",  # the placeholder explains it; screen readers still get the label
-    )
-with col_run:
-    run_btn = st.button("Run analysis", type="primary", width="stretch")
-
-st.markdown("<p class='irt-note'>Live analysis is limited to about one ticker a day. The saved sample is always available.</p>",
-            unsafe_allow_html=True)
-st.button("View saved sample", on_click=load_sample)
-# Import the complete view directly: long-lived workers can retain an older model helper after deployment.
-company_review.render_app()
-
-# Owner bypass: only when OWNER_PASSCODE is set in Streamlit Secrets. Typed in the sidebar, kept in the
-# session, never in a URL. Owner runs still count against the ledger, so visitors see a true remainder.
-try:
-    OWNER_PASSCODE = st.secrets.get("OWNER_PASSCODE")
-except Exception:
-    OWNER_PASSCODE = None
-if OWNER_PASSCODE:
-    with st.sidebar:
-        typed = st.text_input("Owner passcode", type="password")
-        # Clearing the field turns owner mode off again
-        st.session_state.owner = bool(typed) and hmac.compare_digest(typed.encode(), str(OWNER_PASSCODE).encode())
-        if typed:
-            st.caption("Owner mode: the daily limit is off for this session." if st.session_state.owner else "Passcode not recognized.")
-
-if used_fallback:
-    st.warning("Couldn't reach the SEC ticker list, so only 6 tickers are available. Reload the page to retry.")
-
-
 # --- RESULTS RENDERING ---
 def _when(iso: str) -> str:
     t = datetime.fromisoformat(iso)
@@ -638,11 +593,51 @@ def run_state(p: dict) -> tuple:
     return ("partial", "partial results") if partial else ("done", "")
 
 
-# --- RUN: SKELETONS FIRST, THEN EACH TICKER FILLS IN AS IT FINISHES ---
-if run_btn and not st.session_state.ticker_select:
-    st.warning("Pick at least one ticker, then click Run analysis.")
-elif run_btn:
-    tickers = list(st.session_state.ticker_select)
+
+# --- PAGES ---
+# The saved debt and liquidity reviews are the product; general filing research is the older, experimental tool.
+# The page lives in session state (not a widget), so switching back and forth keeps each tool's results.
+DEBT, RESEARCH = "debt", "research"
+RESEARCH_LABEL = "General filing research — experimental"
+
+
+def open_view(view: str) -> None:
+    st.session_state.view = view
+
+
+def render_header() -> None:
+    st.markdown(
+        "<div class='irt-header'><div class='irt-title' role='heading' aria-level='1'>Debt &amp; Liquidity Research Terminal</div>"
+        "<div class='irt-sub'>Saved reviews of what Eli Lilly, Oracle and Vistra owe, the cash and cash generation "
+        "behind it, and the SEC filing evidence for each figure. Every review is dated and frozen; opening one makes "
+        "no live request. A research tool, not investment advice.</div></div>",
+        unsafe_allow_html=True,
+    )
+
+
+def render_debt_view() -> None:
+    st.button(RESEARCH_LABEL, type="tertiary", icon=":material/arrow_forward:", icon_position="right",
+              on_click=open_view, args=(RESEARCH,))
+    # Import the complete view directly: long-lived workers can retain an older model helper after deployment.
+    company_review.render_app()
+
+
+def render_owner_sidebar() -> None:
+    """Owner bypass: only when OWNER_PASSCODE is set in Streamlit Secrets. Typed in the sidebar, kept in the
+    session, never in a URL. Owner runs still count against the ledger, so visitors see a true remainder."""
+    owner_passcode = secret("OWNER_PASSCODE")
+    if not owner_passcode:
+        return
+    with st.sidebar:
+        typed = st.text_input("Owner passcode", type="password")
+        # Clearing the field turns owner mode off again
+        st.session_state.owner = bool(typed) and hmac.compare_digest(typed.encode(), str(owner_passcode).encode())
+        if typed:
+            st.caption("Owner mode: the daily limit is off for this session." if st.session_state.owner else "Passcode not recognized.")
+
+
+def run_live(tickers: list, ticker_ciks: dict) -> None:
+    """Skeletons first, then each ticker fills in as it finishes."""
     statuses = {t: ("queued", "queued") for t in tickers}
     strip = st.empty()
     strip.markdown(ui.progress_strip(statuses), unsafe_allow_html=True)
@@ -685,24 +680,23 @@ elif run_btn:
                 render_profile(profiles[t])
         strip.markdown(ui.progress_strip(statuses), unsafe_allow_html=True)
 
-    # Keep the results so a download, preset click or ticker change doesn't wipe them
+    # Keep the results so a download, preset click, ticker change or page switch doesn't wipe them
     st.session_state.results = {
         "tickers": tickers, "profiles": profiles, "failures": failures, "skipped": skipped,
         "run_at": datetime.now(ET),
     }
     st.rerun()  # redraw once from session state: summary row and download button on top
 
-# --- SAVED RESULTS ---
-# st.rerun() above stops this run, so this section only draws on the next run (and every run after)
-results = st.session_state.get("results")
-if results:
+
+def render_results(results: dict) -> None:
     profiles, failures, skipped = results["profiles"], results["failures"], results.get("skipped", {})
     done = [t for t in results["tickers"] if t in profiles]
     partial = [t for t in done if run_state(profiles[t])[0] == "partial"]
 
     col_sum, col_dl = st.columns([4, 1])
     if results.get("sample"):
-        summary = results["sample"]["label"]
+        tickers = ", ".join(results["sample"]["tickers"])
+        summary = f"Archived filing-research example ({tickers}). " + results["sample"]["label"].removeprefix("Saved sample. ")
     else:
         summary = (f"Results for {', '.join(results['tickers'])} · run {results['run_at']:%b %d, %I:%M %p} ET · "
                    f"{len(done)} of {len(results['tickers'])} succeeded"
@@ -724,10 +718,70 @@ if results:
                 render_skipped(skipped[t])
             else:
                 render_failure(t, failures.get(t, "unknown error"))
+
+
+def render_research_view() -> None:
+    st.button("Debt and liquidity reviews", type="tertiary", icon=":material/arrow_back:",
+              on_click=open_view, args=(DEBT,))
+    st.markdown(f"<div class='irt-h' role='heading' aria-level='2'>{ui.esc(RESEARCH_LABEL)}</div>"
+                "<p class='irt-note'>AI summaries of catalysts, risk-factor changes and 8-K events for any ticker, with "
+                "market data. Unlike the debt and liquidity reviews, these findings are not checked by hand.</p>",
+                unsafe_allow_html=True)
+
+    problems = live_setup_problems()
+    sec_directory, used_fallback = load_sec_directory()
+    ticker_names = dict(zip(sec_directory["ticker"], sec_directory["name"]))
+    ticker_ciks = dict(zip(sec_directory["ticker"], sec_directory["cik"]))
+
+    # Drop any saved ticker that isn't in today's options (e.g. after a fallback), or the multiselect raises
+    st.session_state.ticker_select = [t for t in st.session_state.get("ticker_select", ["AAPL"]) if t in ticker_names]
+
+    col_pick, col_run = st.columns([5, 1])
+    with col_pick:
+        st.multiselect(
+            "Tickers",
+            options=list(ticker_names),
+            format_func=lambda t: f"{t} · {ticker_names[t]}",
+            key="ticker_select",
+            placeholder="Search by ticker or company name",
+            max_selections=5,
+            label_visibility="collapsed",  # the placeholder explains it; screen readers still get the label
+            persist_state="session",       # kept while the debt and liquidity page is open
+        )
+    with col_run:
+        run_btn = st.button("Run analysis", type="primary", width="stretch", disabled=bool(problems))
+
+    st.markdown("<p class='irt-note'>Live analysis is limited to about one ticker a day. The archived example is always available.</p>",
+                unsafe_allow_html=True)
+    if problems:
+        st.markdown(ui.notice("Live analysis is unavailable on this deployment",
+                              "; ".join(problems) + ". The archived example below still opens.", "neutral"),
+                    unsafe_allow_html=True)
+    elif used_fallback:
+        st.warning("Couldn't reach the SEC ticker list, so only 6 tickers are available. Reload the page to retry.")
+    st.button("View archived example (AAPL, STRL · Oct 10, 2026)", on_click=load_sample)
+    render_owner_sidebar()
+
+    if run_btn and not st.session_state.ticker_select:
+        st.warning("Pick at least one ticker, then click Run analysis.")
+    elif run_btn:
+        run_live(list(st.session_state.ticker_select), ticker_ciks)
+
+    # st.rerun() in run_live stops that run, so saved results draw on the next run (and every run after)
+    results = st.session_state.get("results")
+    if results:
+        render_results(results)
+    elif not problems:   # when live runs can't start, the notice above is the empty state
+        st.markdown(
+            "<div class='irt-card' style='margin-top:16px'><div class='irt-card-title'>Choose tickers and click Run analysis</div>"
+            "<p class='irt-card-body'>For each stock you get price history with SEC filing dates, AI summaries of catalysts and risks "
+            "with the filing excerpts behind them, and recent 8-K events, and an Excel download. "
+            "A first run reads several filings and takes about a minute per ticker.</p></div>",
+            unsafe_allow_html=True)
+
+
+render_header()
+if st.session_state.get("view") == RESEARCH:
+    render_research_view()
 else:
-    st.markdown(
-        "<div class='irt-card' style='margin-top:16px'><div class='irt-card-title'>Choose tickers and click Run analysis</div>"
-        "<p class='irt-card-body'>For each stock you get price history with SEC filing dates, AI summaries of catalysts and risks "
-        "with the filing excerpts behind them, and recent 8-K events, and an Excel download. "
-        "A first run reads several filings and takes about a minute per ticker.</p></div>",
-        unsafe_allow_html=True)
+    render_debt_view()

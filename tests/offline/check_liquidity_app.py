@@ -29,11 +29,16 @@ app = AppTest.from_file(str(ROOT / "app.py"))
 app.secrets["ANTHROPIC_API_KEY"] = "offline-placeholder"
 app.run(timeout=30)
 assert not app.exception and not app.error
-assert not app.tabs
-app.session_state["liquidity_pilot_open"] = True
-app.run(timeout=30)
-assert not app.exception and not app.error
-text = html.unescape("\n".join(m.value for m in app.markdown))
+# The reviews are the default page: one company at a time, no expander, no Run analysis action
+assert not app.tabs and app.segmented_control[0].value == "LLY"
+assert "Run analysis" not in [b.label for b in app.button]
+pages, buttons = [], []
+for ticker in ("LLY", "ORCL", "VST"):
+    app.segmented_control[0].set_value(ticker).run(timeout=30)
+    assert not app.exception and not app.error
+    pages.append("\n".join(m.value for m in app.markdown))
+    buttons += [element.proto.label for element in app.get("download_button")]
+text = html.unescape("\n".join(pages))
 assert all(value in text for value in ("54.91B", "125.34B", "19.90B", "Financing changes after June 30",
                                       "288B", "28.72B", "What remained after capital spending?",
                                       "Historical schedule at May 31, 2026", "$10.145B", "$19.909B"))
@@ -56,10 +61,10 @@ assert all(value in text for value in ('Acquisition and manufacturing spending c
     'Equity proceeds and specified customer prepayments contributed',
     'June reported liquidity cannot be treated as current cash available to Parent',
     'Coverage bases differ:', 'Future funding coverage: Unavailable'))
-buttons=[element.proto.label for element in app.get("download_button")]
 assert set(("Download LLY review and evidence", "Download ORCL review and evidence",
             "Download VST review and evidence", "Download all three company reviews (optional)")) <= set(buttons)
-next(b for b in app.button if b.label == "View saved sample").click().run(timeout=30)
+next(b for b in app.button if b.label.startswith("General filing research")).click().run(timeout=30)
+next(b for b in app.button if b.label.startswith("View archived example")).click().run(timeout=30)
 assert not app.exception and not app.error
-assert any("Saved sample. Analysis run" in m.value for m in app.markdown)
+assert any("Archived filing-research example (AAPL, STRL). Analysis run" in m.value for m in app.markdown)
 print("Saved liquidity pilot and existing sample passed with all network calls disabled.")
