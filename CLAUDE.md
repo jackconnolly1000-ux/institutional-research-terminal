@@ -94,7 +94,7 @@ PowerShell's `$env:` settings last for that terminal session, so stop the app an
 
 **On `main` and live (checked Oct 16, 2026, merge `9efb069`, PR #41):** PRs #1–#5 (Oct 11) built the AI filing-research pipeline, spending guard and AAPL + STRL sample. PRs #6–#41 (Oct 11–16) built the debt and liquidity work: SEC XBRL figures, the filing-level inline XBRL reader, checked cash, current ratio, baseline gross debt and cash flows for Eli Lilly, Oracle and Vistra, saved company reviews with dated funding conclusions, interest coverage, Oracle maturities and revolver audit, Vistra financing filings, and one checked Excel workbook per company. 370 unit tests passed on `main` (2 skip on a machine without the cached filings).
 
-**Release 1 steps 1–2 (branch `debt-liquidity-primary`, draft PR, not merged as of Oct 16, 2026):** the roadmap below is reconciled with `main`, and Debt & Liquidity is the default page. 379 unit tests pass, 9 of them new page tests (`tests/test_app_pages.py`).
+**Release 1 steps 1–2 (branch `debt-liquidity-primary`, PR #42, not merged as of Oct 16, 2026):** the roadmap below is reconciled with `main`, and Debt & Liquidity is the default page. 379 unit tests pass, 9 of them new page tests (`tests/test_app_pages.py`).
 
 **Default page: Debt & Liquidity**
 - Title "Debt & Liquidity Research Terminal" (page tab too). A segmented company selector, Eli Lilly (LLY), Oracle (ORCL), Vistra (VST), opens LLY by default; the selected review shows directly, with no Run analysis action and no enclosing expander (`company_review.render_app`)
@@ -126,7 +126,7 @@ These features render. That does not mean they're correct. The debt and liquidit
 In priority order. Delete a line once it's fixed.
 
 1. **The debt and liquidity reviews are frozen.** They cover three companies at one balance-sheet date each (Jun 30 or Aug 31, 2026). Nothing refreshes them; a newer 10-Q isn't read until the review is rebuilt and checked by hand. Live analysis does not compute these metrics for other tickers.
-2. **Key debt answers remain Unavailable.** Current drawable credit and covenant headroom, updated principal schedules after the latest 10-K (Oracle's is May 31; Lilly's June principal), June 30 lease liabilities for LLY and VST, several commitment timings and overlaps, and all-in financing cost. Each is stated in its review; none is estimated.
+2. **Lease and funding answers remain partly Unavailable.** Leases: Oracle's August 31, 2026 operating (34.621B) and finance (9.185B) lease liabilities are shown separately from borrowing, and its 288B of leases not yet commenced is shown as a commitment. Lilly's and Vistra's June 30, 2026 10-Qs report no lease liabilities, so June 30 amounts are Unavailable; the latest reported amounts are at Dec 31, 2025 (Lilly: 1,362M operating, no finance leases described; Vistra: 105M operating and 222M finance). No review has a complete lease or obligations extraction, and lease interest is not added to any coverage ratio. Funding: future funding coverage is Unavailable for all three. The decisive unknowns are the remaining principal calendar (Lilly has only the May 2026 issuance schedule; Oracle only its May 31 schedule), drawable credit and draw conditions (Lilly's post-August facility renewal, Oracle's current revolver availability, Vistra's borrowing base), covenant headroom, the timing and overlap of acquisition, manufacturing, capital-call and uncommenced-lease payments, Vistra's Parent-accessible cash, and all-in financing cost. Each is stated in its review; none is estimated.
 3. **Numbers conflict with no labels in general research.** For AAPL the SEC gross margin is 48.65% TTM to Jun 27, 2026 and the AI text says 50.1% with no period. Excel still lists Yahoo's margins next to the SEC ones.
 4. **General research is slow.** 108 seconds for AAPL + STRL on Oct 10. Filings are cached per document for a day, so repeat runs are faster; first runs are not.
 5. **The general research Excel export isn't a research record yet.** Still missing: a cover sheet, units in headers, wrapped text and set widths. (The three company workbooks already have About sheets, formulas and sources.)
@@ -201,16 +201,21 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 
 ## Order of work
 
-**Release 1: Debt & Liquidity as the product.** One step per pull request; each keeps the checked financial models, numbers, source gates and workbook bytes unchanged unless the step says otherwise.
+**Release 1: Debt & Liquidity as the product.** Agreed Oct 16, 2026. One step per pull request; each keeps the checked financial models, numbers, source gates and workbook bytes unchanged unless the step says otherwise:
 
-1. Reconcile the roadmap with `main` (CLAUDE.md, README, `docs/debt_liquidity_plan.md`). Done on branch `debt-liquidity-primary`, draft PR, Oct 16, 2026.
-2. Make Debt & Liquidity the primary experience: default company selector, no Run analysis action or expander, saved reviews without secrets or network, general research as secondary access, AAPL/STRL labeled as the archived example. Done on the same branch.
-3. Later Release 1 steps: not yet written down in this repository. Add them here from the agreed plan before starting step 3.
+1. Reconcile the roadmap with `main` (CLAUDE.md, README, `docs/debt_liquidity_plan.md`).
+2. Make Debt & Liquidity the primary experience: default company selector, no Run analysis action or expander, saved reviews without secrets or network, general research as secondary access, AAPL/STRL labeled as the archived example.
+3. Borrowing and lease presentation.
+4. Ratio reconciliation.
+5. Two-date comparable history.
+6. Two core charts.
+7. Individual Excel parity.
+8. Final source and app reconciliation.
 
-**Remaining, not scheduled:** known problems 1–2 above (refreshing a review for a newer 10-Q, and the Unavailable items) and 3–9 for general research, in that priority.
+Steps 1–2 are done on branch `debt-liquidity-primary` (PR #42, not merged). Steps 3–8 have not started.
 
-**Left out of steps 1–2 on purpose:** comparable company history (plan step 7), new financial metrics, refresh automation and additional companies. Each needs its own scoped step.
+**Outside the Release 1 order:** refresh automation (known problem 1), new financial metrics, additional companies, the general research problems 3–9, and course features. Steps 3–8 present and reconcile the existing evidence; they don't resolve the Unavailable items in problem 2 unless a step says so.
 
 **Deferred** (the plan's later phases): full financing terms and covenants, recalculating debt and cash from later financing events, complete obligations analysis, industry peers, stress scenarios, category assessments. Never: grades, default probabilities or recommendations.
 
-**Course features**, in this order: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes.
+**Course features** (not part of Release 1), in this order: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes.
