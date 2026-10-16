@@ -1,6 +1,6 @@
 # Debt and liquidity: first-release plan
 
-Status (Oct 14, 2026): **partly implemented.** Saved company reviews show dated cash, baseline gross debt, net debt, current ratio, checked TTM OCF and reported capital spending, FCF, flow/debt ratios, and selected obligations for LLY, ORCL and VST with a formula-based evidence export. Only the items under "Existing code" are implemented; the rest remains a plan.
+Status (checked against `main` at `9efb069`, Oct 16, 2026): **delivery steps 1–6 and 8–10 are built for the three pilots as frozen, dated reviews; step 7 is partly built.** Since Release 1 steps 1–2 (branch `debt-liquidity-primary`), the saved reviews are the app's default page. See "Release 1 status" at the end for what is built, remaining and deferred.
 
 ## Goal
 
@@ -27,7 +27,8 @@ The tool is for my own stock research and to show accounting, analysis, product 
 | Dated EDGAR filing inventory: candidate 8-K, 424B, FWP, S-3 and periodic-report amendment forms since the latest balance sheet; retrieves relevant older submission pages or labels gaps incomplete | `sec_data.py`, `filing_review.py`, `app.py` | Indexed links shown in an app expander and Excel Filing review sheet. `reviewed_financing.py` joins ten accession-specific, manually checked Vistra filings for the June 30, 2026 anchor: six 8-Ks and four offering documents. The offering documents support one completed issuance. Later or unmatched candidates stay Not checked; an incomplete index remains incomplete. Other companies have no reviewed financing notice yet. |
 | Saved pilot display and Excel evidence: cash, gross debt, same-filing net debt and current ratio for the three pilots | `liquidity_pilot.py`, `samples/liquidity_pilots.json` | Free frozen view, checked Oct 14, 2026; does not overwrite existing analysis results or make a Claude call. Each metric traces to its inputs. Net debt refuses missing inputs, differing dates, units or filing versions and keeps valid negative results. Excel uses formulas referencing reported input rows. Live analysis does not yet fetch the VST document or populate these metrics. |
 | Checked TTM OCF, reported capital spending, FCF and flow/debt ratios | `cash_generation.py`, `filing_xbrl.read_duration`, `liquidity_pilot.py` | Six source filings checked and shown in frozen company reviews; LLY has a specifically verified capex tag. Exact durations and CIK checked. Selected obligations and Oracle lease disclosures shown separately through `company_review.py`; no amount is added to borrowing. See `pilot_cashflow_reconciliation.md`. |
-| Interest expense and coverage, complete lease extraction and obligations review | none | Not built; selected manually checked disclosures do not establish completeness. |
+| Historical operating-income interest coverage | `lly_interest.py`, `oracle_interest.py`, `vistra_interest.py` and their views | Built for the three pilots: LLY 31.17x, ORCL 4.52x (reported Interest expense line), VST 3.19x (separately reported interest component), each with its stated denominator limits (`lly_interest_coverage.md`, `oracle_interest_coverage.md`, `vistra_interest_coverage.md`). |
+| Complete lease extraction and obligations review | none | Not built; selected manually checked disclosures do not establish completeness. |
 
 ## First-release scope (planned)
 
@@ -120,10 +121,27 @@ Later phases (not in the first release): debt maturities, financing terms, coven
 2. **Debt tags:** which tags make up baseline gross debt for each pilot, and how overlap is detected (for example a total tag alongside its current and noncurrent parts).
 3. **Interest expense tag:** which tag reports interest expense on borrowings for each pilot. The basis is decided (see the coverage definition). Dimensioned facts, such as LLY's segment-tagged 10-Q interest expense, are usable only for a specific company after an extractor checks the inline XBRL context (tag, segment member, no other dimensions, periods, units, accession) and agreement with the printed table. LLY's single reportable segment supports an LLY-specific decision, not a universal rule. Until such an extractor passes those checks, the app's TTM coverage stays Unavailable.
 4. **Unsupported filers:** how the app detects banks, non-USD and non-U.S. GAAP filers.
-5. **Order of work:** where this project sits relative to the course features in `CLAUDE.md`.
-6. **Public README:** when to mention this work in `README.md`. Not until something is built.
+5. **Order of work:** decided Oct 16, 2026: Release 1 makes Debt & Liquidity the product; see "Order of work" in `CLAUDE.md`.
+6. **Public README:** decided: the README leads with Debt & Liquidity now that the reviews are built.
 
 
 ### Lilly dated review (October 15, 2026)
 
 `lly_liquidity.py` and `samples/lly_liquidity.json` supply the app and Lilly workbook with reconciled H1 cash sources/uses, annual due-year carrying balances, dated unused facilities, selected acquisition payments and manufacturing commitments. See `docs/lly_liquidity_review.md`. Updated June principal, drawable facilities and future payment coverage remain Unavailable. Other reviews and catalysts are preserved.
+
+
+## Release 1 status (Oct 16, 2026)
+
+**Built** (on `main` unless noted):
+- Delivery steps 1–6 for LLY, ORCL and VST: pilot data, cash, current ratio, baseline gross debt and net debt, financing filings notice (Vistra and Oracle checked by accession), obligations notes, validated FCF, OCF/debt, FCF/debt and historical interest coverage.
+- Steps 8–10: the cash-flow and maturity/payment charts, one checked workbook per company plus the combined export, and the reconciliation files in `docs/`.
+- Step 7, partly: metrics and short factual findings (dated funding conclusions) are shown; comparable company history is not.
+- Release 1 steps 1–2 (branch `debt-liquidity-primary`, draft PR): roadmap reconciled; the reviews are the default page, open from a company selector without Run analysis, and load without secrets or network. General filing research is secondary and labeled experimental; AAPL/STRL is the archived filing-research example.
+
+**Remaining** (first-release scope not yet met):
+- Comparable company history (step 7).
+- Refreshing a review when a newer filing arrives; today each review is rebuilt and checked by hand.
+- Supported-filer detection for banks, non-USD and non-U.S. GAAP filers (decision 4), and the live pipeline computing these metrics beyond the three pilots.
+- The items each review states as Unavailable: current drawable credit, covenant headroom, updated principal schedules, some lease liabilities, commitment timing and overlaps, all-in financing cost.
+
+**Deferred:** the later phases listed under "Delivery sequence" (financing terms, covenants, recalculating debt and cash from later events, full obligations analysis, peers, stress scenarios, category assessments), plus more companies and refresh automation. Never: grades, default probabilities, recommendations.

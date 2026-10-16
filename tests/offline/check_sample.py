@@ -1,4 +1,4 @@
-"""Browser check of the saved sample: it renders both tabs, its label and the Excel download with no network calls.
+"""Browser check of the archived AAPL + STRL example: it renders both tabs, its label and the Excel download with no network calls.
 
 Start the offline app with every network call failing (from app/):
     MOCK_NO_NETWORK=1 .venv/bin/streamlit run tests/offline/run_offline.py --server.port 8601 -- app.py
@@ -19,12 +19,15 @@ with sync_playwright() as p:
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(f"http://localhost:{port}/")
-    page.get_by_role("button", name="View saved sample").wait_for(timeout=60000)
+    # The archived example lives under general filing research, the secondary page
+    page.get_by_role("button", name="General filing research — experimental").click(timeout=60000)
+    archived = page.get_by_role("button", name="View archived example (AAPL, STRL · Oct 10, 2026)")
+    archived.wait_for(timeout=60000)
     page.wait_for_timeout(1000)
-    page.get_by_role("button", name="View saved sample").click()
+    archived.click()
     page.locator('[data-testid="stDownloadButton"]').wait_for(timeout=60000)
     page.wait_for_timeout(2500)
-    out = {"label": page.locator("p.irt-subtitle", has_text="Saved sample").first.inner_text(), "tabs": {}}
+    out = {"label": page.locator("p.irt-subtitle", has_text="Archived filing-research example").first.inner_text(), "tabs": {}}
     tabs = page.locator('[role="tab"]')
     for i in range(tabs.count()):
         name = tabs.nth(i).inner_text().strip()

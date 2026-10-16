@@ -609,7 +609,7 @@ def event_list(events: list) -> str:
 
 # The spending guard skips a ticker without anything having gone wrong, so it isn't shown as failed
 SKIP_MESSAGES = {
-    "daily": "Today's limit for live analyses is reached. It resets at midnight ET. The saved AAPL and STRL sample works now.",
+    "daily": "Today's limit for live analyses is reached. It resets at midnight ET. The archived AAPL and STRL example works now.",
     "monthly": "The monthly AI budget for this demo is used up.",
 }
 SKIP_LABELS = {"daily": "skipped, daily limit reached", "monthly": "skipped, monthly AI budget used up"}

@@ -590,59 +590,81 @@ def saved_workbook(snapshots, folder=None, ticker=None):
         return None
 
 
+SELECTOR_NAMES = {"LLY": "Eli Lilly", "ORCL": "Oracle", "VST": "Vistra"}
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def render_download(st, snapshot, snapshots) -> None:
+    """Each company's checked workbook, served only while its manifest still matches the saved sources."""
+    ticker = snapshot["ticker"]
+    if ticker == "LLY":
+        content = saved_workbook(snapshots, ticker="LLY")
+        if content:
+            st.download_button("Download LLY review and evidence", content,
+                file_name="Lilly_Liquidity_2026-06-30.xlsx", mime=XLSX)
+        else:
+            st.caption("Lilly review workbook Unavailable: its saved sources must match the workbook.")
+    if ticker == "VST":
+        import vistra_liquidity as vl
+        review = vl.for_snapshot(snapshot)
+        content = vl.workbook_bytes(review) if review else None
+        if content:
+            st.download_button("Download VST review and evidence", content,
+                file_name="Vistra_Liquidity_2026-06-30.xlsx", mime=XLSX)
+        else:
+            st.caption("Vistra repayment workbook Unavailable: its saved review must match the workbook.")
+    if ticker == "ORCL":
+        import oracle_liquidity as ol
+        review = ol.for_snapshot(snapshot)
+        content = ol.workbook_bytes(review) if review else None
+        if content:
+            st.download_button("Download ORCL review and evidence", content,
+                file_name="Oracle_Liquidity_2026-08-31.xlsx", mime=XLSX)
+        else:
+            st.caption("Oracle cash-analysis workbook Unavailable: its saved source review must match the workbook.")
+
+
 def render_app() -> None:
-    """Direct app entry point; the complete view loads together rather than through a cached legacy helper."""
+    """The app's default page: pick a checked company and its saved review opens directly.
+
+    Only the selected review and its workbook are built, so the page makes no SEC, Yahoo or Claude request and
+    needs no secrets. The selection survives a visit to general filing research (persist_state="session")."""
     import json
     import streamlit as st
+    from ui import notice
     from liquidity_pilot import SAMPLE, financing_html
-    panel = st.expander("Debt and liquidity · company reviews",
-                        key="liquidity_pilot_open", on_change="rerun")
-    # Closed pilots need no workbook build and contribute no hidden tabs to the existing analysis.
-    if not panel.open:
+    try:
+        saved = json.loads(SAMPLE.read_text(encoding="utf-8"))
+        snapshots = {s["ticker"]: s for s in saved["snapshots"]}
+    except (OSError, ValueError, KeyError, TypeError):
+        snapshots = {}
+    if not snapshots:
+        st.markdown(notice("Saved reviews unavailable", "The saved debt and liquidity reviews could not be loaded. "
+                           "No live figures are substituted.", "caution"), unsafe_allow_html=True)
         return
-    with panel:
-        try:
-            saved = json.loads(SAMPLE.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            st.error("The saved liquidity pilot could not be loaded.")
-            return
-        st.caption("Saved filing reviews · source dates shown below · no live or paid request")
-        for snapshot, tab in zip(saved["snapshots"], st.tabs([s["ticker"] for s in saved["snapshots"]])):
-            with tab:
-                if snapshot["ticker"] == "LLY":
-                    content = saved_workbook(saved["snapshots"], ticker="LLY")
-                    if content:
-                        st.download_button("Download LLY review and evidence", content,
-                            file_name="Lilly_Liquidity_2026-06-30.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                    else:
-                        st.caption("Lilly review workbook Unavailable: its saved sources must match the workbook.")
-                if snapshot["ticker"] == "VST":
-                    import vistra_liquidity as vl
-                    review = vl.for_snapshot(snapshot)
-                    content = vl.workbook_bytes(review) if review else None
-                    if content:
-                        st.download_button("Download VST review and evidence", content,
-                            file_name="Vistra_Liquidity_2026-06-30.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                    else:
-                        st.caption("Vistra repayment workbook Unavailable: its saved review must match the workbook.")
-                if snapshot["ticker"] == "ORCL":
-                    import oracle_liquidity as ol
-                    review = ol.for_snapshot(snapshot)
-                    content = ol.workbook_bytes(review) if review else None
-                    if content:
-                        st.download_button("Download ORCL review and evidence", content,
-                            file_name="Oracle_Liquidity_2026-08-31.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                    else:
-                        st.caption("Oracle cash-analysis workbook Unavailable: its saved source review must match the workbook.")
-                st.markdown(render(snapshot) + evidence_html(snapshot) + (financing_html(snapshot) if snapshot["ticker"] == "VST" else ""), unsafe_allow_html=True)
-        with st.expander("Optional combined export"):
-            content = saved_workbook(saved["snapshots"])
-            if content:
-                st.download_button("Download all three company reviews (optional)", content,
-                    file_name="Liquidity_Pilot_2026-10-14.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            else:
-                st.caption("Combined workbook Unavailable: its saved sources must match the workbook.")
+    # A selection from an older session (or a company no longer saved) falls back to the first checked review.
+    if st.session_state.get("review_company") not in snapshots:
+        st.session_state.review_company = next(iter(snapshots))
+    ticker = st.segmented_control(
+        "Company", list(snapshots), required=True, key="review_company", persist_state="session",
+        format_func=lambda t: f"{SELECTOR_NAMES.get(t, t)} ({t})")
+    snapshot = snapshots[ticker]
+    st.caption("Saved filing reviews · source dates shown in each review · no live or paid request")
+    try:
+        page = render(snapshot) + evidence_html(snapshot) + financing_html(snapshot)
+    except (KeyError, TypeError, ValueError):
+        # A saved file edited out of shape shows a stated gap, not a stack trace or partial figures.
+        import traceback
+        traceback.print_exc()
+        st.markdown(notice(f"{ticker} review unavailable", "This saved review is incomplete or out of date, so it is "
+                           "not shown. The other saved reviews are unaffected.", "caution"), unsafe_allow_html=True)
+        return
+    render_download(st, snapshot, saved["snapshots"])
+    st.markdown(page, unsafe_allow_html=True)
+    with st.expander("Optional combined export"):
+        content = saved_workbook(saved["snapshots"])
+        if content:
+            st.download_button("Download all three company reviews (optional)", content,
+                file_name="Liquidity_Pilot_2026-10-14.xlsx", mime=XLSX)
+        else:
+            st.caption("Combined workbook Unavailable: its saved sources must match the workbook.")
