@@ -207,7 +207,7 @@ class OracleLiquidity(unittest.TestCase):
         self.assertEqual(repayment["B68"].value,12000*M)
         self.assertIn("not a $12B commitment",repayment["D68"].value)
         shown=html.unescape(view.revolver_html(self.snapshots[1],money))
-        for phrase in ("May 31 undrawn commitment is $10B", "not a $12B commitment", "not assumed zero", "September 14, 2026"):
+        for phrase in ("May 31 undrawn commitment is $10B", "not a $12B commitment", "not assumed zero", "September 14 8-Ks", "October 15, 2026"):
             self.assertIn(phrase,shown)
 
     @unittest.skipUnless((RAW/"orcl-20260831.htm").exists(),"Full saved Oracle filing not available")

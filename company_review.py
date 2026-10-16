@@ -125,12 +125,12 @@ def headline(snapshot):
     m = snapshot["metrics"]
     fcf = m["free_cash_flow"]["value"]
     if fcf is None:
-        return "Cash generation could not be established from the checked inputs."
+        return "TTM cash generation could not be established from the checked inputs."
     if fcf < 0:
-        return f"Reported capital spending exceeded operating cash flow by {money(-fcf)}."
+        return f"TTM reported capital spending exceeded operating cash flow by {money(-fcf)}."
     if fcf == 0:
-        return "Operating cash flow equalled reported capital spending."
-    return f"Operating cash flow exceeded reported capital spending by {money(fcf)}."
+        return "TTM operating cash flow equalled reported capital spending."
+    return f"TTM operating cash flow exceeded reported capital spending by {money(fcf)}."
 
 
 def maturity_html(snapshot):
@@ -195,8 +195,12 @@ def maturity_html(snapshot):
                    f'<a href="{esc(event["related"][0][1])}" target="_blank" rel="noopener noreferrer">Exhibit 99.1</a>'
                    '</p></div></article>')
     output += ('<p class="lr-meta">These two saved 8-Ks and their exhibits were checked. Neither establishes '
-               'new borrowing after August 31. This saved view does not establish complete coverage of later '
-               'filings; unmatched documents in the live filing index remain Not checked. Events are not added '
+               'new borrowing after August 31. ')
+    import oracle_revolver
+    audit = oracle_revolver.for_snapshot(snapshot)
+    output += ('The saved SEC financing-candidate index through October 15, 2026 lists only these two later filings. '
+               if audit and audit["status"] == "Checked" else 'The saved financing-index check is Unavailable. ')
+    output += ('Later or mismatched filings remain Not checked. Events are not added '
                'to the dated balance-sheet amounts.</p>')
     output += '<details><summary>Revolver terms and limits of this review</summary>'
     for term in of.TERMS:
@@ -214,7 +218,7 @@ def render(snapshot):
     output = CSS + '<section class="lr-review">'
     output += f'<header class="lr-lead"><div class="lr-meta">{esc(snapshot["ticker"])} · Debt and liquidity review</div>'
     output += f'<h2>{esc(snapshot["company_name"])}</h2><div class="lr-meta">Balance sheet: {esc(end)} · '
-    output += f'<a href="{esc(source)}" target="_blank" rel="noopener noreferrer">Source 10-Q</a> · Saved review, Oct 14, 2026</div>'
+    output += f'<a href="{esc(source)}" target="_blank" rel="noopener noreferrer">Source 10-Q</a> · Balance-sheet facts checked {esc(snapshot["checked_as_of"])}</div>'
     output += f'<p class="lr-answer">{esc(headline(snapshot))}</p>'
     output += '<p class="lr-meta">Cash flows cover the trailing twelve months to this balance-sheet date. Borrowing is at carrying amount and excludes leases. Figures are rounded; evidence retains exact inputs.</p></header>'
     output += '<div class="lr-summary">'
@@ -570,7 +574,7 @@ def saved_workbook(snapshots, folder=None, ticker=None):
             return None
         if ticker == "LLY":
             import funding_conclusions as funding
-            if manifest.get("funding_sha256") != funding.fingerprint() or funding.load(ticker) is None:
+            if manifest.get("funding_sha256") != funding.fingerprint() or funding.load(ticker, folder) is None:
                 return None
         expected = {"liquidity_pilots.json", "lly_liquidity.json", "lly_financing.json", "lly_interest.json"} if ticker else {"liquidity_pilots.json", "oracle_financing.json"}
         for name, digest in manifest["sources"].items():

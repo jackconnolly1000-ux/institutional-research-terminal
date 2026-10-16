@@ -1,3 +1,4 @@
+import {documentationLinks} from './workbook_style.mjs';
 import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Run from a temporary directory using the Codex artifact runtime; deployment only serves the saved file.
 import fs from 'node:fs/promises';
@@ -79,13 +80,14 @@ for(const [i,t] of revolver.terms.entries())auditSource('revolver_term_'+i,null,
  revolver.sources[t.source].period,t.location,t.detail);
 for(const [key,s] of Object.entries(revolver.sources))auditSource('revolver_source_'+key,null,
  'Saved document reviewed: '+s.document,key,s.period,'Revolver audit source set',
- 'Exact reviewed saved bytes, SHA256 '+s.sha256+'. Latest saved filing September 14; no complete later inventory.');
+ 'Exact reviewed saved bytes, SHA256 '+s.sha256+'. Part of the seven filing/contract documents; the separate SEC index check is through October 15, 2026.');
 for(const [key,f] of Object.entries(interestReview.inputs)){
  rows.set('coverage_'+key,sourceRows.length+2);
  sourceRows.push(['coverage_'+key,f.value,f.label,toDate(f.period_start),toDate(f.period_end),f.form,toDate(f.filed),
   f.accession,f.tag,f.context_id,f.scale,f.decimals,f.source_url,f.location,f.detail||'',
   JSON.stringify(f.dimensions),f.source_sha256,f.unit+'; '+f.selection_rule]);
 }
+sourceRows.push(['financing_index',null,'SEC financing-candidate index',toDate(revolver.inventory.since),toDate(revolver.inventory.through),'SEC submissions index',null,null,null,null,null,null,revolver.inventory.source_url,'Two later 8-K candidates, matched to reviewed documents','Retrieved index SHA256 '+revolver.inventory.sha256+'; checked '+revolver.inventory.checked,null,revolver.inventory.sha256,null]);
 data.getRange('A1:R1').values = [['Key','USD millions unless x','Reported input','Period start','Period end / as of',
   'Form','Filed','Accession','Tag','Context ID','Scale','Decimals','Source','Filing location','Finding / Unavailable reason',
   'Dimensions','Reviewed source SHA256','Unit and selection rule']];
@@ -213,7 +215,7 @@ repayment.resources.forEach((resource,i)=>{
  set(repay,`D${n}`,resource.key==='restricted'?'Excluded':resource.key==='cash'?'Not allocated; future availability Unavailable':resource.key==='revolver'?'Drawable capacity Unavailable':'Historical flow; already in cash');
  set(repay,`E${n}`,resource.detail);
 });
-set(repay,'A13','One shared cash pool. OCF, prepayments and equity proceeds are not added to closing cash again.');
+set(repay,'A13','Shared cash pool');set(repay,'D13','OCF, prepayments and equity proceeds are already in closing cash and are not added again.');
 repay.getRange('A15:G15').values=[['Due period','Obligation','USD millions','Potential funding','Confirmed funds at due date, USD millions','Coverage (x)','Competing uses / missing evidence']];
 repayment.obligations.forEach((o,i)=>{
  const n=i+16;
@@ -265,7 +267,7 @@ set(repay,'A81','Blank commitment, advances or undrawn cells mean Unavailable. A
 
 about.getRange('A1:C1').values = [['Topic','Explanation','Source']];
 const notes = [
-  ['Snapshot','Saved Oracle review of June 1–August 31, 2026, checked October 15, 2026. Not live data or investment advice.',null],
+  ['Snapshot','Cash review checked October 15, 2026; interest, funding interpretation and index consistency checked October 16. Cash flows remain June 1–August 31, 2026. Not live data or investment advice.',null],
   ['Workbook','Repayment review pairs obligations with resource evidence and explicit gaps. Cash analysis calculates historical contributions. Payment dates keeps contracts on their own bases. Data retains reported inputs and sources.',null],
   ['Colors and units','Arial 10. Dollar inputs are full USD displayed in millions. Blue inputs, green cross-sheet links, black same-sheet calculations. OCF less specified prepayments stays black because it subtracts two cells on Cash analysis. A dash is a reported zero; blank capacity is Unavailable.',null],
   ['Missing inputs','A missing numeric input produces #N/A in dependent calculations rather than zero. Data is a frozen source record, not forecast assumptions.',null],
@@ -276,7 +278,7 @@ const notes = [
   ['Agreement definitions','Contract EBITDA includes specified addbacks and exclusions. Cash interest includes finance-lease interest and specified swap costs, net of cash interest income. Generic ratios do not establish compliance.',review.facility.source_url],
   ['8-K event Sep 10, filed Sep 10','Accession 0001193125-26-387905, main document and Ex.99.1 checked. Reports the same quarter equity program and dividends, not another equity inflow or later borrowing.','https://www.sec.gov/Archives/edgar/data/1341439/000119312526387905/orcl-ex99_1.htm'],
   ['8-K event Sep 12, filed Sep 14','Accession 0001193125-26-389753, main document and Ex.99.1 checked. Insider trading-plan cancellation; no corporate financing event identified.','https://www.sec.gov/Archives/edgar/data/1341439/000119312526389753/d20034dex991.htm'],
-  ['Later filing scope','Two saved later 8-Ks and exhibits reviewed. This does not rebuild a complete current submissions index. Unmatched later filings remain Not checked.',null],
+  ['Later filing scope','SEC financing-candidate index checked through October 15, 2026; only the two September 8-Ks are listed and their documents/exhibits were reviewed. Later or mismatched filings remain Not checked.',null],
   ['Repayment limits','Remaining August debt principal dates, drawable credit and future operating cash generation are Unavailable. No overall future repayment surplus or shortfall can be established.',null],
   ['Revolver audit',revolver.conclusion+' '+revolver.scope,null],
   ['Revolver arithmetic','May 31 undrawn commitment = reported commitment less outstanding advances. This is not a verified drawable amount. March 6 and August 31 undrawn cells stay blank because advances or the current commitment are not established.',null],
@@ -357,7 +359,7 @@ about.getRange(`A1:A${notes.length+1}`).format.columnWidth=33;
 about.getRange(`B1:B${notes.length+1}`).format.columnWidth=100;
 about.getRange(`C1:C${notes.length+1}`).format.columnWidth=65;
 about.getUsedRange().format.wrapText=true;
-about.getUsedRange().format.rowHeight=60;
+about.getUsedRange().format.rowHeight=60;about.getRange('A2:C2').format.rowHeight=85;about.getRange('A13:C15').format.rowHeight=115;
 about.freezePanes.freezeRows(1);
 for (const address of ['A4:B12','A13:B23','A25:B27','H35:I38']) frame(main,address);
 for (const address of ['A5:F20','A22:B22','A24:B27','A33:B33']) frame(due,address);
@@ -399,7 +401,8 @@ for(const [n,height] of [[65,48],[66,85],[67,95],[68,72],[69,105],[70,125],[71,6
 repay.getRange('B65:B72').setNumberFormat(USD);
 repay.getRange('B68').format.font.color='#008000';
 repay.getRange('A76:D77').format.rowHeight=75;
-repay.getRange('D79').format.rowHeight=100;
+repay.getRange('D79').format.rowHeight=145;
+repay.getRange('A13:E13').format.rowHeight=46;repay.getRange('D13').format.wrapText=true;
 repay.getRange('A76:A77').setNumberFormat('mmm d, yyyy');
 repay.getRange('C76:C77').setNumberFormat('mmm d, yyyy');
 for(const a of ['A58:G61','A64:D72','A75:D77'])frame(repay,a);
@@ -451,6 +454,7 @@ if(Math.abs(main.getRange('B49').values[0][0]-(interestReview.calculation.operat
 opInput.values=opOriginal;wb.recalculate();
 console.log((await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A|#NUM!|#NULL!|#SPILL!',
   options:{useRegex:true,maxResults:20},maxChars:1200})).ndjson);
+documentationLinks(about);
 const fundingManifest=await finishFundingSheet(wb,root,'ORCL',funding);
 const output=path.join(root,'samples/oracle_liquidity.xlsx');
 await (await SpreadsheetFile.exportXlsx(wb)).save(output);

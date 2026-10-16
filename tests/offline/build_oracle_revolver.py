@@ -15,4 +15,4 @@ if __name__ == "__main__":
     if audit["status"] != "Checked":
         raise SystemExit(audit["detail"])
     oracle_revolver.SAMPLE.write_text(json.dumps(audit, indent=2) + "\n", encoding="utf-8")
-    print("Saved Oracle revolver audit: 7 documents, 3 evidence dates, 2 later filing checks.")
+    print("Saved Oracle revolver audit: 7 filing/contract documents, SEC index through October 15, 2 checked candidates.")

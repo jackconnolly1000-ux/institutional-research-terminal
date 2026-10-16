@@ -22,7 +22,9 @@ debt maturity schedule, other pilots and saved research remain available.
   `0001193125-26-389753` (event September 12, filed September 14), including their Ex. 99.1.
   The former reports the same quarter equity program and dividends. The latter cancels an insider's
   sale plan. Neither establishes later corporate borrowing. Exact links and findings are retained in
-  `oracle_financing.FILINGS` and the workbook About sheet. No complete later inventory was rebuilt.
+  `oracle_financing.FILINGS` and the workbook About sheet. A separate saved SEC index check through
+  October 15 was verified during the October 16 consistency audit: only those two later financing
+  candidates are listed. This updates the inventory scope, not borrowing balances or drawable capacity.
 
 ## Quarter cash reconciliation
 

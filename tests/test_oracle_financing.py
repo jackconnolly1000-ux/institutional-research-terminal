@@ -132,7 +132,7 @@ class OracleFinancing(unittest.TestCase):
         shown = html.unescape(view.maturity_html(self.oracle))
         for text in ("Historical schedule at May 31, 2026", "$10.145B", "$90.250B thereafter", "30.6%",
                      "Fiscal 2027 below includes June–August", "not a replacement", "$19.909B", "$4.202B",
-                     "already reflected", "no financing event", "complete coverage", "not added"):
+                     "already reflected", "no financing event", "index through October 15, 2026", "not added"):
             self.assertIn(text, shown)
         self.assertEqual(view.maturity_html(self.snapshots[0]), "")
 

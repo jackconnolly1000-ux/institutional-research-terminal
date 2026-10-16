@@ -11,9 +11,34 @@ import oracle_financing as financing
 
 SAMPLE = Path(__file__).parent / "samples/oracle_revolver.json"
 CHECKED = "2026-10-15"
-SCOPE = ("Seven saved documents: the May 31 10-K, August 31 10-Q, March 6 credit agreement, "
-         "and the September 10 and September 14 8-Ks with their exhibits. "
-         "The latest saved filing is September 14, 2026. This is not a complete later-filing inventory.")
+SCOPE = ("Revolver terms use seven saved filing/contract documents: the May 31 10-K, August 31 10-Q, "
+         "March 6 credit agreement, and September 10 and September 14 8-Ks with their exhibits. "
+         "A separate SEC financing-candidate index check covers August 31 through October 15, 2026. "
+         "It lists only those two later 8-Ks, whose main documents and exhibits were reviewed. "
+         "No additional candidate or financing update is established through that cutoff. "
+         "This is not a complete review of all liability disclosures or a live filing update.")
+INDEX = dict(document="CIK0001341439-20261015.json",
+             sha256="bed0ec89b0d273799517d3e332b3a4ba3612168f0e4e9b963759b507f857adec",
+             source_url="https://data.sec.gov/submissions/CIK0001341439.json",
+             since="2026-08-31", through="2026-10-15", checked="2026-10-16")
+
+
+def index_candidates(submissions):
+    """Use the production form/date rules; ownership/proxy rows are not financing candidates."""
+    import sec_data
+    def no_missing_page(url):
+        raise ValueError("Required history page was not supplied")
+    if str(submissions.get("cik", "")).lstrip("0") != "1341439":
+        return None
+    inventory = sec_data.filing_review_inventory(submissions, "1341439", INDEX["since"], INDEX["through"], no_missing_page)
+    if inventory["status"] != "indexed":
+        return None
+    return [{k: f[k] for k in ("form", "filed", "period", "accession")} for f in inventory["filings"]]
+
+
+def expected_candidates():
+    return [dict(form=f["form"], filed=f["filed"], period=f["period"], accession=accession)
+            for accession, f in sorted(financing.FILINGS.items(), key=lambda item: (item[1]["filed"], item[0]), reverse=True)]
 
 # Each finding belongs to these exact saved documents, not to a company or form in general.
 _SOURCES = [
@@ -88,6 +113,7 @@ def _review() -> dict:
     ]
     return dict(status="Checked", ticker="ORCL", anchor=financing.ANCHOR,
                 checked_as_of=CHECKED, scope=SCOPE, sources=sources, dates=dates,
+                inventory={**INDEX, "candidates": expected_candidates()},
                 terms=[dict(label=a, location=b, detail=c, source="annual" if a == "Replacement of the old facility" else "agreement") for a, b, c in terms],
                 later=later, increase_ceiling=12_000_000_000, original_maturity="2031-03-06",
                 conclusion="May 31 undrawn commitment is $10B. Actual drawable capacity is Unavailable at every reviewed date. No saved later disclosure establishes a new amount. Commercial-paper program size is not added to revolver capacity or automatically deducted from it.")
@@ -101,6 +127,13 @@ def build(folder: Path) -> dict:
                 return dict(status="Unavailable", detail=f"Saved source changed and needs review: {name}.")
         except OSError:
             return dict(status="Unavailable", detail=f"Saved source missing: {name}.")
+    try:
+        content = (folder / INDEX["document"]).read_bytes()
+        if (hashlib.sha256(content).hexdigest() != INDEX["sha256"]
+                or index_candidates(json.loads(content)) != expected_candidates()):
+            return dict(status="Unavailable", detail="Saved SEC financing index changed or does not match the checked candidate set.")
+    except (OSError, ValueError, TypeError, KeyError):
+        return dict(status="Unavailable", detail="Saved SEC financing index missing or unreadable.")
     return _review()
 
 

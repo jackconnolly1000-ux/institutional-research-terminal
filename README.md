@@ -28,6 +28,12 @@ For up to five tickers:
 
 ## Known limits
 
+- The October 16 reader audit clarifies TTM versus half-year cash flows, separates balance-sheet
+  check dates from later interpretation dates, and reconciles app/Excel filing-review scope.
+  Oracle's saved SEC financing-candidate index through October 15 is now bound to its revolver
+  audit; it identifies only the two already reviewed later 8-Ks and establishes no newer drawable
+  amount. Individual workbook documentation references use public URLs. Findings and remaining
+  limits: `docs/review_clarity_audit.md`.
 - `funding_conclusions.py` adds dated funding conclusions to LLY, ORCL and VST using their
   existing checked evidence. The app and individual Excel exports show near-term obligations,
   resource access, competing uses and decisive unknowns. Historical interest definitions and

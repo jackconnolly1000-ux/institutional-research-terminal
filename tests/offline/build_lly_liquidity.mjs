@@ -1,3 +1,4 @@
+import {documentationLinks} from './workbook_style.mjs';
 import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Build only Lilly's checked review. No network or application dependency is required.
 import fs from 'node:fs/promises';
@@ -79,7 +80,7 @@ main.getRange('A24').values=[['June lease liabilities and a complete updated pri
 main.getRange('A25').values=[['See Repayment review for dated cash flows, facilities, acquisitions and manufacturing commitments.']];
 main.getRange('A26').values=[['Financing index checked through October 15, 2026. See Repayment review for May terms; all sources and limits are in Data.']];
 about.getRange('A1:C6').values=[['Topic','Explanation','Source'],
- ['Scope','Lilly only. Checked snapshot October 14, 2026. Financial statements dated June 30, 2026. Not investment advice.',snapshot.source_url],
+ ['Scope','Lilly only. Balance-sheet facts checked October 14, 2026; financing and interest reviewed October 15; funding interpretation checked October 16. Financial statements dated June 30. Not investment advice.',snapshot.source_url],
  ['Colors','Arial 10. Full USD displayed in millions. Blue reported inputs, green cross-sheet links, black same-sheet calculations. Zero is a dash. Missing inputs are not zero.',null],
  ['Cash generation','Fiscal year + current YTD − prior YTD. Capital spending uses Lilly’s checked other-PP&E tag. FCF excludes acquisitions, dividends and other cash uses.','docs/pilot_cashflow_reconciliation.md'],
  ['Borrowing','Balance-sheet current and noncurrent borrowing are added once. Fair-value table carrying amounts are not added again.','docs/pilot_evidence_lly.md'],
@@ -164,7 +165,7 @@ for(const [i,f] of obligations.entries()){
 }
 repayment.getRange('A48:D50').values=[['Contingent consideration fair value',null,'June 30, 2026','Current $814M + noncurrent $1,704M. Valuation, not dated payment or contractual maximum. Not added to acquisition amounts above.'],
  ['Future funding coverage','Unavailable','Each future obligation','Future principal dates, future cash generation, payment dates and drawable credit not all established. No coverage ratio calculated.'],
- ['Scope','Saved filings only','10-K; 10-Q; Aug 5 Ex. 99.1','Not a complete SEC filing inventory. No combined total of commitments, milestones, capex plans or debt.']];
+ ['Scope','Financing index through Oct 15, 2026','10-K; 10-Q; earnings and financing documents','SEC financing candidates screened through October 15. Not a complete review of all liability notes. No combined obligations total.']];
 repayment.getRange('B48').formulas=[['='+ref('contingent_current')+'+'+ref('contingent_noncurrent')]];repayment.getRange('B48').format.font.color='#008000';
 repayment.getRange('A53:D53').values=[['Notes grouped by due year','USD millions','Basis date','Interpretation']];
 const noteKeys=Object.keys(review.inputs).filter(k=>k.startsWith('notes_'));
@@ -259,7 +260,7 @@ frame(data,`A${disclosureHeader}:I${disclosureHeader+2}`);header(data,`A${disclo
 data.getRange(`A${disclosureHeader}:I${disclosureHeader+2}`).format.rowHeight=80;
 for(const col of ['C','E'])data.getRange(`${col}${disclosureHeader+1}:${col}${disclosureHeader+2}`).setNumberFormat('mmm d, yyyy');
 about.getRange('A1:A6').format.columnWidth=28;about.getRange('B1:B6').format.columnWidth=100;about.getRange('C1:C6').format.columnWidth=75;
-about.getUsedRange().format.rowHeight=70;about.getRange('A1:C1').format.rowHeight=30;frame(about,'A1:C6');header(about,'A1:C1');
+about.getUsedRange().format.rowHeight=70;about.getRange('A2:C2').format.rowHeight=100;about.getRange('A1:C1').format.rowHeight=30;frame(about,'A1:C6');header(about,'A1:C1');
 // Apply the existing restrained borders and input/formula colors to the new blocks.
 repayment.getRange('A2').format.font.size=14;repayment.getRange('A2').format.font.bold=true;
 repayment.getRange('A3').format.wrapText=false;repayment.getRange('A4:D4').format.rowHeight=43;
@@ -323,6 +324,7 @@ for(const [i,key] of order.entries())if(main.getRange(`B${i+6}`).values[0][0]!==
 const cashCell=data.getRange('B2'),original=cashCell.values;cashCell.values=[[null]];wb.recalculate();
 if(typeof main.getRange('B8').values[0][0]==='number')throw new Error('Missing cash became zero');
 cashCell.values=original;wb.recalculate();
+documentationLinks(about);
 const fundingManifest=await finishFundingSheet(wb,root,'LLY',funding);
 const out=path.join(root,'samples/lly_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(out);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');

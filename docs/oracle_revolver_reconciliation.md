@@ -92,5 +92,19 @@ unchanged. Coverage remains Unavailable for every future obligation.
 
 A dated borrowing balance and effective commitment update, any amendments or exercised options,
 and the applicable contract definitions/compliance evidence would be needed to establish more than
-historical undrawn commitment. Borrowing-date conditions still need their own confirmation. A complete
-later-filing inventory is a separate task; adding more arithmetic to this saved set cannot resolve it.
+historical undrawn commitment. Borrowing-date conditions still need their own confirmation.
+
+## October 16 consistency audit
+
+The separately saved SEC submissions snapshot was checked through October 15, 2026. Its SHA256 is
+`bed0ec89b0d273799517d3e332b3a4ba3612168f0e4e9b963759b507f857adec`.
+The recent list contains 1,000 filings and covers the balance-sheet date; its older page ends in 2016.
+The production form/date selector identifies only the September 10 and September 14 8-K candidates
+after August 31. Their main documents and exhibits were already reviewed. Ownership/proxy filings
+are not classified as new issuer borrowing from their form alone.
+
+This resolves the old inventory gap through that cutoff without establishing a newer revolver balance,
+draw authorization or complete liability-note review. The audit builder now requires the exact index
+fingerprint and candidate set in addition to the seven source documents. A changed or missing index
+stops the build. `tests/fixtures/ORCL_20261015_submissions.json` retains 22 unchanged recent-list rows
+(the review window plus one earlier row proving coverage); the original full snapshot remains saved separately.
