@@ -180,7 +180,12 @@ def revolver_html(snapshot, money):
             source = audit["sources"][key]
             out += ' <a href="' + esc(source["source_url"]) + '" target="_blank" rel="noopener noreferrer">' + esc(source["form"]) + '</a>'
         out += '.</p>'
-    return out + '<p class="lr-meta">' + esc(audit["scope"]) + '</p></details>'
+    out += '<p class="lr-meta">' + esc(audit["scope"]) + '</p>'
+    out += ('<p class="lr-meta"><a href="' + esc(audit["inventory"]["source_url"]) +
+            '" target="_blank" rel="noopener noreferrer">SEC financing index through ' +
+            esc(audit["inventory"]["through"]) + '</a> · index check ' + esc(audit["inventory"]["checked"]) +
+            '. Indexing identifies candidate filings; the two document reviews establish their findings.</p>')
+    return out + '</details>'
 
 
 def repayment_html(snapshot, money):

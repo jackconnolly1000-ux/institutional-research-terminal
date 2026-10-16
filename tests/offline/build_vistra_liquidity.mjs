@@ -1,3 +1,4 @@
+import {documentationLinks} from './workbook_style.mjs';
 import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Build with the Codex spreadsheet runtime in a temporary directory; the app serves saved bytes.
 import fs from 'node:fs/promises';
@@ -205,7 +206,7 @@ set(capacity,'D44','Posted assets are not extra cash available for repayments.')
 
 about.getRange('A1:D1').values=[['Topic','Finding / limitation','Source','Location / filing date']];
 const notes=[
-  ['Scope','Saved Vistra review checked October 15, 2026. Cash and facility balances remain dated June 30. Not live data or investment advice.',null,null],
+  ['Scope','Liquidity review checked October 15, 2026; interest and funding interpretation checked October 16. Cash and facility balances remain June 30. Not live data or investment advice.',null,null],
   ['Workbook','Cash review shows historical sources and uses. Payment dates separates June amounts from the old annual schedule. Financing capacity distinguishes resources and borrowers. Data retains facts and provenance.',null,null],
   ['Format','Full USD stored, displayed in millions. Arial 10. Blue inputs, green links, black calculations. A dash is numeric zero; a blank available-capacity cell means Unavailable.',null,null],
   ['Numeric inputs','Missing inputs produce a visible #N/A in dependent arithmetic, never zero. Original facts are a frozen evidence record, not forecast assumptions.',null,null],
@@ -308,6 +309,7 @@ const op=data.getRange(`B${rows.get('coverage_current_operating_income')}`),opo=
 op.values=[[opo[0][0]+1e6]];wb.recalculate();if(Math.abs(main.getRange('B79').values[0][0]-3564/1117)>1e-12)throw new Error('Coverage does not recalculate');
 op.values=opo;wb.recalculate();
 console.log((await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A|#NUM!|#NULL!|#SPILL!',options:{useRegex:true,maxResults:10},maxChars:1500})).ndjson);
+documentationLinks(about);
 const fundingManifest=await finishFundingSheet(wb,root,'VST',funding);
 const output=path.join(root,'samples/vistra_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(output);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');

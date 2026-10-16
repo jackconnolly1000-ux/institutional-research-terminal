@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
@@ -49,7 +50,8 @@ class OracleRevolver(unittest.TestCase):
             self.assertNotIn("drawable", event)
             for key in event["sources"]:
                 self.assertIn(audit["sources"][key]["form"], ["8-K", "8-K Ex. 99.1"])
-        self.assertIn("not a complete", audit["scope"])
+        self.assertIn("not a complete review of all liability", audit["scope"])
+        self.assertEqual(audit['inventory']['through'],'2026-10-15')
         snapshot = json.loads((ROOT / "samples/liquidity_pilots.json").read_text())["snapshots"][1]
         self.assertEqual(revolver.for_snapshot(snapshot), audit)
         snapshot["metrics"]["cash"]["period_end"] = "2026-11-30"
@@ -66,6 +68,25 @@ class OracleRevolver(unittest.TestCase):
                 audit["dates"][2]["drawable"] = 10e9
                 path.write_text(json.dumps(audit))
                 self.assertEqual(revolver.load()["status"], "Unavailable")
+
+    def test_index_candidates_use_actual_rows_and_exact_dates(self):
+        data=json.loads((ROOT/'tests/fixtures/ORCL_20261015_submissions.json').read_text())
+        self.assertEqual(revolver.index_candidates(data),revolver.expected_candidates())
+        self.assertEqual(len(revolver.index_candidates(data)),2)
+        changed=deepcopy(data);recent=changed['filings']['recent']
+        i=next(i for i,f in enumerate(recent['form']) if f=='DEF 14A')
+        recent['form'][i]='8-K'
+        self.assertNotEqual(revolver.index_candidates(changed),revolver.expected_candidates())
+        recent['filingDate'][i]='2026-10-16'
+        self.assertEqual(revolver.index_candidates(changed),revolver.expected_candidates())
+        changed['cik']=59478
+        self.assertIsNone(revolver.index_candidates(changed))
+
+    def test_missing_history_is_not_a_complete_inventory(self):
+        data=json.loads((ROOT/'tests/fixtures/ORCL_20261015_submissions.json').read_text())
+        recent=data['filings']['recent'];keep=[i for i,d in enumerate(recent['filingDate']) if d>'2026-08-31']
+        data['filings']['recent']={k:[v[i] for i in keep] for k,v in recent.items()}
+        self.assertIsNone(revolver.index_candidates(data))
 
     @unittest.skipUnless((RAW / "orcl-ex10_17.htm").exists(), "Saved credit agreement not present")
     def test_exact_source_set_reproduces_audit_and_changed_source_is_refused(self):

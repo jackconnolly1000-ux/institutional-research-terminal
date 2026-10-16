@@ -3,7 +3,7 @@
   "ticker": "ORCL",
   "anchor": "2026-08-31",
   "checked_as_of": "2026-10-15",
-  "scope": "Seven saved documents: the May 31 10-K, August 31 10-Q, March 6 credit agreement, and the September 10 and September 14 8-Ks with their exhibits. The latest saved filing is September 14, 2026. This is not a complete later-filing inventory.",
+  "scope": "Revolver terms use seven saved filing/contract documents: the May 31 10-K, August 31 10-Q, March 6 credit agreement, and September 10 and September 14 8-Ks with their exhibits. A separate SEC financing-candidate index check covers August 31 through October 15, 2026. It lists only those two later 8-Ks, whose main documents and exhibits were reviewed. No additional candidate or financing update is established through that cutoff. This is not a complete review of all liability disclosures or a live filing update.",
   "sources": {
     "annual": {
       "document": "orcl-20260531.htm",
@@ -107,6 +107,28 @@
       "drawable_detail": "Unavailable: same-date commitment, outstanding advances and draw conditions are not established."
     }
   ],
+  "inventory": {
+    "document": "CIK0001341439-20261015.json",
+    "sha256": "bed0ec89b0d273799517d3e332b3a4ba3612168f0e4e9b963759b507f857adec",
+    "source_url": "https://data.sec.gov/submissions/CIK0001341439.json",
+    "since": "2026-08-31",
+    "through": "2026-10-15",
+    "checked": "2026-10-16",
+    "candidates": [
+      {
+        "form": "8-K",
+        "filed": "2026-09-14",
+        "period": "2026-09-12",
+        "accession": "0001193125-26-389753"
+      },
+      {
+        "form": "8-K",
+        "filed": "2026-09-10",
+        "period": "2026-09-10",
+        "accession": "0001193125-26-387905"
+      }
+    ]
+  },
   "terms": [
     {
       "label": "Replacement of the old facility",

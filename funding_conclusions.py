@@ -16,7 +16,7 @@ CHECKED = {
     "lly_interest.json": "9a82bb4336cf164825a2502de10a0cdc038b139ec505485ea914d6c1e038a614",
     "oracle_liquidity.json": "ecc763f0701f9d97568adf4396792427d309812d1c8b3ca480fc3aa1da6c9200",
     "oracle_financing.json": "d913c737cfa41886784dd008c92f5c30d5cbb59969f238ed2d6eae8d7ef113ad",
-    "oracle_revolver.json": "c1fc2b38a04f92187fa676581ac3e8eb07f4a9edc85a1bf58389beabab808103",
+    "oracle_revolver.json": "764353f4555debbf5af99cd28f0af24550a9f10aee9937703ff59bdbe9541db7",
     "oracle_interest.json": "0aa090b90a9f7207b693697be60f215bb6c4e5177fa3423a3d5e6e56d3ac6cec",
     "vistra_liquidity.json": "8f4bdb5f276cb38b2929c998565168869f02b0ce2d6b84e7c285e9002ea0affd",
     "vistra_interest.json": "6a18cf366130ac1aeaf1edccb748b96a1abc3361864651a13b99504d2defa2d4",
@@ -58,7 +58,9 @@ CONCLUSIONS = {
             ("Decisive unknowns", "Future funding coverage: Unavailable. Needed: remaining principal dates, current drawable credit and acquisition/manufacturing payment timing. The December 2025 supply/manufacturing ceiling of up to approximately $10B is conditional over generally up to eight years. Its overlap with later investment announcements is unresolved.", [LQ, LK, LE]),
         ],
         "coverage_basis": "TTM Jul 2025–Jun 2026: derived operating income $33.633B / reported interest $1.079B. Annual interest is net of capitalization; the interim basis and capitalized amount are unstated. No capitalization adjustment or earnings addback is made.",
-        "coverage_sources": [LQ, LK], "coverage_formula": "='Debt and liquidity'!B50",
+        "coverage_sources": [dict(LQ, location="Operations p. 5; segment Note 11 p. 23"),
+                             dict(LK, location="Operations p. 57; Borrowings Note 11 p. 77")],
+        "coverage_formula": "='Debt and liquidity'!B50",
     },
     "ORCL": {
         "conclusion": "Equity proceeds and specified customer prepayments contributed to funding a quarter in which capex exceeded operating cash flow. The dated cash balance does not establish coverage of future debt and infrastructure payments.",
@@ -69,7 +71,9 @@ CONCLUSIONS = {
             ("Decisive unknowns", "Future funding coverage: Unavailable. Needed: remaining debt principal dates, current drawable credit, future cash generation and commitment overlap. The $288B leases not yet commenced have no annual payment schedule. Historical equity/prepayment inflows are already in cash and cannot be added again.", [OQ, OK, OA]),
         ],
         "coverage_basis": "TTM Sep 2025–Aug 2026: reported operating income $23.057B / reported interest $5.104B. Borrowing-only composition and capitalization basis are Unavailable. Separately disclosed $357M finance-lease interest is not added or subtracted without a reconciliation.",
-        "coverage_sources": [OQ, OK], "coverage_formula": "='Cash analysis'!B49",
+        "coverage_sources": [dict(OQ, location="Operations p. 2; lease Note 6 p. 12; MD&A p. 32"),
+                             dict(OK, location="Operations p. 65; MD&A p. 50; lease Note 9 p. 88")],
+        "coverage_formula": "='Cash analysis'!B49",
     },
     "VST": {
         "conclusion": "Selected late-2026 payments require attention to facility conditions and where funds sit. June reported liquidity cannot be treated as current cash available to Parent, and historical earnings coverage does not resolve those access constraints.",
@@ -80,7 +84,9 @@ CONCLUSIONS = {
             ("Decisive unknowns", "Future funding coverage: Unavailable. Needed: current borrowing base, draw-condition compliance, Parent transfers and closing/call timing. Helix funded-to-date and completed preferred redemptions are unresolved. Later issuance proceeds are not added to June liquidity. Project debt is already included in baseline borrowing.", [VQ, VK, VA, VN]),
         ],
         "coverage_basis": "TTM Jul 2025–Jun 2026: reported operating income $3.563B / separate interest component $1.117B, before the capitalized-interest deduction. The swap/extinguishment/Other bridge reconciles. Receivables/Nuveen allocation and all-in financing-cost coverage remain Unavailable.",
-        "coverage_sources": [VQ, VK], "coverage_formula": "='Cash review'!B79",
+        "coverage_sources": [dict(VQ, location="Operations p. 1; interest Note 12 p. 28"),
+                             dict(VK, location="Operations p. 79; interest table p. 121")],
+        "coverage_formula": "='Cash review'!B79",
     },
 }
 
@@ -120,7 +126,7 @@ def render(snapshot):
     review = for_snapshot(snapshot)
     if review is None:
         return '<section class="lr-funding"><h3>Funding conclusion</h3><p>Unavailable: the saved evidence does not match this reviewed conclusion.</p></section>'
-    out = ('<section class="lr-funding"><h3>Funding conclusion</h3>'
+    out = (f'<section class="lr-funding"><h3>Funding conclusion for {escape(review["ticker"])}</h3>'
            f'<p class="lr-meta">Interpretation checked {review["reviewed"]} · balance sheet {review["period_end"]} · dates below remain historical</p>'
            f'<p class="lr-answer">{escape(review["conclusion"])}</p>')
     for label, text, sources in review["rows"]:
