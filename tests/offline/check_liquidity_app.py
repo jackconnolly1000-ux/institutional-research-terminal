@@ -46,6 +46,7 @@ assert all(value in text for value in ("Which resources could fund the dated pay
                                       "funding coverage Unavailable"))
 assert all(value in text for value in ("May 31 undrawn commitment is $10B", "not a $12B commitment",
                                       "not assumed zero", "Later saved filings and audit scope"))
+assert all(value in text for value in ("What funded Lilly’s cash balance?", "$10.764B", "$12.602B", "August 2026", "Indiana manufacturing", "not principal repayment amounts"))
 buttons=[element.proto.label for element in app.get("download_button")]
 assert set(("Download LLY review and evidence", "Download ORCL review and evidence",
             "Download VST review and evidence", "Download all three company reviews (optional)")) <= set(buttons)

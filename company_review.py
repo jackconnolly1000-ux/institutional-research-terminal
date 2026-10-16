@@ -13,7 +13,7 @@ from vistra_liquidity_view import CSS as VISTRA_LIQUIDITY_CSS
 NOTES = {
     "LLY": [
         {"name": "Pending AtaiBeckley acquisition", "amount": "Approximately $2.8B",
-         "date": "2026-06-30", "kind": "Future commitment", "location": "10-Q MD&A, p. 31",
+         "date": "2026-08-05", "kind": "Conditional closing payment, disclosed after quarter end", "location": "10-Q MD&A, p. 31",
          "detail": "Potential payment at closing, subject to closing conditions. Not recognized as borrowing."},
         {"name": "Venture fund commitments", "amount": "Approximately $806M",
          "date": "2026-06-30", "kind": "Unfunded commitment", "location": "10-Q MD&A, p. 31; Note 8",
@@ -47,7 +47,7 @@ NOTES = {
 }
 
 LIMITS = {
-    "LLY": "Lease liabilities at June 30 are Unavailable. Selection of major commitments is not complete; contingencies, tax, collaboration and investment notes need further review. Later financing findings are not loaded in this saved view.",
+    "LLY": "June lease liabilities, updated principal maturities, drawable credit and detailed payment dates remain Unavailable. The selected acquisitions and manufacturing review is not a complete review of contingencies, tax, collaboration or investment obligations.",
     "ORCL": "Commercial paper is not separately disclosed in this 10-Q. The capex-financing balance and the later status of the 10-K's $3.3B lessor guarantee remain unresolved. The May 31 maturity schedule does not establish remaining August 31 payments or current revolver availability.",
     "VST": "June 30 lease liabilities are Unavailable. Derivatives, litigation and the remaining retirement-obligation detail need further review. Credit-support overlaps are unresolved; the selected notes above are not a complete obligations list.",
 }
@@ -269,6 +269,8 @@ def render(snapshot):
     output += oracle_liquidity_html(snapshot, money)
     from vistra_liquidity_view import render as vistra_liquidity_html
     output += vistra_liquidity_html(snapshot, money)
+    from lly_liquidity_view import render as lilly_liquidity_html
+    output += lilly_liquidity_html(snapshot, money)
     output += maturity_html(snapshot)
     output += '<section class="lr-obligations"><h3>What sits outside baseline borrowing?</h3><p class="lr-meta">Selected disclosures, each shown separately. Commitments are not all payable now and are not added to debt or to each other.</p>'
     for item in NOTES[snapshot["ticker"]]:
@@ -276,7 +278,7 @@ def render(snapshot):
                    f'<p>{esc(item["amount"])}</p><div class="lr-meta">As of {esc(item["date"])} · {esc(item["kind"])}</div></div>'
                    f'<div><p>{esc(item["detail"])}</p><a class="lr-meta" href="{esc(source)}" target="_blank" rel="noopener noreferrer">{esc(item["location"])}</a></div></article>')
     output += '</section><section class="lr-limits"><h3>What remains unresolved?</h3>'
-    remaining = "Interest coverage is not included." if snapshot["ticker"] in {"ORCL", "VST"} else "Interest coverage and a full debt maturity review are not included."
+    remaining = "Interest coverage is not included." if snapshot["ticker"] in {"ORCL", "VST"} else "Interest coverage is not included; the annual due-year table is historical carrying debt."
     output += f'<p class="lr-meta">{esc(LIMITS[snapshot["ticker"]])} {remaining}</p></section></section>'
     return output.replace("$", "&#36;")
 
@@ -549,7 +551,7 @@ def saved_workbook(snapshots, folder=None, ticker=None):
         saved = json.loads((folder / "liquidity_pilots.json").read_text())
         if snapshots != saved["snapshots"]:
             return None
-        expected = {"liquidity_pilots.json"} if ticker else {"liquidity_pilots.json", "oracle_financing.json"}
+        expected = {"liquidity_pilots.json", "lly_liquidity.json"} if ticker else {"liquidity_pilots.json", "oracle_financing.json"}
         for name, digest in manifest["sources"].items():
             if name not in expected:
                 return None
