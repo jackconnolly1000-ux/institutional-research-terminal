@@ -122,11 +122,13 @@ def build_price_chart(hist: pd.DataFrame, events: list) -> go.Figure:
         spikethickness=1, spikedash="dot", rangeslider_visible=False, hoverformat="%a %b %d, %Y",
     )
     fig.update_layout(
-        height=480, margin=dict(l=8, r=64, t=36, b=30), dragmode="zoom", hovermode="x unified",
+        # t leaves a row for the hover toolbar above the range buttons; at phone width they overlapped
+        height=528, margin=dict(l=8, r=64, t=64, b=50), dragmode="zoom", hovermode="x unified",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family=CHART_FONT, size=11, color=CHART_TEXT),
         hoverlabel=dict(bgcolor=CHART_PANEL, bordercolor=CHART_GRID, font=dict(color=CHART_TEXT)),
-        legend=dict(orientation="h", x=1, xanchor="right", y=1.0, yanchor="bottom",
+        # Below the date axis, not beside the range buttons: at phone width the two rows overlapped
+        legend=dict(orientation="h", x=0, xanchor="left", y=-0.06, yanchor="top",
                     bgcolor="rgba(0,0,0,0)", font=dict(color=CHART_MUTED, size=11)),
         xaxis=dict(range=default["xaxis.range"]),
         xaxis2=dict(range=default["xaxis2.range"]),
