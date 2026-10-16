@@ -271,6 +271,8 @@ def render(snapshot):
     output += vistra_liquidity_html(snapshot, money)
     from lly_liquidity_view import render as lilly_liquidity_html
     output += lilly_liquidity_html(snapshot, money)
+    from lly_interest_view import render as lilly_interest_html
+    output += lilly_interest_html(snapshot, money)
     output += maturity_html(snapshot)
     output += '<section class="lr-obligations"><h3>What sits outside baseline borrowing?</h3><p class="lr-meta">Selected disclosures, each shown separately. Commitments are not all payable now and are not added to debt or to each other.</p>'
     for item in NOTES[snapshot["ticker"]]:
@@ -278,7 +280,7 @@ def render(snapshot):
                    f'<p>{esc(item["amount"])}</p><div class="lr-meta">As of {esc(item["date"])} · {esc(item["kind"])}</div></div>'
                    f'<div><p>{esc(item["detail"])}</p><a class="lr-meta" href="{esc(source)}" target="_blank" rel="noopener noreferrer">{esc(item["location"])}</a></div></article>')
     output += '</section><section class="lr-limits"><h3>What remains unresolved?</h3>'
-    remaining = "Interest coverage is not included." if snapshot["ticker"] in {"ORCL", "VST"} else "Interest coverage is not included; the annual due-year table is historical carrying debt."
+    remaining = "Interest coverage is not included." if snapshot["ticker"] in {"ORCL", "VST"} else "Historical interest coverage uses derived operating income; its capitalization and other limits are stated above."
     output += f'<p class="lr-meta">{esc(LIMITS[snapshot["ticker"]])} {remaining}</p></section></section>'
     return output.replace("$", "&#36;")
 
@@ -551,7 +553,7 @@ def saved_workbook(snapshots, folder=None, ticker=None):
         saved = json.loads((folder / "liquidity_pilots.json").read_text())
         if snapshots != saved["snapshots"]:
             return None
-        expected = {"liquidity_pilots.json", "lly_liquidity.json", "lly_financing.json"} if ticker else {"liquidity_pilots.json", "oracle_financing.json"}
+        expected = {"liquidity_pilots.json", "lly_liquidity.json", "lly_financing.json", "lly_interest.json"} if ticker else {"liquidity_pilots.json", "oracle_financing.json"}
         for name, digest in manifest["sources"].items():
             if name not in expected:
                 return None

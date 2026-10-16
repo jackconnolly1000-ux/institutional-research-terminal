@@ -28,6 +28,8 @@ import oracle_liquidity
 import oracle_liquidity_view
 import lly_liquidity
 import lly_financing
+import lly_interest
+import lly_interest_view
 import lly_liquidity_view
 import oracle_repayment
 import oracle_revolver
@@ -52,6 +54,8 @@ reload(vistra_liquidity)
 reload(vistra_liquidity_view)
 reload(lly_liquidity)
 reload(lly_financing)
+reload(lly_interest)
+reload(lly_interest_view)
 reload(lly_liquidity_view)
 reload(company_review)
 
