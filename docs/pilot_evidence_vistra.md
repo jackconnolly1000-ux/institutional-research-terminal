@@ -2,7 +2,7 @@
 
 Evidence for the third debt and liquidity pilot (see `debt_liquidity_plan.md`): filing values with sources and checks, hand calculations labeled as such, decided classifications, and open gaps. Checked values are the pilot's expected answers; Unavailable items and open gaps are not. Checked Oct 14, 2026. The saved debt and liquidity pilot uses the checked cash, borrowing and current-position values; other sections retain their own status.
 
-**How it was checked:** each amount was read from the filing's HTML text and matched to the inline XBRL fact on that row (tag, period, dimensions, unit), then compared with SEC companyfacts where companyfacts has the tag. Page numbers are the filing's printed page footers, found by splitting the document at its page breaks. Raw downloads are kept outside the repo in `Stock Project/data/raw/` (`xbrl/VST_*`, `sec/VST/`).
+**How it was checked:** each amount was read from the filing's HTML text and matched to the inline XBRL fact on that row (tag, period, dimensions, unit), then compared with SEC companyfacts where companyfacts has the tag. Page numbers are the filing's printed page footers, found by splitting the document at its page breaks. Raw downloads are retained outside the repository; checked filenames, accessions and fingerprints are recorded in the evidence and builders.
 
 **Labels used below:** *Fact* = a reported amount, with its location. *Calculation* = a hand calculation from reported amounts. *Classification* = a first-release decision recorded here (Oct 14, 2026), not a filing statement. *Unavailable* / *Open* = not established.
 
@@ -130,7 +130,7 @@ Vistra's statement of operations (p. 1) shows "Interest expense and related char
 | 10-Q Q2 2026 (0001692819-26-000019) | c-7 | 2025-01-01 to 2025-06-30 | 547 | p. 28 (comparative) |
 | 10-Q Q2 2025 (0001692819-25-000085) | c-1 | 2025-01-01 to 2025-06-30 | 547 | p. 30 |
 
-**Extraction finding:** the inputs can be extracted from the filings' inline XBRL with verified context (period, no dimensions), unit, scale and accession, and they match the printed tables. Companyfacts omitting the tag is an implementation constraint, not a reason to call the ratio permanently Unavailable. Not yet done: reading the extension element's definition and label in the filer's schema and label files, and building and testing an extractor. Until that extractor passes these checks, the app shows no Vistra coverage ratio.
+**Extraction finding:** the inputs can be extracted from the filings' inline XBRL with verified context (period, no dimensions), unit, scale and accession, and they match the printed tables. Companyfacts omitting the tag is an implementation constraint, not a reason to call the ratio permanently Unavailable. Implemented October 16, 2026: `vistra_interest.py` reproduces the four checked interest facts, reconciles all components to the mixed totals and checks the original comparative. The schema and labels have been read. The app and Vistra Excel show the qualified historical component ratio; see [the review](vistra_interest_coverage.md).
 
 **Operating income inputs (us-gaap:OperatingIncomeLoss, no dimensions; all also in companyfacts):**
 
@@ -141,13 +141,13 @@ Vistra's statement of operations (p. 1) shows "Interest expense and related char
 | H1 2025 | 395 | 10-Q statement of operations, p. 1 (comparative); same in the 2025 Q2 10-Q |
 
 - TTM operating income to June 30, 2026 (calculation): 1,906 + 2,052 - 395 = **3,563**.
-- Operating-income interest coverage (hand calculation, not for display yet): 3,563 / 1,117 = **3.19x**, labeled "Operating income / reported interest expense (before capitalized interest)".
+- Operating-income interest coverage (implemented in the app and Vistra Excel): 3,563 / 1,117 = **3.19x**, labeled "Operating income / reported interest expense (before capitalized interest)".
 - The 10-K also tags a parent-only operating loss (-114, `ConsolidatedEntitiesAxis = ParentMember`); it is not used.
 - **Basis:** the component is shown **before capitalized interest**, which is a separate line (82 in H1 2026; 125 in FY2025). It excludes swap mark-to-market, amortization of debt costs, extinguishment losses and "Other". It is before interest income, which the statement does not net against it. Label: "Operating income / reported interest expense (before capitalized interest)".
 - **Uncertainty:**
   1. Vistra says it "records interest expense on amounts advanced" under the receivables facility (p. 27), and the forward repurchase obligation carries interest ($19 million paid in June 2026, p. 28). The filings do not say whether those amounts are in the "Interest expense" component or in "Other".
   2. What "Other" (51 in H1 2026) contains is not stated.
-  3. The app's coverage for Vistra waits on an inline XBRL extractor (see the extraction finding above).
+  3. Resolved for these checked filings: exact duration extraction and sign reconciliation now gate the historical ratio; the allocation uncertainties above remain open.
 
 ## Obligations and commitments outside baseline debt
 
@@ -212,7 +212,7 @@ The complete EDGAR filing list (submissions JSON, 1,000 most recent filings back
 1. Lease liabilities at June 30, 2026 are Unavailable; only Dec 31, 2025 amounts are established.
 1a. The saved pilot displays and exports the 19,895M baseline, built from companyfacts and the trimmed real-filing fixture. Live analysis still does not fetch or pass the checked filing document for this calculation.
 2. Interest basis: whether receivables-facility interest and the Nuveen obligation's interest are inside the "Interest expense" component or in "Other", and what "Other" contains, are not stated.
-3. Interest extraction: the component is the Vistra extension tag `vistra:PostEmergenceInterestPaidAndAccrued`. Its contexts are verified by hand above. Still needed before any display: read the element's definition and label in the filer's schema, and build and test an inline XBRL extractor that reproduces the four checked facts with their provenance.
+3. Interest extraction resolved for the checked sources: schema/labels read, four interest facts reproduced, all component signs reconciled and original comparatives matched. Historical coverage is 3.19x; allocation and all-in financing-cost limits remain open. See `vistra_interest_coverage.md`.
 4. Helix Fund: amount funded to date not separately disclosed (callable status and milestone status are stated on p. 69).
 5. Purchase commitments only at Dec 31, 2025; no June 30 update found.
 6. Overlap among letters of credit, surety bonds and the reclamation bond, and between the reclamation bond and the recognized asset retirement obligations, is not stated; the P-Caps amount pledged for letters of credit is not stated.

@@ -2,6 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import { Workbook, SpreadsheetFile } from '@oai/artifact-tool';
 import {frame, header, subtotal} from './workbook_style.mjs';
 
@@ -9,6 +10,10 @@ const root=process.argv[2];
 if(!root) throw new Error('Pass repository directory');
 const input=path.join(root,'samples/vistra_liquidity.json');
 const bytes=await fs.readFile(input), r=JSON.parse(bytes);
+const interestBytes=await fs.readFile(path.join(root,'samples/vistra_interest.json'));
+const interest=JSON.parse(execFileSync(process.env.CODEX_PRIMARY_RUNTIME_PYTHON,['-c',
+ 'import json,vistra_interest as i;r=i.load();assert r is not None;print(json.dumps(r))'],{cwd:root,encoding:'utf8'}));
+if(interest.calculation.value===null)throw new Error('Interest review is incomplete');
 if(r.status!=='Checked'||!r.capacity||!r.debt||!r.annual) throw new Error('Source reconciliations incomplete');
 const wb=Workbook.create();
 const main=wb.worksheets.add('Cash review'), due=wb.worksheets.add('Payment dates');
@@ -21,7 +26,13 @@ const inputs=Object.entries(r.inputs).map(([key,f],i)=>{
   return [key,f.value,f.label,date(f.period_start),date(f.period_end),f.form,date(f.filed),f.accession,
     f.tag,f.context_id,JSON.stringify(f.dimensions),f.scale,f.decimals,f.source_url,f.location,f.detail||null];
 });
-data.getRange(`A1:P${inputs.length+1}`).values=[['Input','USD, displayed millions','Description','Period from','Period through','Form','Filed','Accession','Tag','Context','Dimensions','Scale','Decimals','Source','Location','Reason if unavailable'],...inputs];
+for(const [key,f] of Object.entries(interest.inputs)){
+ rows.set('coverage_'+key,inputs.length+2);
+ inputs.push(['coverage_'+key,f.value,f.label,date(f.period_start),date(f.period_end),f.form,date(f.filed),f.accession,
+  f.tag,f.context_id,JSON.stringify(f.dimensions),f.scale,f.decimals,f.source_url,f.location,f.detail||'',
+  f.source_sha256,f.unit+'; '+f.selection_rule]);
+}
+data.getRange(`A1:R${inputs.length+1}`).values=[['Input','USD, displayed millions','Description','Period from','Period through','Form','Filed','Accession','Tag','Context','Dimensions','Scale','Decimals','Source','Location','Reason if unavailable','Reviewed source SHA256','Unit and selection rule'],...inputs.map(r=>r.concat(Array(18-r.length).fill(null)))];
 data.getRange(`B2:B${inputs.length+1}`).format.font.color='#0000FF';
 data.getRange(`B2:B${inputs.length+1}`).setNumberFormat(USD);
 data.getRange(`D2:E${inputs.length+1}`).setNumberFormat('mmm d, yyyy');
@@ -83,6 +94,42 @@ const cashNotes=[
   'Cash after capex fell short of buybacks and dividends by 309M in this historical period.',
 ];
 cashNotes.forEach((n,i)=>set(main,`D${6+i*3}`,n));
+set(main,'A52','Historical operating-income interest coverage');
+set(main,'A53','TTM July 1, 2025–June 30, 2026. Selected interest component before capitalized interest.');
+main.getRange('A55:D55').values=[['Build, USD millions','FY2025','+ H1 2026','− H1 2025']];
+const signs={operating_income:1,interest:1,swaps:-1,amortization:1,extinguishment:-1,capitalized:-1,other:1,total:1};
+for(const [n,key,label] of [[56,'operating_income','Reported operating income'],[57,'interest','Selected interest component'],
+ [58,'swaps','Unrealized swap (gain) loss'],[59,'amortization','Debt-cost amortization'],
+ [60,'extinguishment','Extinguishment (gain) loss'],[61,'capitalized','Less capitalized interest'],[62,'other','Other'],
+ [64,'total','Reported mixed interest total']]){
+ set(main,`A${n}`,label);
+ ['fy','current','prior'].forEach((role,i)=>{
+  const f=link('coverage_'+role+'_'+key);set(main,`${'BCD'[i]}${n}`,signs[key]===1?f:'=-'+f.slice(1),true);
+ });
+}
+set(main,'A63','Reconstructed mixed interest total');set(main,'A65','Reconciliation difference, zero = matched');
+for(const col of 'BCD'){set(main,`${col}63`,`=SUM(${col}57:${col}62)`,true);set(main,`${col}65`,`=${col}63-${col}64`,true);}
+const ttmRows=[[68,56,'TTM reported operating income'],[69,57,'TTM selected interest component'],
+ [70,58,'TTM unrealized swap (gain) loss'],[71,59,'TTM debt-cost amortization'],
+ [72,60,'TTM extinguishment (gain) loss'],[73,61,'TTM capitalized-interest deduction'],[74,62,'TTM Other'],
+ [76,64,'TTM reported mixed interest total']];
+for(const [n,source,label] of ttmRows){set(main,`A${n}`,label);set(main,`B${n}`,`=B${source}+C${source}-D${source}`,true);}
+set(main,'A75','TTM reconstructed mixed interest total');set(main,'B75','=SUM(B69:B74)',true);
+set(main,'A77','TTM reconciliation difference');set(main,'B77','=B75-B76',true);
+set(main,'A79','Historical interest-component coverage');
+set(main,'B79','=IF(AND(B65=0,C65=0,D65=0,B77=0,D91=0,B69>0),B68/B69,NA())',true);
+main.getRange('A82:D82').values=[['Prior H1 raw fact','2026 comparative','Original 2025 filing','Difference']];
+for(const [i,key] of Object.keys(signs).entries()){
+ const labels={operating_income:'Operating income',interest:'Interest component',swaps:'Swap gain (loss)',
+  amortization:'Debt-cost amortization',extinguishment:'Extinguishment gain (loss)',capitalized:'Capitalized interest',other:'Other',total:'Mixed interest total'};
+ const n=83+i;set(main,`A${n}`,labels[key]+' (raw)');
+ set(main,`B${n}`,link('coverage_prior_'+key),true);set(main,`C${n}`,link('coverage_prior_original_'+key),true);
+ set(main,`D${n}`,`=B${n}-C${n}`,true);
+}
+set(main,'A91','Total absolute prior-period difference');set(main,'D91','=SUM(ABS(D83),ABS(D84),ABS(D85),ABS(D86),ABS(D87),ABS(D88),ABS(D89),ABS(D90))',true);
+set(main,'A93','Raw gains are positive; swap/extinguishment signs are reversed only in the expense build.');
+set(main,'A94','Capitalization is deducted in the mixed total, not adjusted again in the selected denominator.');
+set(main,'A95','Receivables/Nuveen allocation and Other composition: Unavailable. See About.');
 
 set(due,'A2','Vistra dated repayment review');
 set(due,'A3','Selected June 30 balances. USD millions. Principal except Nuveen includes interest.');
@@ -165,6 +212,11 @@ const notes=[
   ...r.limits.map((n,i)=>['Limit '+(i+1),n,null,null]),
   ['Index review',r.inventory.detail,'https://data.sec.gov/submissions/CIK0001692819.json','Retrieved October 15, 2026'],
   ['October filing date','The Sep 30 amendment was accepted Oct 2 at 20:12:47 but its EDGAR filing date is Oct 5. Filing date corrected from the older review.','https://www.sec.gov/Archives/edgar/data/1692819/000114036126038468/0001140361-26-038468-index.html','Event Sep 30, filed Oct 5, 2026'],
+  ['Historical interest coverage',interest.formula+'. '+interest.ttm_formula+'. Every period reconciles to the mixed total; the original H1 2025 filing independently agrees.','docs/vistra_interest_coverage.md','Checked October 16, 2026'],
+  ['Capitalized-interest basis',interest.basis,interest.inputs.current_interest.source_url,'10-K p. 121; 10-Q Note 12 p. 28'],
+  ['Interest composition',interest.composition,interest.inputs.current_interest.source_url,'Separate interest component, not the mixed statement total'],
+  ['Signs and definitions','Raw swap gains and extinguishment gains are positive. Their signs are reversed only to match the printed expense table. Capitalization is a deduction. The interest extension is monetary, duration, debit; its terse label is Interest expense and documentation adds no allocation detail.','https://www.sec.gov/Archives/edgar/data/1692819/000169281926000019/vistra-20260630.xsd','Schema and labels reviewed; raw facts and hashes are retained'],
+  ['Coverage limits',interest.limitations,null,'Receivables/Nuveen allocation and Other composition remain Unavailable'],
 ];
 about.getRange(`A2:D${notes.length+1}`).values=notes;
 for(const s of [main,due,capacity,data,about]){
@@ -195,13 +247,25 @@ for(const n of [23,32,40])capacity.getRange(`B${n}`).setNumberFormat(diff);
 data.getUsedRange().format.wrapText=true;data.getUsedRange().format.rowHeight=52;
 for(const [range,width] of [['A1:A90',26],['B1:B90',21],['C1:C90',55],['D1:G90',20],['H1:H90',32],['I1:K90',65],['L1:M90',12],['N1:P90',75]])data.getRange(range).format.columnWidth=width;
 data.getRange('A1:P1').format.font.bold=true;data.freezePanes.freezeRows(1);
+data.getRange(`Q1:Q${inputs.length+1}`).format.columnWidth=50;data.getRange(`R1:R${inputs.length+1}`).format.columnWidth=80;
 about.getRange(`A1:A${notes.length+1}`).format.columnWidth=35;about.getRange(`B1:B${notes.length+1}`).format.columnWidth=105;
 about.getRange(`C1:D${notes.length+1}`).format.columnWidth=65;about.getUsedRange().format.wrapText=true;
 about.getUsedRange().format.rowHeight=90;about.getRange('A1:D1').format.rowHeight=25;about.getRange('A1:D1').format.font.bold=true;about.freezePanes.freezeRows(1);
 for(const address of ['A5:B8','A10:B14','A16:B23','A25:B35','A37:B39','A41:B49'])frame(main,address);
 for(const address of ['A5:E11','A33:B33','A35:B35','A37:B37','A39:B39','A43:C54','H24:I30'])frame(due,address);
 for(const address of ['A5:E13','A16:B16','A18:B23','A25:B26','A28:B32','A34:B42','A44:B45'])frame(capacity,address);
-frame(data,`A1:P${inputs.length+1}`);frame(about,`A1:D${notes.length+1}`);
+frame(data,`A1:R${inputs.length+1}`);frame(about,`A1:D${notes.length+1}`);header(data,'A1:R1');
+main.getRange('A52').format.font.bold=true;main.getRange('A52').format.font.size=14;
+for(const a of ['A55:D65','A68:B79','A82:D91']){main.getRange(a).format.rowHeight=32;frame(main,a);}
+main.getRange('A55:D65').format.wrapText=true;main.getRange('A82:D91').format.wrapText=true;
+for(const a of ['B56:D64','B68:B77','B83:C90'])main.getRange(a).setNumberFormat(USD);
+for(const a of ['B65:D65','B77','D83:D90'])main.getRange(a).setNumberFormat(diff);
+main.getRange('D91').setNumberFormat(diff);
+main.getRange('B79').setNumberFormat('0.00"x"');main.getRange('A79:B79').format.font.italic=true;
+for(const a of ['A55:D55','A82:D82'])header(main,a);
+for(const n of [57,63,64,65])subtotal(main,`A${n}:D${n}`);
+for(const n of [68,69,75,76,77,79])subtotal(main,`A${n}:B${n}`);
+for(let n=notes.length-3;n<=notes.length+1;n++)about.getRange(`A${n}:D${n}`).format.rowHeight=120;
 for(const [sheet,address] of [[main,'A5:B5'],[due,'A5:E5'],[due,'A43:C43'],[due,'H24:I24'],[capacity,'A5:E5'],[data,'A1:P1'],[about,'A1:D1']])header(sheet,address);
 for(const n of [8,13,14,23,30,33,37,42,47])subtotal(main,`A${n}:B${n}`);
 for(const n of [16,21,30,36,38,42])subtotal(capacity,`A${n}:B${n}`);
@@ -219,11 +283,37 @@ source.values=[[null]];wb.recalculate();if(typeof main.getRange('B8').values[0][
 source.values=[[0]];wb.recalculate();if(main.getRange('B8').values[0][0]!==2222e6)throw new Error('Reported zero lost');
 source.values=[[original[0][0]+1e6]];wb.recalculate();if(main.getRange('B14').values[0][0]!==-310e6)throw new Error('Cash formula did not recalculate');
 source.values=original;wb.recalculate();
+for(const [cell,v] of Object.entries({B68:3563e6,B69:1117e6,B70:-14e6,B71:45e6,B72:35e6,B73:-151e6,B74:100e6,B75:1132e6,B76:1132e6,B77:0,B79:3563/1117,D91:0})){
+ if(Math.abs(main.getRange(cell).values[0][0]-v)>1e-10)throw new Error('Interest reconciliation '+cell);
+}
+const ci=data.getRange(`B${rows.get('coverage_current_interest')}`),cio=ci.values;
+ci.values=[[null]];wb.recalculate();if(typeof main.getRange('B79').values[0][0]==='number')throw new Error('Missing interest became coverage');
+ci.values=cio;
+const zeroCase=['fy','current','prior','prior_original'].flatMap(role=>{
+ const i=data.getRange(`B${rows.get('coverage_'+role+'_interest')}`),t=data.getRange(`B${rows.get('coverage_'+role+'_total')}`);
+ return [{cell:i,original:i.values,value:0},{cell:t,original:t.values,value:t.values[0][0]-i.values[0][0]}];
+});
+zeroCase.forEach(x=>x.cell.values=[[x.value]]);wb.recalculate();
+if(main.getRange('B69').values[0][0]!==0||main.getRange('B77').values[0][0]!==0||typeof main.getRange('B79').values[0][0]==='number')throw new Error('Zero denominator guard failed');
+zeroCase.forEach(x=>x.cell.values=x.original);
+const swap=data.getRange(`B${rows.get('coverage_current_swaps')}`),swo=swap.values;
+swap.values=[[-swo[0][0]]];wb.recalculate();if(typeof main.getRange('B79').values[0][0]==='number')throw new Error('Wrong raw swap sign escaped reconciliation');
+swap.values=swo;
+const originalPrior=data.getRange(`B${rows.get('coverage_prior_original_other')}`),originalPriorValue=originalPrior.values;
+originalPrior.values=[[originalPriorValue[0][0]+1e6]];wb.recalculate();if(typeof main.getRange('B79').values[0][0]==='number')throw new Error('Changed original comparative not caught');
+originalPrior.values=originalPriorValue;
+const op=data.getRange(`B${rows.get('coverage_current_operating_income')}`),opo=op.values;
+op.values=[[opo[0][0]+1e6]];wb.recalculate();if(Math.abs(main.getRange('B79').values[0][0]-3564/1117)>1e-12)throw new Error('Coverage does not recalculate');
+op.values=opo;wb.recalculate();
 console.log((await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A|#NUM!|#NULL!|#SPILL!',options:{useRegex:true,maxResults:10},maxChars:1500})).ndjson);
 const output=path.join(root,'samples/vistra_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(output);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
-await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({review_sha256:digest(bytes),workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');
-for(const [sheet,range,name] of [['Cash review','A2:B23','cash'],['Payment dates','A5:E11','payments'],['Payment dates','A14:F31','chart'],['Financing capacity','A5:E13','capacity'],['Data','A1:H6','data'],['About','A1:B10','about']]){
+await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({review_sha256:digest(bytes),interest_sha256:digest(interestBytes),workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');
+for(const [sheet,range,name] of [['Cash review','A2:B23','cash'],['Payment dates','A5:E11','payments'],['Payment dates','A14:F31','chart'],['Financing capacity','A5:E13','capacity'],['Data','A1:H6','data'],['About','A1:B10','about'],
+ ['Cash review','A52:D65','interest-periods'],['Cash review','A68:B79','interest-ttm'],['Cash review','A82:D95','interest-comparatives'],
+ ['Data',`A${rows.get('coverage_fy_operating_income')}:H${rows.get('coverage_current_operating_income')-1}`,'interest-inputs'],
+ ['Data',`I${rows.get('coverage_current_operating_income')}:R${rows.get('coverage_prior_operating_income')-1}`,'interest-contexts'],
+ ['About',`A${notes.length-3}:D${notes.length+1}`,'interest-basis']]){
   const preview=await wb.render({sheetName:sheet,range,scale:1.2,format:'png'});
   await fs.writeFile(path.join(process.cwd(),`vistra-${name}.png`),new Uint8Array(await preview.arrayBuffer()));
 }
