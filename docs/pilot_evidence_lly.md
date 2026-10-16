@@ -117,3 +117,8 @@ The frozen app review now shows checked TTM operating cash flow, reported capita
 ## Dated funding review (October 15, 2026)
 
 Implemented in `lly_liquidity.py`, the app and Lilly-only Excel. See [the dated review](lly_liquidity_review.md) for H1 cash reconciliation, historical carrying amounts by due year, facilities, unpaid and subsequent acquisitions, contingent-consideration valuation, and manufacturing commitments. This adds a selected Note 4/Note 8 review; it does not close all contingency/investment gaps. The updated June principal schedule, drawable facilities/renewal and detailed payment calendars remain Unavailable.
+
+
+## Financing inventory update (October 15, 2026)
+
+The [financing audit](lly_financing_audit.md) compares saved documents to the SEC index through October 15 and records the missing May debt documents. Eight initial series totaling $9B have stated maturities; they are already in June debt/proceeds and are not a current outstanding-principal schedule. No supported August 2026 facility renewal or drawable amount was identified. The app and Lilly Excel add the contractual dates and flag the 8-K/certificate coupon conflict.

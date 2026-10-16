@@ -80,6 +80,7 @@ def render(snapshot, money):
             f'({amount(contingent[0])} current + {amount(contingent[1])} noncurrent). '
             'This is a valuation, not a dated payout schedule or milestone ceiling. It is not added to the '
             'acquisition amounts above. ' + source("quarter", "10-Q Note 8 p. 17") + '.</p>')
+    out += financing_html(snapshot, money)
     out += '<h3>When do the notes come due?</h3>'
     out += ('<p>Historical notes grouped by due year at <strong>December 31, 2025</strong>. '
             'These are carrying amounts, not principal repayment amounts. Multi-year groups are combined. '
@@ -99,7 +100,39 @@ def render(snapshot, money):
             'Future coverage is Unavailable. The immediate evidence gaps are the updated debt payment schedule, '
             'facility terms and renewal, and acquisition/manufacturing payment dates.</p>')
     out += '<details><summary>Lilly review evidence and scope</summary><p class="lr-meta">'
-    out += ('Saved FY2025 10-K, June 2026 10-Q and August 5 earnings exhibit only; not a complete current SEC filing inventory. '
+    out += ('FY2025 10-K, June 2026 10-Q and August 5 earnings exhibit, plus the financing documents checked above. '
+            'The SEC index was screened through October 15, 2026 for financing filings; this is not a complete review of all liability notes. '
             'Every new numeric input, exact period, context/dimension and reviewed-text source is recorded in the Lilly Excel Data sheet. '
             'Text disclosures are explicitly separated from inline facts. No forecast or investment rating.</p></details></section>')
     return out.replace("$", "&#36;")
+
+
+def financing_html(snapshot, money):
+    import lly_financing as lf
+    audit = lf.for_snapshot(snapshot)
+    if not audit or audit["status"] != "Checked":
+        return '<h3>May debt terms</h3><p>Unavailable: the checked financing evidence is required.</p>'
+    source = lambda key, label: ('<a href="' + esc(audit["sources"][key]["url"]) +
+                                 '" target="_blank" rel="noopener noreferrer">' + esc(label) + '</a>')
+    out = '<h3>Which May debt maturities are documented?</h3><p>' + esc(audit["conclusion"]) + '</p>'
+    out += '<p class="lr-meta">Completed May 20, 2026 · initial principal, USD billions · '
+    out += source("offering", "8-K Item 8.01") + '; ' + source("fixed", "Exhibit 4.3") + '; ' + source("floating", "Exhibit 4.4") + '</p>'
+    out += '<div class="ol-table-wrap"><table class="ol-table"><thead><tr><th>Series</th><th>Initial principal</th><th>Stated maturity</th><th>Contract rate</th></tr></thead><tbody>'
+    for row in audit["rows"]:
+        rate = (f'{row["coupon"]:.3%}' if row["coupon"] is not None else
+                f'Compounded SOFR + {row["sofr_margin"]:.3%}')
+        out += (f'<tr><td>{esc(row["label"])}</td><td>{esc(money(row["initial_principal"],3))}</td>'
+                f'<td>{esc(row["stated_maturity"])}</td><td>{esc(rate)}</td></tr>')
+    out += '</tbody></table></div><p class="lr-meta">' + esc(audit["date_detail"]) + '</p>'
+    out += ('<p><strong>No extra cash or debt is added:</strong> the issue is already reflected in June borrowing '
+            'and H1 proceeds. Current outstanding principal by series is Unavailable. The table does not replace '
+            'the missing full June repayment schedule; future coverage remains Unavailable.</p>')
+    out += '<details><summary>Coupon conflict, early redemption and debt delisting</summary>'
+    out += '<p>' + esc(audit["coupon_conflict"]) + ' ' + source("prospectus", "Final prospectus") + '.</p>'
+    out += '<p>' + esc(audit["redemption_detail"]) + ' ' + source("fixed", "Fixed-note terms") + '; ' + source("floating", "Floating-note terms")
+    out += '; <a href="' + esc(ll.SOURCES["quarter"]["source_url"]) + '" target="_blank" rel="noopener noreferrer">June 10-Q Note 4</a>.</p>'
+    out += '<p>' + esc(audit["delisting_detail"]) + ' ' + source("delisting", "Form 25") + '.</p></details>'
+    out += '<details><summary>SEC financing check through October 15, 2026</summary>'
+    out += '<p>' + esc(audit["inventory_detail"]) + ' <a href="' + esc(audit["inventory"]["source_url"]) + '" target="_blank" rel="noopener noreferrer">SEC submissions index</a>.</p>'
+    out += '<p>' + esc(audit["credit_detail"]) + ' ' + source("renewal_2025", "September 2025 10-Q, Note 7") + '.</p>'
+    return out + '</details>'

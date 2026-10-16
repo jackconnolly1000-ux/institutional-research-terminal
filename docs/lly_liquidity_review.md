@@ -1,6 +1,6 @@
 # Lilly: dated liquidity and repayment review
 
-Reviewed October 15, 2026, using the saved FY2025 10-K, June 2026 10-Q and August 5 earnings exhibit. This is not a complete current SEC filing inventory. The app and Lilly workbook use `samples/lly_liquidity.json`, built by `lly_liquidity.py`; this document records interpretation and remaining gaps.
+Reviewed October 15, 2026, using the saved FY2025 10-K, June 2026 10-Q and August 5 earnings exhibit. The financing inventory was subsequently checked through October 15, 2026; see [the financing audit](lly_financing_audit.md). This remains a selected liability review. The app and Lilly workbook use `samples/lly_liquidity.json`, built by `lly_liquidity.py`; this document records interpretation and remaining gaps.
 
 ## Sources and reproducibility
 
@@ -78,4 +78,4 @@ The 10-Q reports **10,100 unused** at June 30, again 10,000 supporting CP. This 
 
 ## Remaining work
 
-Prioritize finding the facility renewal/agreement and later financing disclosures, then exact principal payment schedules and acquisition closing/payment updates. The saved set has not been compared with a current SEC inventory for this task. June lease liabilities, tax/litigation, collaborations and other contingent/investment obligations remain outside this selected review. Existing company metrics, catalysts and other-company reviews are preserved.
+Prioritize finding the facility renewal/agreement and later financing disclosures, then exact principal payment schedules and acquisition closing/payment updates. The subsequent [financing audit](lly_financing_audit.md) screened the SEC index through October 15, added May issue maturities as initial principal, and found no supported 2026 facility renewal or drawable amount. June lease liabilities, tax/litigation, collaborations and other contingent/investment obligations remain outside this selected review. Existing company metrics, catalysts and other-company reviews are preserved.
