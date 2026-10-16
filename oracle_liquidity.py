@@ -195,6 +195,9 @@ def workbook_bytes(review: dict) -> bytes | None:
     try:
         content = WORKBOOK.read_bytes()
         metadata = json.loads(WORKBOOK.with_suffix(".manifest.json").read_text())
+        import borrowing_leases
+        if metadata.get("borrowing_leases_sha256") != borrowing_leases.fingerprint():
+            return None
         import funding_conclusions as funding
         if metadata.get("funding_sha256") != funding.fingerprint() or funding.load("ORCL") is None:
             return None

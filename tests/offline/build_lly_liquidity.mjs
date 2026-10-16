@@ -1,3 +1,4 @@
+import {addBorrowingLeaseSheet,finishBorrowingLeaseSheet} from './borrowing_lease_sheet.mjs';
 import {documentationLinks} from './workbook_style.mjs';
 import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Build only Lilly's checked review. No network or application dependency is required.
@@ -21,6 +22,7 @@ if(financing.status!=='Checked'||financing.rows.length!==8||financing.initial_pr
 if(!review.cash||!review.notes_schedule||review.disclosures.length!==10)throw new Error('Incomplete Lilly evidence');
 const wb=Workbook.create();
 const funding=addFundingSheet(wb,root,'LLY');
+const borrowingLeases=addBorrowingLeaseSheet(wb,root,'LLY');
 const main=wb.worksheets.add('Debt and liquidity');
 const repayment=wb.worksheets.add('Repayment review');
 const data=wb.worksheets.add('Data'),about=wb.worksheets.add('About');
@@ -326,6 +328,7 @@ if(typeof main.getRange('B8').values[0][0]==='number')throw new Error('Missing c
 cashCell.values=original;wb.recalculate();
 documentationLinks(about);
 const fundingManifest=await finishFundingSheet(wb,root,'LLY',funding);
+Object.assign(fundingManifest,await finishBorrowingLeaseSheet(wb,root,'LLY',borrowingLeases));
 const out=path.join(root,'samples/lly_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(out);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.writeFile(out.replace('.xlsx','.manifest.json'),JSON.stringify({...fundingManifest,sources:{'liquidity_pilots.json':digest(source),'lly_liquidity.json':digest(reviewBytes),'lly_financing.json':digest(financingBytes),'lly_interest.json':digest(interestBytes)},workbook_sha256:digest(await fs.readFile(out))},null,2)+'\n');

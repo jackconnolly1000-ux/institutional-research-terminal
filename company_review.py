@@ -251,25 +251,14 @@ def render(snapshot):
     for key, label in (("ocf_to_debt", "TTM operating cash flow / debt"), ("fcf_to_debt", "TTM free cash flow / debt")):
         output += f'<div><span class="lr-stat-label">{esc(label)}</span><strong>{esc(pct(m[key]))}</strong></div>'
     output += '</div><p class="lr-meta">Historical flows relative to period-end borrowing; these percentages are not repayment forecasts. FCF excludes acquisitions, dividends and other cash uses.</p></section>'
-    output += '<section class="lr-section"><h3>What makes up the borrowing?</h3>'
-    output += f'<div class="lr-meta">At {esc(end)} · amounts in B or M · same 10-Q as the balance sheet</div>'
-    if snapshot["ticker"] == "ORCL":
-        output += '<p class="lr-meta">Notes payable and other borrowings. This 10-Q does not split them by instrument.</p>'
-    short_labels = {
-        "us-gaap:DebtCurrent": "Current borrowing",
-        "us-gaap:LongTermDebtNoncurrent": "Noncurrent borrowing",
-        "us-gaap:NotesPayableCurrent": "Current",
-        "us-gaap:LongTermNotesAndLoans": "Noncurrent",
-        "us-gaap:LongTermDebtAndCapitalLeaseObligationsCurrent": "Long-term debt, current portion",
-        "us-gaap:LongTermDebtAndCapitalLeaseObligations": "Long-term debt, noncurrent",
-    }
-    for fact in m["gross_debt"]["inputs"]:
-        label = short_labels.get(fact["tag"], fact["label"])
-        value = money(fact["value"], 3)
-        if fact["value"] == 0:
-            value = "$0 · reported"
-        output += f'<div class="lr-row"><span>{esc(label)}</span><strong>{esc(value)}</strong></div>'
-    output += '<p class="lr-meta">These are borrowing components, separate from total current liabilities below. Full filing labels and tags are in the evidence.</p>'
+    output += '<section class="lr-section">'
+    import borrowing_leases
+    try:
+        borrowing_model = borrowing_leases.build(snapshot)
+        output += borrowing_leases.render_borrowing(borrowing_model, money)
+    except (OSError, ValueError, KeyError, TypeError):
+        borrowing_model = None
+        output += '<h3>Borrowing and lease presentation unavailable</h3><p>The checked evidence is missing or does not match this review.</p>'
     assets = m["current_ratio"]["inputs"]["current_assets"]
     liabilities = m["current_ratio"]["inputs"]["current_liabilities"]
     if assets["value"] is not None and liabilities["value"] is not None:
@@ -278,6 +267,8 @@ def render(snapshot):
         output += (f'<p>Current assets of {esc(money(assets["value"]))} {direction} current liabilities of '
                    f'{esc(money(liabilities["value"]))} by {esc(money(abs(gap)))}.</p>')
     output += '<p class="lr-meta">Current assets include items other than cash. This comparison does not establish whether specific payments can be met; a maturity schedule and financing terms are still needed.</p></section></div>'
+    if borrowing_model is not None:
+        output += borrowing_leases.render_leases(borrowing_model, money)
     from oracle_liquidity_view import render as oracle_liquidity_html
     output += oracle_liquidity_html(snapshot, money)
     from vistra_liquidity_view import render as vistra_liquidity_html
@@ -293,6 +284,10 @@ def render(snapshot):
     output += maturity_html(snapshot)
     output += '<section class="lr-obligations"><h3>What sits outside baseline borrowing?</h3><p class="lr-meta">Selected disclosures, each shown separately. Commitments are not all payable now and are not added to debt or to each other.</p>'
     for item in NOTES[snapshot["ticker"]]:
+        # The legacy workbook still consumes NOTES; the app shows these in its dedicated lease section.
+        if snapshot["ticker"] == "ORCL" and item["name"] in {
+                "Leases not yet commenced", "Operating lease liabilities", "Finance lease liabilities"}:
+            continue
         output += (f'<article class="lr-obligation"><div><p><strong>{esc(item["name"])}</strong></p>'
                    f'<p>{esc(item["amount"])}</p><div class="lr-meta">As of {esc(item["date"])} · {esc(item["kind"])}</div></div>'
                    f'<div><p>{esc(item["detail"])}</p><a class="lr-meta" href="{esc(source)}" target="_blank" rel="noopener noreferrer">{esc(item["location"])}</a></div></article>')
@@ -573,6 +568,9 @@ def saved_workbook(snapshots, folder=None, ticker=None):
         if snapshots != saved["snapshots"]:
             return None
         if ticker == "LLY":
+            import borrowing_leases
+            if manifest.get("borrowing_leases_sha256") != borrowing_leases.fingerprint():
+                return None
             import funding_conclusions as funding
             if manifest.get("funding_sha256") != funding.fingerprint() or funding.load(ticker, folder) is None:
                 return None

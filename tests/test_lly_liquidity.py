@@ -131,7 +131,7 @@ class LillyReviewTests(unittest.TestCase):
         from openpyxl import load_workbook
         path = ROOT / "samples/lly_liquidity.xlsx"
         values, formulas = load_workbook(path, data_only=True), load_workbook(path, data_only=False)
-        self.assertEqual(values.sheetnames, ["Funding conclusion","Debt and liquidity", "Repayment review", "Data", "About"])
+        self.assertEqual(values.sheetnames, ["Funding conclusion","Borrowing and leases","Debt and liquidity", "Repayment review", "Data", "About"])
         for cell, value in {"B22": 0, "B23": 10_764_000_000, "B24": 12_602_000_000, "B25": 13_291_000_000,
                             "B26": 7_051_000_000, "B48": 2_518_000_000, "B63": 42_842_000_000, "B68": 0}.items():
             self.assertEqual(values["Repayment review"][cell].value, value)

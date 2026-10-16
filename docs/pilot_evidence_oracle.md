@@ -191,3 +191,7 @@ labelled as arithmetic, not forecasts or recurring OCF. August drawable credit, 
 remaining debt payment dates and annual timing of uncommenced leases stay Unavailable. Exact checks,
 source locations and the formula-based Excel download are documented in
 [`oracle_liquidity_reconciliation.md`](oracle_liquidity_reconciliation.md).
+
+## Release 1 borrowing and lease presentation (October 16, 2026)
+
+The app and individual workbook now separate the checked borrowing components, recognized lease liabilities and leases not yet commenced. All amounts keep their own dates; missing latest-date lease amounts remain Unavailable. No borrowing, net-debt or coverage value changes. See [the reconciliation and remaining gaps](borrowing_lease_presentation.md).

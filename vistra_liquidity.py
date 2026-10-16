@@ -214,6 +214,9 @@ def workbook_bytes(review):
     try:
         content=WORKBOOK.read_bytes()
         m=json.loads(WORKBOOK.with_suffix('.manifest.json').read_text())
+        import borrowing_leases
+        if m.get('borrowing_leases_sha256') != borrowing_leases.fingerprint():
+            return None
         import funding_conclusions as funding
         if m.get('funding_sha256') != funding.fingerprint() or funding.load('VST') is None:
             return None

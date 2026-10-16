@@ -127,3 +127,7 @@ The [financing audit](lly_financing_audit.md) compares saved documents to the SE
 ## Historical interest coverage (October 15, 2026)
 
 [Coverage review](lly_interest_coverage.md): 33,633M derived TTM operating income / 1,079M reported interest = 31.17x. Annual expense is explicitly net of capitalized interest; the interim table does not explicitly state its capitalization basis. Operating income is derived from statement operating costs and independently reconciled; it is not a reported Lilly subtotal. No capitalized-interest estimate, adjusted earnings addback, covenant result or future repayment coverage is inferred.
+
+## Release 1 borrowing and lease presentation (October 16, 2026)
+
+The app and individual workbook now separate the checked borrowing components, recognized lease liabilities and leases not yet commenced. All amounts keep their own dates; missing latest-date lease amounts remain Unavailable. No borrowing, net-debt or coverage value changes. See [the reconciliation and remaining gaps](borrowing_lease_presentation.md).
