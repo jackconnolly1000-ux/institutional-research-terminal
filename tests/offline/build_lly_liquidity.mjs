@@ -8,7 +8,11 @@ const root=process.argv[2];
 const source=await fs.readFile(path.join(root,'samples/liquidity_pilots.json'));
 const snapshot=JSON.parse(source).snapshots.find(s=>s.ticker==='LLY');
 if(snapshot.metrics.cash.accession!=='0000059478-26-000081')throw new Error('Lilly disclosure notes require the checked June filing');
+const reviewBytes=await fs.readFile(path.join(root,'samples/lly_liquidity.json'));
+const review=JSON.parse(reviewBytes);
+if(!review.cash||!review.notes_schedule||review.disclosures.length!==10)throw new Error('Incomplete Lilly evidence');
 const wb=Workbook.create(),main=wb.worksheets.add('Debt and liquidity');
+const repayment=wb.worksheets.add('Repayment review');
 const data=wb.worksheets.add('Data'),about=wb.worksheets.add('About');
 const USD='#,##0,,;(#,##0,,);"-"',date=s=>s?new Date(s+'T00:00:00Z'):null;
 const inputs=[],index=new Map();
@@ -55,23 +59,112 @@ const disclosures=[['Pending AtaiBeckley acquisition','Approximately $2.8B','Pot
  ['Venture fund commitments','Approximately $806M','Expected to be paid over up to ten years. Not recognized as borrowing.','10-Q MD&A, p. 31; Note 8']];
 const disclosureHeader=inputs.length+4;
 data.getRange(`A${disclosureHeader}:I${disclosureHeader+2}`).values=[['Disclosure','Amount as disclosed','As of','Form','Filed','Accession','Source','Filing location','Conditions'],
- ...disclosures.map(d=>[d[0],d[1],date('2026-06-30'),'10-Q',date('2026-08-05'),snapshot.metrics.cash.accession,snapshot.source_url,d[3],d[2]])];
+ ...disclosures.map((d,i)=>[d[0],d[1],date(i===0?'2026-08-05':'2026-06-30'),'10-Q',date('2026-08-05'),snapshot.metrics.cash.accession,snapshot.source_url,d[3],d[2]])];
 for(let i=0;i<2;i++){
  const r=disclosureHeader+i+1,n=i+19;
  main.getRange(`A${n}:C${n}`).formulas=[[`='Data'!A${r}`,`='Data'!B${r}`,`='Data'!I${r}`]];
  main.getRange(`A${n}:C${n}`).format.font.color='#008000';
 }
 main.getRange('A23').values=[['Remaining gaps']];
-main.getRange('A24').values=[['June lease liabilities, full maturity review and interest coverage are Unavailable.']];
-main.getRange('A25').values=[['Contingencies, tax, collaboration and investment notes require further review.']];
-main.getRange('A26').values=[['Sources and selection rules are in Data. No later financing findings are loaded in this review.']];
+main.getRange('A24').values=[['June lease liabilities, updated principal maturities and interest coverage are Unavailable.']];
+main.getRange('A25').values=[['See Repayment review for dated cash flows, facilities, acquisitions and manufacturing commitments.']];
+main.getRange('A26').values=[['Sources and selection rules are in Data. Saved August 5 earnings exhibit reviewed; no complete filing inventory claimed.']];
 about.getRange('A1:C6').values=[['Topic','Explanation','Source'],
  ['Scope','Lilly only. Checked snapshot October 14, 2026. Financial statements dated June 30, 2026. Not investment advice.',snapshot.source_url],
  ['Colors','Arial 10. Full USD displayed in millions. Blue reported inputs, green cross-sheet links, black same-sheet calculations. Zero is a dash. Missing inputs are not zero.',null],
  ['Cash generation','Fiscal year + current YTD − prior YTD. Capital spending uses Lilly’s checked other-PP&E tag. FCF excludes acquisitions, dividends and other cash uses.','docs/pilot_cashflow_reconciliation.md'],
  ['Borrowing','Balance-sheet current and noncurrent borrowing are added once. Fair-value table carrying amounts are not added again.','docs/pilot_evidence_lly.md'],
- ['Selected commitments','Descriptions and amount wording retain the June 30 filing basis. They are not added to debt or to each other.',snapshot.source_url]];
-for(const s of [main,data,about]){
+ ['Selected commitments','Descriptions retain their disclosure dates; AtaiBeckley was disclosed after quarter end. They are not added to debt or to each other.',snapshot.source_url]];
+// New review inputs have stable keys and explicit dimensions: same-tag note buckets never collapse.
+const auditHeader=disclosureHeader+5,auditRows=new Map();
+const records=[...Object.entries(review.inputs),...review.disclosures.map(f=>[f.key,f])];
+data.getRange(`A${auditHeader}:R${auditHeader+records.length}`).values=[
+ ['Review input key','USD millions','Label','Period start','Date / disclosure basis','Form','Filed','Accession','Tag','Context','Scale','Decimals','Source','Filing location','Source kind','Dimensions','Limitations','Reviewed source SHA256'],
+ ...records.map(([key,f],i)=>{auditRows.set(key,auditHeader+i+1);return [key,f.value,f.label,date(f.period_start),/^\d{4}-\d{2}-\d{2}$/.test(f.period_end)?date(f.period_end):f.period_end,f.form,date(f.filed),f.accession,f.tag,f.context_id,f.scale,f.decimals,f.source_url,f.location,f.source_kind,JSON.stringify(f.dimensions),f.detail||'',f.sha256];})];
+function ref(key){const cell=`'Data'!B${auditRows.get(key)}`;return `IF(ISNUMBER(${cell}),${cell},NA())`;}
+repayment.getRange('A2').values=[['Lilly — dated liquidity and repayment review']];
+repayment.getRange('A3').values=[['Saved filings reviewed October 15, 2026. Cash flows: January–June 2026. USD millions.']];
+repayment.getRange('A4').values=[['H1 cash generation after PP&E was positive; acquisitions and payouts competed for it. Net borrowing contributed to cash growth. Future funding coverage: Unavailable.']];
+repayment.getRange('A4:D4').merge();
+repayment.getRange('A6:D6').values=[['Half-year cash build','USD millions','Period / basis','Interpretation']];
+const cashRows=[
+ ['Opening cash',ref('opening'),'December 31, 2025','Excludes restricted cash. Not an additional half-year flow.'],
+ ['Operating cash flow',ref('ocf'),'January–June 2026','Historical; includes working capital. Future recurrence not established.'],
+ ['Cash PP&E spending','-'+ref('capex'),'January–June 2026','Cash use, not a forecast of manufacturing investment.'],
+ ['Cash acquisitions, net of cash acquired','-'+ref('acquisitions'),'January–June 2026','Not added again to the approximately $13.3B business-development disclosure.'],
+ ['Purchased in-process R&D','-'+ref('iprd'),'January–June 2026','Separate cash use; not all acquisition-related expense is cash.'],
+ ['Cash dividends','-'+ref('dividends'),'January–June 2026','Competes with repayments for cash.'],
+ ['Share repurchases','-'+ref('buybacks'),'January–June 2026','Historical spending; no future pace assumed.'],
+ ['Short-term borrowing, net',ref('short_debt'),'January–June 2026','Financing inflow, not recurring operating generation.'],
+ ['Long-term debt proceeds, net',ref('long_proceeds'),'January–June 2026','May $9B issue is already included here; net cash differs from face amount.'],
+ ['Long-term debt repaid','-'+ref('long_repayments'),'January–June 2026','Already paid; not a future maturity schedule.'],
+ ['Other investing and financing','-'+ref('investments')+'-'+ref('other_investing')+'+'+ref('other_financing'),'January–June 2026','Investment purchases, other investing and other financing.'],
+ ['Exchange-rate effect',ref('fx'),'January–June 2026','Reconciles the cash balance.'],
+ ['Calculated cash change','SUM(B8:B18)','January–June 2026','All signed flows counted once.'],
+ ['Calculated closing cash','B7+B19','June 30, 2026','Opening cash plus change.'],
+ ['Reported closing cash',ref('closing'),'June 30, 2026','Not a current cash balance after subsequent payments.'],
+ ['Cash reconciliation difference','B20-B21','Zero = reconciled','No cash forecast or unrestricted-funding total.'],
+ ['OCF less cash PP&E spending','B8+B9','Historical H1 only','Excludes acquisitions, payouts and other cash uses.'],
+ ['Net borrowing cash flow','SUM(B14:B16)','Historical H1 only','Borrowing contributed to closing cash.'],
+ ['Acquisitions + purchased IPR&D','-SUM(B10:B11)','Historical H1 only','Approximately $13.3B, already spent.'],
+ ['Dividends + buybacks','-SUM(B12:B13)','Historical H1 only','Not automatically recurring future obligations.'],
+ ];
+for(const [i,[label,formula,period,note]] of cashRows.entries()){
+ const n=i+7;repayment.getRange(`A${n}:D${n}`).values=[[label,null,period,note]];
+ repayment.getRange(`B${n}`).formulas=[['='+formula]];
+ repayment.getRange(`B${n}`).format.font.color=formula.includes("'Data'!")?'#008000':'#000000';
+}
+repayment.getRange('F27:G33').values=[['H1 cash contribution','USD millions'],
+ ['Operating cash flow',null],['Cash PP&E spending',null],['Acquisitions + purchased IPR&D',null],
+ ['Dividends + buybacks',null],['Net borrowing',null],['Other cash flows including FX',null]];
+for(const [i,formula] of ['=B8','=B9','=-B25','=-B26','=B24','=B17+B18'].entries())repayment.getRange(`G${i+28}`).formulas=[[formula]];
+const chart=repayment.charts.add('bar',repayment.getRange('F27:G33'));
+chart.title='What added to or used cash? January–June 2026';chart.titleTextStyle.typeface='Arial';chart.titleTextStyle.fontSize=12;chart.hasLegend=false;
+chart.xAxis={axisType:'textAxis',tickLabelPosition:'low',textStyle:{typeface:'Arial',fontSize:10},majorGridlines:null};
+chart.yAxis={numberFormatCode:'#,##0,,',numberFormatSourceLinked:false,textStyle:{typeface:'Arial',fontSize:10}};
+chart.yAxis.title.text='USD millions (negative = cash used)';chart.series.items[0].fill='#737985';chart.setPosition('F6','P24');
+repayment.getRange('A29:D29').values=[['Credit capacity, dates kept separate','USD millions','Date / expiry','Availability limitation']];
+const facilities=[['unused_june','June 30, 2026','Reported unused, not cash or verified drawable. $10B supports CP and is not added again.'],
+ ['facility_2026','August 2026 expiry','Annual terms: 364-day facility. Exact expiry day and renewal Unavailable; do not carry June capacity past expiry.'],
+ ['facility_2029','December 2029 expiry','Annual terms only. Exact day, June facility composition, contract conditions and current draws Unavailable.']];
+for(const [i,[key,period,detail]] of facilities.entries()){
+ const n=i+30,f=review.inputs[key]||review.disclosures.find(f=>f.key===key);
+ repayment.getRange(`A${n}:D${n}`).values=[[f.label,null,period,detail]];
+ repayment.getRange(`B${n}`).formulas=[['='+ref(key)]];repayment.getRange(`B${n}`).format.font.color='#008000';
+}
+repayment.getRange('A34:D35').values=[['Drawable credit','Unavailable','No saved credit agreement','Draw conditions, covenants, permitted uses and post-August renewal not established. Cash + commitments is not a verified funding total.'],
+ ['December unused capacity',null,'December 31, 2025','Annual unused total is $10.1B, primarily the $6B and $4B facilities. The residual $0.1B is not separately described.']];
+repayment.getRange('B35').formulas=[['='+ref('annual_unused')]];repayment.getRange('B35').format.font.color='#008000';
+repayment.getRange('A38:D38').values=[['Acquisitions / manufacturing','USD millions','Date and classification','Timing, overlap and funding limitation']];
+const obligations=review.disclosures.filter(f=>!['unused_june','cp_support'].includes(f.key));
+for(const [i,f] of obligations.entries()){
+ const n=i+39;repayment.getRange(`A${n}:D${n}`).values=[[f.label,null,f.period_end+' · '+f.kind,f.detail]];
+ repayment.getRange(`B${n}`).formulas=[['='+ref(f.key)]];repayment.getRange(`B${n}`).format.font.color='#008000';
+}
+repayment.getRange('A48:D50').values=[['Contingent consideration fair value',null,'June 30, 2026','Current $814M + noncurrent $1,704M. Valuation, not dated payment or contractual maximum. Not added to acquisition amounts above.'],
+ ['Future funding coverage','Unavailable','Each future obligation','Future principal dates, future cash generation, payment dates and drawable credit not all established. No coverage ratio calculated.'],
+ ['Scope','Saved filings only','10-K; 10-Q; Aug 5 Ex. 99.1','Not a complete SEC filing inventory. No combined total of commitments, milestones, capex plans or debt.']];
+repayment.getRange('B48').formulas=[['='+ref('contingent_current')+'+'+ref('contingent_noncurrent')]];repayment.getRange('B48').format.font.color='#008000';
+repayment.getRange('A53:D53').values=[['Notes grouped by due year','USD millions','Basis date','Interpretation']];
+const noteKeys=Object.keys(review.inputs).filter(k=>k.startsWith('notes_'));
+for(const [i,key] of noteKeys.entries()){
+ const n=i+54;repayment.getRange(`A${n}:D${n}`).values=[[review.inputs[key].label,null,'December 31, 2025','Historical carrying amount; not principal cash payments. Multi-year groups are combined.']];
+ repayment.getRange(`B${n}`).formulas=[['='+ref(key)]];repayment.getRange(`B${n}`).format.font.color='#008000';
+}
+for(const [n,label,formula,note] of [[63,'Total notes','SUM(B54:B62)','Carrying amount; not payment total.'],
+ [64,'Other debt and adjustments','-'+ref('adjustment'),'Printed as (339). Tagged +339 source magnitude; presentation coefficient −1.'],
+ [65,'Commercial paper',ref('annual_cp'),'Reported zero at December 31, 2025.'],
+ [66,'Calculated total debt','SUM(B63:B65)','Same annual filing; no roll-forward to June.'],
+ [67,'Reported total debt',ref('annual_total'),'Reconciles to annual balance sheet.'],
+ [68,'Debt reconciliation difference','B66-B67','Zero = reconciled.']]){
+ repayment.getRange(`A${n}:D${n}`).values=[[label,null,'December 31, 2025',note]];
+ repayment.getRange(`B${n}`).formulas=[['='+formula]];repayment.getRange(`B${n}`).format.font.color=formula.includes("'Data'!")?'#008000':'#000000';
+}
+repayment.getRange('A70:D71').values=[['June 30 principal schedule','Unavailable','Updated payment dates missing','Do not allocate May issuance or H1 repayments to annual buckets. Current borrowing $7.050B is not an instrument-level schedule.'],
+ ['Repayment conclusion',null,'Coverage Unavailable','H1 cash generation after PP&E was positive; acquisitions and payouts competed for cash. Net borrowing contributed materially. Updated debt dates, draw terms/renewal and payment calendars are needed.']];
+about.getRange('A7:C8').values=[['Dated review','Repayment review uses exact H1 cash flows and historical annual carrying-debt buckets. Future coverage remains Unavailable. Text disclosures are identified separately; source hashes and dimensions are in Data.','docs/lly_liquidity_review.md'],
+ ['Post-quarter events','July acquisition cash is separate from June cash. The July $3.9B ceiling includes upfront cash. August $4.5B manufacturing announcement has no dated cash schedule. No overlap total inferred.',review.sources.release.source_url]];
+for(const s of [main,repayment,data,about]){
  s.showGridLines=false;const u=s.getUsedRange();u.format.font.name='Arial';u.format.font.size=10;
  u.format.verticalAlignment='top';u.format.rowHeight=30;u.format.wrapText=true;
 }
@@ -93,7 +186,35 @@ data.getRange(`A${disclosureHeader}:I${disclosureHeader+2}`).format.rowHeight=80
 for(const col of ['C','E'])data.getRange(`${col}${disclosureHeader+1}:${col}${disclosureHeader+2}`).setNumberFormat('mmm d, yyyy');
 about.getRange('A1:A6').format.columnWidth=28;about.getRange('B1:B6').format.columnWidth=100;about.getRange('C1:C6').format.columnWidth=75;
 about.getUsedRange().format.rowHeight=70;about.getRange('A1:C1').format.rowHeight=30;frame(about,'A1:C6');header(about,'A1:C1');
+// Apply the existing restrained borders and input/formula colors to the new blocks.
+repayment.getRange('A2').format.font.size=14;repayment.getRange('A2').format.font.bold=true;
+repayment.getRange('A3').format.wrapText=false;repayment.getRange('A4:D4').format.rowHeight=43;
+for(const [col,width] of [['A',46],['B',23],['C',34],['D',99]])repayment.getRange(`${col}1:${col}71`).format.columnWidth=width;
+repayment.getRange('E1:E71').format.columnWidth=3;
+repayment.getRange('F1:P71').format.columnWidth=11;
+for(const a of ['A6:D26','A29:D35','A38:D46','A48:D50','A53:D68','A70:D71'])frame(repayment,a);
+for(const a of ['A6:D6','A29:D29','A38:D38','A53:D53'])header(repayment,a);
+for(const n of [19,20,22,23,24,25,26,63,66,68])subtotal(repayment,`A${n}:D${n}`);
+repayment.getRange('B7:B68').setNumberFormat(USD);repayment.getRange('G28:G33').setNumberFormat(USD);
+repayment.getRange('A7:D26').format.rowHeight=43;
+repayment.getRange('A30:D35').format.rowHeight=70;
+repayment.getRange('A39:D46').format.rowHeight=96;
+repayment.getRange('A48:D50').format.rowHeight=68;
+repayment.getRange('A54:D68').format.rowHeight=43;
+repayment.getRange('A70:D71').format.rowHeight=80;
+repayment.freezePanes.freezeRows(6);
+frame(data,`A${auditHeader}:R${auditHeader+records.length}`);header(data,`A${auditHeader}:R${auditHeader}`);
+data.getRange(`A${auditHeader}:R${auditHeader+records.length}`).format.rowHeight=85;
+data.getRange(`B${auditHeader+1}:B${auditHeader+records.length}`).format.font.color='#0000FF';
+data.getRange(`B${auditHeader+1}:B${auditHeader+records.length}`).setNumberFormat(USD);
+for(const col of ['D','E','G'])data.getRange(`${col}${auditHeader+1}:${col}${auditHeader+records.length}`).setNumberFormat('mmm d, yyyy');
+for(const [col,width] of [['I',68],['P',85],['Q',100],['R',72]])data.getRange(`${col}1:${col}${auditHeader+records.length}`).format.columnWidth=width;
+about.getRange('A7:C8').format.rowHeight=95;frame(about,'A1:C8');
 wb.recalculate();
+for(const [cell,expected] of [['B22',0],['B23',review.cash.ocf_less_capex],['B24',review.cash.net_borrowing],['B25',review.cash.acquisitions_iprd],['B26',review.cash.payouts],['B48',2518000000],['B63',review.notes_schedule.total_notes],['B68',0]])if(repayment.getRange(cell).values[0][0]!==expected)throw new Error('Review formula mismatch '+cell);
+const testCell=data.getRange(`B${auditRows.get('ocf')}`),saved=testCell.values;testCell.values=[[null]];wb.recalculate();
+if(typeof repayment.getRange('B23').values[0][0]==='number')throw new Error('Missing OCF became zero');testCell.values=saved;wb.recalculate();
+console.log((await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A|#NUM!',options:{useRegex:true,maxResults:20},summary:'Final formula scan'})).ndjson);
 for(const [i,key] of order.entries())if(main.getRange(`B${i+6}`).values[0][0]!==m[key].value)throw new Error('LLY value mismatch '+key);
 // A missing source must remain unavailable, including in linked calculations.
 const cashCell=data.getRange('B2'),original=cashCell.values;cashCell.values=[[null]];wb.recalculate();
@@ -101,8 +222,8 @@ if(typeof main.getRange('B8').values[0][0]==='number')throw new Error('Missing c
 cashCell.values=original;wb.recalculate();
 const out=path.join(root,'samples/lly_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(out);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
-await fs.writeFile(out.replace('.xlsx','.manifest.json'),JSON.stringify({sources:{'liquidity_pilots.json':digest(source)},workbook_sha256:digest(await fs.readFile(out))},null,2)+'\n');
-for(const [sheet,range,file] of [['Debt and liquidity','A2:D14','review'],['Debt and liquidity','A17:D26','obligations'],['Data','A1:G6','inputs'],['Data','H1:O6','provenance'],['Data',`A${disclosureHeader}:I${disclosureHeader+2}`,'disclosures'],['About','A1:C6','about']]){
+await fs.writeFile(out.replace('.xlsx','.manifest.json'),JSON.stringify({sources:{'liquidity_pilots.json':digest(source),'lly_liquidity.json':digest(reviewBytes)},workbook_sha256:digest(await fs.readFile(out))},null,2)+'\n');
+for(const [sheet,range,file] of [['Debt and liquidity','A2:D14','review'],['Debt and liquidity','A17:D26','obligations'],['Data','A1:G6','inputs'],['Data','H1:O6','provenance'],['Data',`A${disclosureHeader}:I${disclosureHeader+2}`,'disclosures'],['About','A1:C8','about'],['Repayment review','A2:D26','cash-build'],['Repayment review','F6:P24','cash-chart'],['Repayment review','A29:D35','facilities'],['Repayment review','A38:D50','commitments'],['Repayment review','A53:D71','notes'],['Data',`A${auditHeader}:H${auditHeader+6}`,'review-inputs'],['Data',`I${auditHeader}:L${auditHeader+6}`,'review-contexts'],['Data',`M${auditHeader}:R${auditHeader+6}`,'review-provenance']]){
  const img=await wb.render({sheetName:sheet,range,scale:1.1,format:'png'});await fs.writeFile(`lly-${file}.png`,new Uint8Array(await img.arrayBuffer()));
 }
 await fs.rm(out+'.inspect.ndjson',{force:true});

@@ -2,7 +2,7 @@
 
 Evidence for the first debt and liquidity pilot (see `debt_liquidity_plan.md`): filing values with sources and checks, hand calculations labeled as such, and open gaps. Checked values are the pilot's expected answers; Unavailable items and open gaps are not. Checked Oct 14, 2026. The saved debt and liquidity pilot uses the checked cash, borrowing and current-position values; other sections retain their own status.
 
-**How it was checked:** each amount was read from the filing's HTML text (row label and column) and matched to the inline XBRL fact on that row, then compared with SEC companyfacts. Page numbers are the filing's printed page footers. Any value marked "provisional" has not been checked against the filed table and is not an acceptance value (none at present). Raw downloads are kept outside the repo in `Stock Project/data/raw/` (companyfacts and submissions in `xbrl/`, filings in `sec/LLY/`).
+**How it was checked:** each amount was read from the filing's HTML text (row label and column) and matched to the inline XBRL fact on that row, then compared with SEC companyfacts. Page numbers are the filing's printed page footers. Any value marked "provisional" has not been checked against the filed table and is not an acceptance value (none at present). Raw downloads are retained outside the public repository; the workbook records SEC document URLs and accessions.
 
 **Rounding rule:** a tagged value is compared with a printed figure after rounding the tagged value to the printed figure's precision, half away from zero. Example: companyfacts' $492.7 million rounds to $493 million, which matches the $493 million printed in a table "in millions".
 
@@ -93,7 +93,7 @@ None of these is added to debt, lease liabilities or any ratio. Which ones count
 | Item | Amount as disclosed | Reporting date | Location | Status |
 |---|---|---|---|---|
 | Contract manufacturing and supply agreements for medicines in development: payments if specified purchase amounts are not met, over terms generally up to 8 years | "up to approximately $10 billion" | 2025-12-31 | 10-K MD&A, liquidity and capital resources, p. 51 | Future, conditional commitment; not recognized as a liability. Not updated in the 10-Q, which refers back to the 10-K. |
-| Pending acquisition of AtaiBeckley Inc., subject to closing conditions | "approximately $2.8 billion" payable at closing | 2026-06-30 | 10-Q MD&A, Financial Condition and Liquidity, p. 31 | Future commitment; not recognized |
+| Pending acquisition of AtaiBeckley Inc., subject to closing conditions | "approximately $2.8 billion" payable at closing | Disclosed 2026-08-05, after quarter end | 10-Q MD&A, Financial Condition and Liquidity, p. 31 | Future commitment; not recognized |
 | Unfunded commitments to invest in venture capital funds, paid over up to 10 years | "approximately $806 million" ($902 million at 2025-12-31, 10-K p. 51) | 2026-06-30 | 10-Q MD&A, p. 31; Note 8 | Future commitment; not recognized |
 | Contingent consideration from business combinations | $814 million current + $1,704 million noncurrent | 2026-06-30 | 10-Q Note 8: Financial Instruments, p. 17 (tags `BusinessCombinationContingentConsiderationLiabilityCurrent` / `Noncurrent`) | Recognized liability, within other current and other noncurrent liabilities; not borrowing |
 | Development milestone and royalty payments under collaboration and R&D arrangements | No aggregate amount stated | 2025-12-31 | 10-K MD&A, off-balance sheet discussion, pp. 52-53; Note 3 referenced | Conditional on future events; not recognized. The 10-K says they are generally not material individually in a year. |
@@ -112,3 +112,8 @@ Related, not commitments: in July 2026, after the balance sheet, Lilly paid abou
 ## Saved company review: cash generation
 
 The frozen app review now shows checked TTM operating cash flow, reported capital spending, FCF and flow/debt ratios. Full reconciliation, exact source periods, tag definitions and caveats: [pilot_cashflow_reconciliation.md](pilot_cashflow_reconciliation.md). The selected obligations note is incomplete and does not add commitments or lease liabilities to baseline borrowing. Existing open gaps remain open.
+
+
+## Dated funding review (October 15, 2026)
+
+Implemented in `lly_liquidity.py`, the app and Lilly-only Excel. See [the dated review](lly_liquidity_review.md) for H1 cash reconciliation, historical carrying amounts by due year, facilities, unpaid and subsequent acquisitions, contingent-consideration valuation, and manufacturing commitments. This adds a selected Note 4/Note 8 review; it does not close all contingency/investment gaps. The updated June principal schedule, drawable facilities/renewal and detailed payment calendars remain Unavailable.

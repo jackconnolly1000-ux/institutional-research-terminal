@@ -122,3 +122,8 @@ Later phases (not in the first release): debt maturities, financing terms, coven
 4. **Unsupported filers:** how the app detects banks, non-USD and non-U.S. GAAP filers.
 5. **Order of work:** where this project sits relative to the course features in `CLAUDE.md`.
 6. **Public README:** when to mention this work in `README.md`. Not until something is built.
+
+
+### Lilly dated review (October 15, 2026)
+
+`lly_liquidity.py` and `samples/lly_liquidity.json` supply the app and Lilly workbook with reconciled H1 cash sources/uses, annual due-year carrying balances, dated unused facilities, selected acquisition payments and manufacturing commitments. See `docs/lly_liquidity_review.md`. Updated June principal, drawable facilities and future payment coverage remain Unavailable. Other reviews and catalysts are preserved.
