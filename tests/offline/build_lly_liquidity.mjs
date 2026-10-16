@@ -12,6 +12,9 @@ const reviewBytes=await fs.readFile(path.join(root,'samples/lly_liquidity.json')
 const review=JSON.parse(reviewBytes);
 const financingBytes=await fs.readFile(path.join(root,'samples/lly_financing.json'));
 const financing=JSON.parse(financingBytes);
+const interestBytes=await fs.readFile(path.join(root,'samples/lly_interest.json'));
+const interestReview=JSON.parse(interestBytes),ic=interestReview.calculation;
+if(ic.value===null||ic.detail)throw new Error('Incomplete interest coverage');
 if(financing.status!=='Checked'||financing.rows.length!==8||financing.initial_principal_total!==financing.reported_issue_total)throw new Error('Incomplete financing audit');
 if(!review.cash||!review.notes_schedule||review.disclosures.length!==10)throw new Error('Incomplete Lilly evidence');
 const wb=Workbook.create(),main=wb.worksheets.add('Debt and liquidity');
@@ -69,7 +72,7 @@ for(let i=0;i<2;i++){
  main.getRange(`A${n}:C${n}`).format.font.color='#008000';
 }
 main.getRange('A23').values=[['Remaining gaps']];
-main.getRange('A24').values=[['June lease liabilities, updated principal maturities and interest coverage are Unavailable.']];
+main.getRange('A24').values=[['June lease liabilities and a complete updated principal schedule are Unavailable. Historical interest coverage is built below.']];
 main.getRange('A25').values=[['See Repayment review for dated cash flows, facilities, acquisitions and manufacturing commitments.']];
 main.getRange('A26').values=[['Financing index checked through October 15, 2026. See Repayment review for May terms; all sources and limits are in Data.']];
 about.getRange('A1:C6').values=[['Topic','Explanation','Source'],
@@ -89,6 +92,7 @@ const contractRecord=(r)=>{
 };
 const issueSource=financing.sources.offering;
 const records=[...Object.entries(review.inputs),...review.disclosures.map(f=>[f.key,f]),
+ ...Object.entries(interestReview.inputs).map(([key,f])=>['coverage_'+key,{...f,sha256:f.source_sha256,source_kind:'Inline XBRL',detail:f.selection_rule}]),
  ...financing.rows.map(r=>[r.key,contractRecord(r)]),
  ['may_issue_control',{value:financing.reported_issue_total,label:'Reported completed May issue, initial principal',period_start:null,period_end:'2026-05-20',form:issueSource.form,filed:issueSource.filed,accession:issueSource.accession,tag:null,context_id:null,scale:null,decimals:null,source_url:issueSource.url,location:'Item 8.01, completed offering',source_kind:'Reviewed filing text',dimensions:[],sha256:issueSource.sha256,detail:'Initial issue principal, not net cash proceeds, current outstanding debt or unused financing.'}]];
 data.getRange(`A${auditHeader}:R${auditHeader+records.length}`).values=[
@@ -201,16 +205,46 @@ for(const [n,key] of [[91,'coupon_conflict'],[92,'redemption_detail'],[93,'inven
 }
 about.getRange('A9:C10').values=[['Financing inventory','SEC index screened through October 15, 2026. May offering terms added as initial principal; full June debt schedule and drawable capacity remain Unavailable.',financing.inventory.source_url],
  ['Contract evidence','Series rates and maturities come from the final prospectus and certificates, corroborated by the completed offering. An 8-K coupon conflict is flagged; the corroborated 2029 fixed rate is 4.150%.','docs/lly_financing_audit.md']];
+main.getRange('A15:D15').values=[['Historical interest coverage',null,date(interestReview.period_end),'Derived operating income / reported interest expense. Annual net of capitalized interest; interim capitalization basis not explicitly stated.']];
+main.getRange('B15').formulas=[['=B50']];main.getRange('B15').format.font.color='#000000';main.getRange('B15').setNumberFormat('0.00"x"');main.getRange('C15').setNumberFormat('mmm d, yyyy');
+main.getRange('A30').values=[['Historical operating-income interest coverage']];
+main.getRange('A31:D31').merge();main.getRange('A31').values=[['TTM July 1, 2025–June 30, 2026. Derived operating income / reported interest expense on borrowings. USD millions unless ratio.']];
+main.getRange('A33:D33').values=[['Calculation component','FY2025','+ H1 2026','− H1 2025']];
+const operatingLines=[['revenue','Revenue'],['cost_sales','Cost of sales'],['rd','R&D'],['sga','SG&A'],['iprd','Acquired IPR&D, expense'],['special','Impairment, restructuring and special charges']];
+for(const [col,role] of [['B','fy'],['C','current'],['D','prior']]){
+ for(const [i,[key,label]] of operatingLines.entries()){
+  const row=i+34;main.getRange(`A${row}`).values=[[label]];
+  main.getRange(`${col}${row}`).formulas=[['='+ref('coverage_'+role+'_'+key)]];main.getRange(`${col}${row}`).format.font.color='#008000';
+ }
+ main.getRange(`${col}40`).formulas=[[`=${col}34-SUM(${col}35:${col}39)`]];
+ main.getRange(`${col}41`).formulas=[['='+ref('coverage_'+role+'_pretax')]];
+ main.getRange(`${col}42`).formulas=[['='+ref('coverage_'+role+'_other_income')]];
+ main.getRange(`${col}43`).formulas=[[`=${col}41-${col}42`]];
+ main.getRange(`${col}44`).formulas=[[`=${col}40-${col}43`]];
+ main.getRange(`${col}46`).formulas=[['='+ref('coverage_'+role+'_interest')]];
+ for(const row of [41,42,46])main.getRange(`${col}${row}`).format.font.color='#008000';
+}
+for(const [row,label] of [[40,'Derived operating income'],[41,'Pretax income, reported'],[42,'Nonoperating income (expense), tagged sign'],[43,'Control: pretax − tagged nonoperating'],[44,'Reconciliation difference, zero = matched'],[46,'Reported interest expense on borrowings']])main.getRange(`A${row}`).values=[[label]];
+main.getRange('A48:D50').values=[['TTM derived operating income',null,'FY + current H1 − prior H1','Acquired IPR&D and special charges are retained; no adjusted earnings addbacks.'],
+ ['TTM reported interest expense',null,'FY + current H1 − prior H1','Annual 895 + H1 2026 677 − H1 2025 493. No capitalized-interest adjustment or interest-income offset.'],
+ ['Historical interest coverage',null,'Operating income / interest','Accrual earnings measure. Not cash interest coverage, covenant headroom, drawable credit or a repayment forecast.']];
+main.getRange('B48').formulas=[['=B40+C40-D40']];main.getRange('B49').formulas=[['=B46+C46-D46']];
+main.getRange('B50').formulas=[['=IF(AND(B44=0,C44=0,D44=0,B49>0),B48/B49,NA())']];
+for(const [row,text] of [[52,interestReview.basis],[53,interestReview.limitations],[54,'Operating income is derived, not a reported subtotal. Statement-table selection excludes rounded MD&A repeats. Other–net XBRL values are positive income / negative expense; the control preserves and subtracts that sign.'],[55,'Interest uses the exact six-month single-segment contexts in the quarterly filing; three-month amounts are not added. Source tags, dates, dimensions and selection rules are in Data.']]){
+ main.getRange(`A${row}:D${row}`).merge();main.getRange(`A${row}`).values=[[text]];
+}
+about.getRange('A11:C12').values=[['Historical interest coverage','Derived TTM operating income / reported interest expense. FY + current H1 − prior H1; each operating-income period reconciles to pretax less tagged nonoperating income (expense).','docs/lly_interest_coverage.md'],
+ ['Capitalization basis',interestReview.basis,'FY2025 10-K Note 11 p. 77; June 10-Q Note 11 p. 23']];
 for(const s of [main,repayment,data,about]){
  s.showGridLines=false;const u=s.getUsedRange();u.format.font.name='Arial';u.format.font.size=10;
  u.format.verticalAlignment='top';u.format.rowHeight=30;u.format.wrapText=true;
 }
 main.getRange('A2').format.font.bold=true;main.getRange('A2').format.font.size=14;
 for(const [col,width] of [['A',42],['B',29],['C',26],['D',73]])main.getRange(`${col}1:${col}26`).format.columnWidth=width;
-main.getRange('A6:D14').format.rowHeight=46;main.getRange('A19:C20').format.rowHeight=62;
+main.getRange('A6:D15').format.rowHeight=46;main.getRange('A19:C20').format.rowHeight=62;
 for(let n=6;n<=14;n++)main.getRange(`A${n}:D${n}`).format.rowHeight=Math.max(46,Math.ceil(String(main.getRange(`D${n}`).values[0][0]).length/73)*14+12);
 main.getRange('A3').format.wrapText=false;main.getRange('A24:A26').format.wrapText=false;
-for(const a of ['A5:D14','A18:C20'])frame(main,a);
+for(const a of ['A5:D15','A18:C20'])frame(main,a);
 header(main,'A5:D5');header(main,'A18:C18');
 for(const n of [7,8,12])subtotal(main,`A${n}:D${n}`);
 main.getRange('D6:D14').format.font.bold=false;
@@ -259,7 +293,20 @@ data.getRange(`S${auditHeader+1}:T${auditHeader+records.length}`).setNumberForma
 data.getRange(`S${auditHeader+1}:T${auditHeader+records.length}`).format.font.color='#0000FF';
 frame(data,`S${auditHeader}:T${auditHeader+records.length}`);header(data,`S${auditHeader}:T${auditHeader}`);
 about.getRange('A9:C10').format.rowHeight=85;frame(about,'A1:C10');
+main.getRange('A30').format.font.bold=true;main.getRange('A30').format.font.size=13;
+main.getRange('A31:D31').format.rowHeight=36;main.getRange('A33:D50').format.rowHeight=44;
+main.getRange('B34:D49').setNumberFormat(USD);main.getRange('B50').setNumberFormat('0.00"x"');
+for(const a of ['A33:D44','A46:D46','A48:D50'])frame(main,a);header(main,'A33:D33');
+for(const n of [40,44,48,49,50])subtotal(main,`A${n}:D${n}`);
+main.getRange('A52:D55').format.rowHeight=65;main.getRange('A15:D15').format.rowHeight=65;
+about.getRange('A11:C12').format.rowHeight=100;frame(about,'A1:C12');
 wb.recalculate();
+for(const [cell,value] of [['B40',ic.periods.fy.operating_income],['C40',ic.periods.current.operating_income],['D40',ic.periods.prior.operating_income],['B44',0],['C44',0],['D44',0],['B48',ic.operating_income],['B49',ic.interest],['B50',ic.value],['B15',ic.value]])if(main.getRange(cell).values[0][0]!==value)throw new Error('Coverage reconciliation failed '+cell);
+const interestCells=['fy','current','prior'].map(role=>data.getRange(`B${auditRows.get('coverage_'+role+'_interest')}`)),savedInterest=interestCells.map(cell=>cell.values);
+interestCells[0].values=[[null]];wb.recalculate();if(typeof main.getRange('B50').values[0][0]==='number')throw new Error('Missing interest became a ratio');
+for(const cell of interestCells)cell.values=[[0]];wb.recalculate();if(typeof main.getRange('B50').values[0][0]==='number')throw new Error('Zero interest became a ratio');
+interestCells.forEach((cell,i)=>cell.values=savedInterest[i]);wb.recalculate();
+const revenueCheck=data.getRange(`B${auditRows.get('coverage_fy_revenue')}`),savedRevenue=revenueCheck.values;revenueCheck.values=[[savedRevenue[0][0]+1000000]];wb.recalculate();if(typeof main.getRange('B50').values[0][0]==='number')throw new Error('Unreconciled operating income became coverage');revenueCheck.values=savedRevenue;wb.recalculate();
 if(repayment.getRange('B85').values[0][0]!==financing.reported_issue_total||repayment.getRange('B87').values[0][0]!==0)throw new Error('May issue does not reconcile');
 if(repayment.getRange('D79').values[0][0]!==0.0415||repayment.getRange('D77').values[0][0]!=='Compounded SOFR + 0.350%')throw new Error('Contract rates do not match');
 const firstPrincipal=data.getRange(`B${auditRows.get('may_notes_0')}`),savedPrincipal=firstPrincipal.values;
@@ -275,8 +322,8 @@ if(typeof main.getRange('B8').values[0][0]==='number')throw new Error('Missing c
 cashCell.values=original;wb.recalculate();
 const out=path.join(root,'samples/lly_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(out);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
-await fs.writeFile(out.replace('.xlsx','.manifest.json'),JSON.stringify({sources:{'liquidity_pilots.json':digest(source),'lly_liquidity.json':digest(reviewBytes),'lly_financing.json':digest(financingBytes)},workbook_sha256:digest(await fs.readFile(out))},null,2)+'\n');
-for(const [sheet,range,file] of [['Debt and liquidity','A2:D14','review'],['Debt and liquidity','A17:D26','obligations'],['Data','A1:G6','inputs'],['Data','H1:O6','provenance'],['Data',`A${disclosureHeader}:I${disclosureHeader+2}`,'disclosures'],['About','A1:C10','about'],['Repayment review','A2:D26','cash-build'],['Repayment review','F6:P24','cash-chart'],['Repayment review','A29:D35','facilities'],['Repayment review','A38:D50','commitments'],['Repayment review','A53:D71','notes'],['Data',`A${auditHeader}:H${auditHeader+6}`,'review-inputs'],['Data',`I${auditHeader}:L${auditHeader+6}`,'review-contexts'],['Data',`M${auditHeader}:R${auditHeader+6}`,'review-provenance'],['Repayment review','A74:D89','may-maturities'],['Repayment review','A91:D96','financing-limits'],['Data',`A${auditRows.get('may_notes_0')}:H${auditRows.get('may_issue_control')}`,'contract-inputs'],['Data',`M${auditRows.get('may_notes_0')}:T${auditRows.get('may_issue_control')}`,'contract-provenance']]){
+await fs.writeFile(out.replace('.xlsx','.manifest.json'),JSON.stringify({sources:{'liquidity_pilots.json':digest(source),'lly_liquidity.json':digest(reviewBytes),'lly_financing.json':digest(financingBytes),'lly_interest.json':digest(interestBytes)},workbook_sha256:digest(await fs.readFile(out))},null,2)+'\n');
+for(const [sheet,range,file] of [['Debt and liquidity','A2:D15','review'],['Debt and liquidity','A17:D26','obligations'],['Data','A1:G6','inputs'],['Data','H1:O6','provenance'],['Data',`A${disclosureHeader}:I${disclosureHeader+2}`,'disclosures'],['About','A1:C12','about'],['Repayment review','A2:D26','cash-build'],['Repayment review','F6:P24','cash-chart'],['Repayment review','A29:D35','facilities'],['Repayment review','A38:D50','commitments'],['Repayment review','A53:D71','notes'],['Data',`A${auditHeader}:H${auditHeader+6}`,'review-inputs'],['Data',`I${auditHeader}:L${auditHeader+6}`,'review-contexts'],['Data',`M${auditHeader}:R${auditHeader+6}`,'review-provenance'],['Repayment review','A74:D89','may-maturities'],['Repayment review','A91:D96','financing-limits'],['Data',`A${auditRows.get('may_notes_0')}:H${auditRows.get('may_issue_control')}`,'contract-inputs'],['Data',`M${auditRows.get('may_notes_0')}:T${auditRows.get('may_issue_control')}`,'contract-provenance'],['Debt and liquidity','A30:D50','coverage-build'],['Debt and liquidity','A52:D55','coverage-basis'],['Data',`A${auditRows.get('coverage_fy_revenue')}:H${auditRows.get('coverage_fy_interest')}`,'coverage-inputs'],['Data',`I${auditRows.get('coverage_current_interest')}:Q${auditRows.get('coverage_prior_interest')}`,'coverage-contexts']]){
  const img=await wb.render({sheetName:sheet,range,scale:1.1,format:'png'});await fs.writeFile(`lly-${file}.png`,new Uint8Array(await img.arrayBuffer()));
 }
 await fs.rm(out+'.inspect.ndjson',{force:true});

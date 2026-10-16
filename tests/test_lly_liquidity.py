@@ -140,7 +140,7 @@ class LillyReviewTests(unittest.TestCase):
         self.assertEqual(values["Repayment review"]["B34"].value, "Unavailable")
         self.assertEqual(len(formulas["Repayment review"]._charts), 1)
         manifest = json.loads(path.with_suffix(".manifest.json").read_text())
-        self.assertEqual(set(manifest["sources"]), {"liquidity_pilots.json", "lly_liquidity.json", "lly_financing.json"})
+        self.assertEqual(set(manifest["sources"]), {"liquidity_pilots.json", "lly_liquidity.json", "lly_financing.json", "lly_interest.json"})
         self.assertEqual(manifest["workbook_sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
 
 

@@ -103,7 +103,7 @@ class LillyFinancing(unittest.TestCase):
         snapshots = json.loads((ROOT / "samples/liquidity_pilots.json").read_text())["snapshots"]
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            for name in ["liquidity_pilots.json", "lly_liquidity.json", "lly_financing.json", "lly_liquidity.xlsx", "lly_liquidity.manifest.json"]:
+            for name in ["liquidity_pilots.json", "lly_liquidity.json", "lly_financing.json", "lly_interest.json", "lly_liquidity.xlsx", "lly_liquidity.manifest.json"]:
                 (root / name).write_bytes((ROOT / "samples" / name).read_bytes())
             self.assertIsNotNone(company_review.saved_workbook(snapshots, root, ticker="LLY"))
             (root / "lly_financing.json").write_text("{}")

@@ -69,10 +69,10 @@ December 31, 2025 (10-K, companyfacts): `DebtCurrent` 1,635 + `LongTermDebtNoncu
 | c-397 | 2026-01-01 to 2026-06-30 | 677 | same | same, no others | iso4217:USD | 6 / -6 |
 | c-398 | 2025-01-01 to 2025-06-30 | 493 | same | same, no others | iso4217:USD | 6 / -6 |
 
-These agree with the printed Note 11 table. Lilly reports a single reportable segment, which supports an LLY-specific decision to use these facts; it is not a universal rule. **The app's TTM coverage stays Unavailable until an extractor performs these checks and passes.**
+These agree with the printed Note 11 table. Lilly reports a single reportable segment, which supports an LLY-specific decision to use these facts; it is not a universal rule. **Implemented:** the Lilly-specific reader now performs these checks; the app and Lilly Excel show historical coverage using a separately reconciled, derived operating-income numerator. See [the coverage review](lly_interest_coverage.md).
 
 - Hand calculation from rounded filing figures, not an exact SEC fact: 895 + 677 - 493 = 1,079 USD millions, TTM to June 30, 2026.
-- Capitalized interest: the FY2025 10-K states the expense is net of capitalized interest but discloses no amount. Companyfacts' `InterestCostsCapitalized` stops at FY2013. The coverage denominator stays reported interest expense, labeled "net of capitalized interest"; capitalized interest is not added.
+- Capitalized interest: the FY2025 10-K states the expense is net of capitalized interest but discloses no amount. Companyfacts' `InterestCostsCapitalized` stops at FY2013. The denominator stays reported interest expense. The annual net-of-capitalization basis and the interim table's unstated basis are distinguished; capitalized interest is not added.
 
 ## Financing filings since the balance sheet
 
@@ -105,7 +105,7 @@ Related, not commitments: in July 2026, after the balance sheet, Lilly paid abou
 ## Open gaps
 
 1. Decide which of the obligations above count as "major" for the app's note.
-2. Build and test an extractor for LLY's segment-dimensioned interest facts before any TTM coverage is shown.
+2. Resolved for the checked filings: `lly_interest.py` reads exact H1 segment facts and reconciles derived operating income. Historical TTM coverage is 31.17x; interim capitalization basis remains explicitly unstated. See `lly_interest_coverage.md`.
 3. Contingencies, income tax, collaboration and investment notes not reviewed for commitment amounts.
 4. Debt source for the app: decided Oct 14, 2026 as presentation A (balance sheet, `DebtCurrent` + `LongTermDebtNoncurrent`), implemented in `xbrl.baseline_gross_debt`. Presentation B is not added.
 
@@ -122,3 +122,8 @@ Implemented in `lly_liquidity.py`, the app and Lilly-only Excel. See [the dated 
 ## Financing inventory update (October 15, 2026)
 
 The [financing audit](lly_financing_audit.md) compares saved documents to the SEC index through October 15 and records the missing May debt documents. Eight initial series totaling $9B have stated maturities; they are already in June debt/proceeds and are not a current outstanding-principal schedule. No supported August 2026 facility renewal or drawable amount was identified. The app and Lilly Excel add the contractual dates and flag the 8-K/certificate coupon conflict.
+
+
+## Historical interest coverage (October 15, 2026)
+
+[Coverage review](lly_interest_coverage.md): 33,633M derived TTM operating income / 1,079M reported interest = 31.17x. Annual expense is explicitly net of capitalized interest; the interim table does not explicitly state its capitalization basis. Operating income is derived from statement operating costs and independently reconciled; it is not a reported Lilly subtotal. No capitalized-interest estimate, adjusted earnings addback, covenant result or future repayment coverage is inferred.
