@@ -148,6 +148,13 @@ class OracleLiquidity(unittest.TestCase):
             with patch.object(ol.of,"SAMPLE",changed):
                 self.assertIsNone(ol.workbook_bytes(self.saved))
 
+    def test_workbook_refuses_a_changed_revolver_audit(self):
+        with tempfile.TemporaryDirectory() as folder:
+            changed=Path(folder)/"audit.json"
+            changed.write_bytes(ol.oracle_revolver.SAMPLE.read_bytes()+b"\n")
+            with patch.object(ol.oracle_revolver,"SAMPLE",changed):
+                self.assertIsNone(ol.workbook_bytes(self.saved))
+
     def test_markdown_has_one_leading_style_and_no_currency_math(self):
         import company_review
         fragment = view.render(self.snapshots[1],money)
@@ -188,6 +195,20 @@ class OracleLiquidity(unittest.TestCase):
         self.assertEqual(values["Repayment review"]["F16"].value,"Unavailable")
         self.assertEqual(values["Repayment review"]["C16"].value,3219*M)
         self.assertEqual(values["Repayment review"]["B44"].value,7210*M)
+        repayment=values["Repayment review"]
+        self.assertEqual(repayment["B60"].value,10000*M)
+        self.assertEqual(repayment["C60"].value,0)
+        self.assertEqual(repayment["D60"].value,10000*M)
+        self.assertEqual(formulas["Repayment review"]["D60"].value,"=IF(COUNT(B60:C60)=2,B60-C60,NA())")
+        for row in (59,60,61):
+            self.assertEqual(repayment[f"E{row}"].value,"Unavailable")
+        for cell in ("C59","D59","B61","C61","D61"):
+            self.assertIsNone(repayment[cell].value)
+        self.assertEqual(repayment["B68"].value,12000*M)
+        self.assertIn("not a $12B commitment",repayment["D68"].value)
+        shown=html.unescape(view.revolver_html(self.snapshots[1],money))
+        for phrase in ("May 31 undrawn commitment is $10B", "not a $12B commitment", "not assumed zero", "September 14, 2026"):
+            self.assertIn(phrase,shown)
 
     @unittest.skipUnless((RAW/"orcl-20260831.htm").exists(),"Full saved Oracle filing not available")
     def test_full_saved_filing_matches_trimmed_fixture_and_credit_terms(self):

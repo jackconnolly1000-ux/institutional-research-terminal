@@ -119,6 +119,11 @@ The May 31 10-K reports zero drawn and compliance then. August drawings, drawabl
 headroom are Unavailable. Generic operating-income/interest coverage does not establish compliance.
 Commercial-paper program capacity is not added to revolver capacity as independent available liquidity.
 
+The October 15 follow-up audit distinguishes **May 31 undrawn commitment of $10B** from an actually
+drawable amount. It also reviews LCs, the conditional $12B increase ceiling, commitment reductions,
+borrowing notices, the covenant and extensions against the exact saved source set. No August or
+later drawable amount is established. See [the dated revolver audit](oracle_revolver_reconciliation.md).
+
 **Repayment conclusion:** the quarter's spending exceeded OCF and identified prepayments and equity
 contributed funding. A future repayment surplus or shortfall cannot be established without remaining
 debt payment dates, current drawable credit and future operating cash generation. Missing inputs are

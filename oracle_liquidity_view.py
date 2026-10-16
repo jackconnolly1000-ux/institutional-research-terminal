@@ -137,19 +137,10 @@ def render(snapshot, money):
             'presented. Disclosed overlap and payment timing are insufficient. The historical May debt '
             'schedule below has not been used as an August payment schedule.</p>')
     out += '<h3>How much financing capacity is established?</h3>'
-    out += ('<p>The March 6 agreement establishes a $10B revolver, originally maturing March 6, 2031. '
-            'The May 31 10-K reports zero drawn and covenant compliance then. August drawable capacity and '
-            'covenant headroom are <strong>Unavailable</strong>. The $20B gross ATM program was fully utilized '
-            'in the quarter; it is not unused financing capacity.</p>')
-    out += ('<details><summary>Draw conditions and covenant definition</summary><p class="lr-meta">'
-            'Draws require accurate representations and no default. Commitments can change or terminate, '
-            'and extensions require lender consent and conditions. Contract EBITDA has specified addbacks '
-            'and exclusions. Net cash interest includes finance-lease interest and specified swap costs, '
-            'less cash interest income. A generic operating-income/interest ratio does not establish compliance. '
-            f'<a href="{esc(ol.CREDIT_URL)}" target="_blank" rel="noopener noreferrer">March 6 credit agreement, '
-            '§§1.01, 2.01, 2.06, 4.02, 6.02(c)</a>. The covenant minimum is 3.0x under the contract definitions. '
-            'Commercial-paper program capacity is not added to revolver capacity. '
-            f'<a href="{esc(of.QUARTER_SOURCE)}" target="_blank" rel="noopener noreferrer">ATM use: 10-Q Note 7, pp. 13–14</a>.</p></details>')
+    out += revolver_html(snapshot, money)
+    out += ('<p>The $20B gross ATM program was fully utilized in the quarter; it is not unused '
+            'financing capacity. <a href="' + esc(of.QUARTER_SOURCE) +
+            '" target="_blank" rel="noopener noreferrer">10-Q Note 7, pp. 13–14</a>.</p>')
     out += ('<p><strong>Repayment assessment:</strong> the quarter relied on identified customer prepayments '
             'and equity funding while capital spending exceeded OCF. A future repayment surplus or shortfall '
             'is Unavailable: remaining debt principal at August 31, current drawable credit and future '
@@ -158,6 +149,38 @@ def render(snapshot, money):
     out += repayment_html(snapshot, money) + '</section>'
     # Streamlit's Markdown math parser otherwise consumes prose between currency signs.
     return out.replace("$", "&#36;")
+
+
+def revolver_html(snapshot, money):
+    import oracle_revolver
+    audit = oracle_revolver.for_snapshot(snapshot)
+    if not audit or audit["status"] != "Checked":
+        return '<p>Revolver audit Unavailable: the checked saved evidence is required.</p>'
+    out = '<p>' + esc(audit["conclusion"]) + '</p>'
+    for row in audit["dates"]:
+        source = audit["sources"][row["source"]]
+        out += '<details><summary>' + esc(row["date"]) + ' · drawable capacity Unavailable</summary>'
+        for key, label in [("commitment", "Committed amount"), ("drawn", "Outstanding advances"),
+                           ("undrawn", "Undrawn commitment")]:
+            out += (f'<div class="ol-obligation"><span>{label}</span>'
+                    f'<strong>{esc(money(row[key],3))}</strong></div>')
+        out += ('<p class="lr-meta">' + esc(row["detail"]) + ' ' + esc(row["compliance"]) +
+                ' ' + esc(row["drawable_detail"]) + ' <a href="' + esc(source["source_url"]) +
+                '" target="_blank" rel="noopener noreferrer">' + esc(source["form"] + ', filed ' +
+                source["filed"] + ', ' + row["location"]) + '</a>.</p></details>')
+    out += '<details><summary>Letters of credit, increase option and draw conditions</summary>'
+    for term in audit["terms"]:
+        out += ('<p class="lr-meta"><strong>' + esc(term["label"]) + ':</strong> ' +
+                esc(term["detail"]) + ' <a href="' + esc(audit["sources"][term["source"]]["source_url"]) +
+                '" target="_blank" rel="noopener noreferrer">' + esc(term["location"]) + '</a>.</p>')
+    out += '</details><details><summary>Later saved filings and audit scope</summary>'
+    for event in audit["later"]:
+        out += '<p class="lr-meta"><strong>' + esc(event["date"]) + ':</strong> ' + esc(event["detail"])
+        for key in event["sources"]:
+            source = audit["sources"][key]
+            out += ' <a href="' + esc(source["source_url"]) + '" target="_blank" rel="noopener noreferrer">' + esc(source["form"]) + '</a>'
+        out += '.</p>'
+    return out + '<p class="lr-meta">' + esc(audit["scope"]) + '</p></details>'
 
 
 def repayment_html(snapshot, money):

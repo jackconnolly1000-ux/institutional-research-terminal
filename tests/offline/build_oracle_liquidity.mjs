@@ -13,10 +13,13 @@ const sourceBytes = await fs.readFile(samplePath);
 const review = JSON.parse(sourceBytes);
 const annualBytes=await fs.readFile(path.join(root,'samples/oracle_financing.json'));
 const annual=JSON.parse(annualBytes);
+const revolverBytes=await fs.readFile(path.join(root,'samples/oracle_revolver.json'));
 // Reuse the app's evidence model rather than maintaining another repayment interpretation in JS.
 const repayment=JSON.parse(execFileSync(process.env.CODEX_PRIMARY_RUNTIME_PYTHON,['-c',
   'import json,oracle_repayment as r,oracle_liquidity as l,oracle_financing as f;print(json.dumps(r.build(json.loads(l.SAMPLE.read_text()),json.loads(f.SAMPLE.read_text()))))'],{cwd:root,encoding:'utf8'}));
 if(repayment.status!=='Checked')throw new Error(repayment.detail);
+const revolver=repayment.revolver;
+if(revolver.status!=='Checked')throw new Error(revolver.detail);
 if (review.status !== 'Checked' || Object.values(review.schedules).some(s => s.status !== 'Checked')) {
   throw new Error('Source review has incomplete reconciliations');
 }
@@ -57,8 +60,22 @@ for (const [key, value, label, asof] of [
     sourceRows.at(-1)[7] = '0001193125-26-277521';
   }
 }
+function auditSource(key,value,label,sourceKey,asof,location,detail){
+ const s=revolver.sources[sourceKey];rows.set(key,sourceRows.length+2);
+ sourceRows.push([key,value,label,null,toDate(asof),s.form,toDate(s.filed),s.accession,
+  null,null,null,null,s.source_url,location,detail]);
+}
+auditSource('facility_may_commitment',revolver.dates[1].commitment,'Revolver commitment confirmed at May 31',
+ 'annual','2026-05-31','10-K Note 6, pp. 84–85','Reported commitment. Not a drawable amount.');
+auditSource('facility_increase_ceiling',revolver.increase_ceiling,'Conditional aggregate commitment ceiling',
+ 'agreement','2026-03-06','§2.05(d)','Lender agreement and conditions required; no exercised increase established. Not committed capacity.');
+for(const [i,t] of revolver.terms.entries())auditSource('revolver_term_'+i,null,t.label,t.source,
+ revolver.sources[t.source].period,t.location,t.detail);
+for(const [key,s] of Object.entries(revolver.sources))auditSource('revolver_source_'+key,null,
+ 'Saved document reviewed: '+s.document,key,s.period,'Revolver audit source set',
+ 'Exact reviewed saved bytes, SHA256 '+s.sha256+'. Latest saved filing September 14; no complete later inventory.');
 data.getRange('A1:O1').values = [['Key','USD millions unless x','Reported input','Period start','Period end / as of',
-  'Form','Filed','Accession','Tag','Context ID','Scale','Decimals','Source','Filing location','Unavailable reason']];
+  'Form','Filed','Accession','Tag','Context ID','Scale','Decimals','Source','Filing location','Finding / Unavailable reason']];
 data.getRange(`A2:O${sourceRows.length+1}`).values = sourceRows;
 data.getRange(`B2:B${sourceRows.length+1}`).setNumberFormat(USD);
 data.getRange(`B${rows.get('covenant_minimum')}`).setNumberFormat('0.0"x"');
@@ -192,6 +209,31 @@ repayment.gaps.forEach((g,i)=>{
  const n=i+53;set(repay,`A${n}`,g.label);set(repay,`C${n}`,'Unavailable');set(repay,`D${n}`,g.detail);
  if(i>0)set(repay,`B${n}`,link(i===1?'not_commenced':'unpaid_capex'),true);
 });
+set(repay,'A57','Revolver availability by evidence date');
+repay.getRange('A58:G58').values=[['Evidence date','Commitment, USD millions','Advances, USD millions',
+ 'Undrawn commitment, USD millions','Drawable capacity','Covenant evidence','Date-specific limit']];
+revolver.dates.forEach((r,i)=>{
+ const n=59+i;set(repay,`A${n}`,toDate(r.date));
+ if(i<2)set(repay,`B${n}`,link(i===0?'facility_commitment':'facility_may_commitment'),true);
+ if(i===1){set(repay,`C${n}`,link('facility_drawn'),true);set(repay,`D${n}`,`=IF(COUNT(B${n}:C${n})=2,B${n}-C${n},NA())`,true);}
+ set(repay,`E${n}`,'Unavailable');set(repay,`F${n}`,r.compliance);
+ set(repay,`G${n}`,r.detail+' '+r.drawable_detail);
+});
+set(repay,'A63','Revolver contract terms. Source evidence is on Data.');
+repay.getRange('A64:D64').values=[['Term','USD millions, if applicable','Filing location','Interpretation / condition']];
+revolver.terms.forEach((t,i)=>{
+ const n=65+i;set(repay,`A${n}`,t.label);set(repay,`C${n}`,t.location);
+ set(repay,`D${n}`,`='Data'!O${rows.get('revolver_term_'+i)}`,true);
+ if(t.label==='Conditional increase ceiling')set(repay,`B${n}`,link('facility_increase_ceiling'),true);
+});
+set(repay,'A74','Later saved filings. Balances are not carried forward.');
+repay.getRange('A75:D75').values=[['Filed','Documents checked','Event date','Revolver finding']];
+revolver.later.forEach((event,i)=>{
+ const n=76+i;set(repay,`A${n}`,toDate(event.date));set(repay,`B${n}`,'8-K and Exhibit 99.1');
+ set(repay,`C${n}`,toDate(revolver.sources[event.sources[0]].period));set(repay,`D${n}`,event.detail);
+});
+set(repay,'A79','Saved-source scope');set(repay,'D79',revolver.scope);
+set(repay,'A81','Blank commitment, advances or undrawn cells mean Unavailable. A dash is a reported zero.');
 
 about.getRange('A1:C1').values = [['Topic','Explanation','Source']];
 const notes = [
@@ -208,6 +250,8 @@ const notes = [
   ['8-K event Sep 12, filed Sep 14','Accession 0001193125-26-389753, main document and Ex.99.1 checked. Insider trading-plan cancellation; no corporate financing event identified.','https://www.sec.gov/Archives/edgar/data/1341439/000119312526389753/d20034dex991.htm'],
   ['Later filing scope','Two saved later 8-Ks and exhibits reviewed. This does not rebuild a complete current submissions index. Unmatched later filings remain Not checked.',null],
   ['Repayment limits','Remaining August debt principal dates, drawable credit and future operating cash generation are Unavailable. No overall future repayment surplus or shortfall can be established.',null],
+  ['Revolver audit',revolver.conclusion+' '+revolver.scope,null],
+  ['Revolver arithmetic','May 31 undrawn commitment = reported commitment less outstanding advances. This is not a verified drawable amount. March 6 and August 31 undrawn cells stay blank because advances or the current commitment are not established.',null],
 ];
 about.getRange(`A2:C${notes.length+1}`).values = notes;
 
@@ -269,10 +313,14 @@ data.getRange(`H1:J${sourceRows.length+1}`).format.columnWidth=48;
 data.getRange(`K1:L${sourceRows.length+1}`).format.columnWidth=12;
 data.getRange(`M1:O${sourceRows.length+1}`).format.columnWidth=65;
 data.getUsedRange().format.wrapText=true;
+for(const [i,t] of revolver.terms.entries()){
+ const n=rows.get('revolver_term_'+i);
+ data.getRange(`A${n}:O${n}`).format.rowHeight=Math.max(60,Math.ceil(t.detail.length/85)*12+18);
+}
 data.freezePanes.freezeRows(1);
-about.getRange('A1:A14').format.columnWidth=33;
-about.getRange('B1:B14').format.columnWidth=100;
-about.getRange('C1:C14').format.columnWidth=65;
+about.getRange(`A1:A${notes.length+1}`).format.columnWidth=33;
+about.getRange(`B1:B${notes.length+1}`).format.columnWidth=100;
+about.getRange(`C1:C${notes.length+1}`).format.columnWidth=65;
 about.getUsedRange().format.wrapText=true;
 about.getUsedRange().format.rowHeight=60;
 about.freezePanes.freezeRows(1);
@@ -286,6 +334,7 @@ repay.getRange('A2').format.font.bold=true;repay.getRange('A2').format.font.size
 for(const [i,width] of [26,31,23,66,36,26,100].entries())repay.getRangeByIndexes(0,i,55,1).format.columnWidth=width;
 repay.getRange('A5:G55').format.wrapText=true;
 repay.getRange('A6:E11').format.rowHeight=100;
+repay.getRange('A11:E11').format.rowHeight=130;
 repay.getRange('A16:G36').format.rowHeight=65;
 repay.getRange('A44:F49').format.rowHeight=65;
 repay.getRange('A53:D55').format.rowHeight=100;
@@ -293,6 +342,22 @@ for(const a of ['B6:B11','C16:C36','E16:E36','B44:B49','B53:B55'])repay.getRange
 for(const a of ['B6:B11','C16:C36','B44:B49','B53:B55'])repay.getRange(a).format.font.color='#008000';
 for(const a of ['A5:E11','A15:G36','A43:F49','A52:D55'])frame(repay,a);
 for(const a of ['A5:E5','A15:G15','A43:F43','A52:D52']){header(repay,a);repay.getRange(a).format.rowHeight=48;}
+repay.getRange('A58:G79').format.wrapText=true;
+repay.getRange('A59:A61').setNumberFormat('mmm d, yyyy');
+repay.getRange('B59:D61').setNumberFormat(USD);
+repay.getRange('B59:C60').format.font.color='#008000';
+repay.getRange('D60').format.font.color='#000000';
+repay.getRange('A59:G61').format.rowHeight=100;
+for(const [n,height] of [[65,48],[66,85],[67,95],[68,72],[69,105],[70,125],[71,65],[72,100]])
+ repay.getRange(`A${n}:D${n}`).format.rowHeight=height;
+repay.getRange('B65:B72').setNumberFormat(USD);
+repay.getRange('B68').format.font.color='#008000';
+repay.getRange('A76:D77').format.rowHeight=75;
+repay.getRange('D79').format.rowHeight=100;
+repay.getRange('A76:A77').setNumberFormat('mmm d, yyyy');
+repay.getRange('C76:C77').setNumberFormat('mmm d, yyyy');
+for(const a of ['A58:G61','A64:D72','A75:D77'])frame(repay,a);
+for(const a of ['A58:G58','A64:D64','A75:D75']){header(repay,a);repay.getRange(a).format.rowHeight=52;}
 // Formula colors express dependencies, never whether a cash amount is favorable.
 main.getRange('B8').format.font.color='#000000';
 
@@ -314,6 +379,14 @@ const changed = data.getRange(`B${rows.get('prepay')}`);
 changed.values=[[original[0][0]+1000000]]; wb.recalculate();
 if(main.getRange('B12').values[0][0]!==-16760000000) throw new Error('Prepayment exclusion does not recalculate');
 changed.values=original; wb.recalculate();
+if(repay.getRange('D60').values[0][0]!==10000000000)throw new Error('May undrawn commitment arithmetic failed');
+for(const n of [59,61])if(repay.getRange(`D${n}`).values[0][0]!==null)throw new Error('Unsupported undrawn amount');
+const mayInput=data.getRange(`B${rows.get('facility_may_commitment')}`),mayOriginal=mayInput.values;
+mayInput.values=[[null]];wb.recalculate();
+if(typeof repay.getRange('D60').values[0][0]==='number')throw new Error('Missing commitment became undrawn capacity');
+mayInput.values=[[mayOriginal[0][0]-1000000]];wb.recalculate();
+if(repay.getRange('D60').values[0][0]!==9999000000)throw new Error('Undrawn commitment does not recalculate');
+mayInput.values=mayOriginal;wb.recalculate();
 console.log(JSON.stringify({cash:expected,payments:due.getRange('B14:D20').values}));
 console.log((await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A|#NUM!|#NULL!|#SPILL!',
   options:{useRegex:true,maxResults:20},maxChars:1200})).ndjson);
@@ -323,11 +396,20 @@ await fs.rm(output+'.inspect.ndjson',{force:true});
 const digest = b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({review_sha256:digest(sourceBytes),
   financing_sha256:digest(annualBytes),
+  revolver_sha256:digest(revolverBytes),
   workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');
 for (const [sheet,range,file] of [['Repayment review','A2:E11','resources'],['Repayment review','A15:D21','repayment'],
   ['Repayment review','E15:G21','funding-gaps'],['Repayment review','A43:F49','historical'],['Repayment review','A51:D55','undated'],
   ['Cash analysis','A2:B27','cash'],['Cash analysis','D4:L25','chart'],
-  ['Payment dates','A2:F33','payments'],['Data','A1:G6','inputs'],['Data','H1:O6','provenance'],['About','A1:C14','about']]) {
+  ['Repayment review','A57:D61','revolver-amounts'],['Repayment review','E58:G61','revolver-limits'],
+  ['Repayment review','A63:D68','revolver-terms-1'],['Repayment review','A69:D72','revolver-terms-2'],
+  ['Repayment review','A74:D81','revolver-later'],
+  ['Payment dates','A2:F33','payments'],['Data','A1:G6','inputs'],['Data','H1:O6','provenance'],
+  ['Data',`A${rows.get('facility_may_commitment')}:H${rows.get('facility_increase_ceiling')}`,'revolver-inputs'],
+  ['Data',`M${rows.get('facility_may_commitment')}:O${rows.get('revolver_term_1')}`,'revolver-sources'],
+  ['Data',`M${rows.get('revolver_term_2')}:O${rows.get('revolver_term_5')}`,'revolver-term-sources'],
+  ['Data',`H${rows.get('revolver_source_annual')}:O${sourceRows.length+1}`,'revolver-document-sources'],
+  ['About',`A1:C${notes.length+1}`,'about']]) {
   const preview=await wb.render({sheetName:sheet,range,scale:1.4,format:'png'});
   await fs.writeFile(path.join(process.cwd(),`oracle-liquidity-${file}.png`),new Uint8Array(await preview.arrayBuffer()));
 }

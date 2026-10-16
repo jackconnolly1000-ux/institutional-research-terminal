@@ -5,6 +5,7 @@ stays unavailable, including when historical cash happens to exceed one payment 
 """
 import oracle_financing as financing
 import oracle_liquidity as liquidity
+import oracle_revolver
 
 
 def build(review: dict, annual: dict) -> dict:
@@ -15,6 +16,7 @@ def build(review: dict, annual: dict) -> dict:
             or review.get("period_start") != liquidity.START or review.get("period_end") != liquidity.END):
         return {**result, "detail": "The checked August 31 Oracle liquidity review is required."}
     facts, cash, facility = review["inputs"], review["cash"], review["facility"]
+    result["revolver"] = oracle_revolver.load()
     resources = [
         ("cash", "Cash excluding restricted cash", "closing_cash", liquidity.END, liquidity.END,
          "August cash pool, not reserved for future payments. Operating needs, capital spending and other "
@@ -41,7 +43,8 @@ def build(review: dict, annual: dict) -> dict:
         "input_key": "facility_commitment", "value": facility["commitment"],
         "period_start": facility["agreement_date"], "period_end": facility["original_maturity"],
         "detail": "Potential working-capital and general corporate financing under §2.21, subject to "
-            "§4.02 draw conditions and the contractual covenant. August drawable capacity is Unavailable. "
+            "§4.02 draw conditions and the contractual covenant. May 31 undrawn commitment was $10B. "
+            "An amount actually drawable is Unavailable at each reviewed date, including August 31. "
             "No extension beyond March 6, 2031 is assumed. Commercial-paper capacity is not added.",
         "source_url": facility["source_url"], "accession": facility["accession"],
         "location": "Credit agreement §§2.21, 4.02, 6.02(c); 10-K Note 6 p. 85"})

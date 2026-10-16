@@ -41,9 +41,16 @@ For up to five tickers:
   Future coverage remains Unavailable: dated funding allocations, future OCF, drawable credit,
   remaining August debt principal/interest dates and several obligation overlaps are unresolved.
   The old May principal schedule is preserved as historical evidence, without a roll-forward.
-  The Oracle workbook manifest now checks both the quarterly liquidity JSON and annual financing
-  JSON. The builder invokes the pure Python repayment model using `CODEX_PRIMARY_RUNTIME_PYTHON`;
+  The Oracle workbook manifest checks the quarterly liquidity JSON, annual financing JSON and
+  saved revolver audit. The builder invokes the pure Python repayment model using `CODEX_PRIMARY_RUNTIME_PYTHON`;
   deployment only reads the checked workbook and requires no additional dependency.
+- `oracle_revolver.py` audits the exact seven saved Oracle documents. May 31 commitment of $10B
+  less zero advances gives $10B of historical undrawn commitment, not verified drawable capacity.
+  August balances remain Unavailable. The conditional $12B increase ceiling is not committed cash.
+  LC treatment, reductions, draw conditions, the covenant and extensions have accession-specific
+  sources. Rebuild `samples/oracle_revolver.json` with `tests/offline/build_oracle_revolver.py`
+  before rebuilding the Oracle workbook. Changed raw files require review. Details and gaps:
+  `docs/oracle_revolver_reconciliation.md`. No new filings were downloaded for this audit.
 
 - The company reviews use larger section headings, concise borrowing labels and an Oracle chart
   measuring each cash contribution from zero. Opening/closing cash balances remain separate from quarter flows.
