@@ -134,8 +134,11 @@ def render(snapshot, money):
             'in fiscal 2027–2029 with 15–19 year terms; this does not establish annual cash payments. '
             'Their payment timing is Unavailable, and they are not in the table.</p>'
             '<p class="lr-meta">No combined total of leases, purchase obligations, unpaid capex and borrowing is '
-            'presented. Disclosed overlap and payment timing are insufficient. The historical May debt '
-            'schedule below has not been used as an August payment schedule.</p>')
+            'presented. Disclosed overlap and payment timing are insufficient. The dated debt principal follows; '
+            'the historical May schedule further down is not used as an August payment schedule.</p>')
+    # Debt principal due on dated terms sits with the other dated payments, not further down the page
+    import oracle_principal_view
+    out += oracle_principal_view.render(snapshot, money)
     out += '<h3>How much financing capacity is established?</h3>'
     out += revolver_html(snapshot, money)
     out += ('<p>The $20B gross ATM program was fully utilized in the quarter; it is not unused '
