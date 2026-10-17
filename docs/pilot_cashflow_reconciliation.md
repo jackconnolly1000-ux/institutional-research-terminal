@@ -65,4 +65,6 @@ independent values above and, when all six full files are saved, agreement with 
 
 The Excel export uses formulas linked to each reported period's input, retaining the annual and quarterly source
 links separately. Selected obligations are manually checked disclosures from the existing pilot evidence files;
-they do not enter debt or flow ratios. Interest coverage, maturities and a full obligations review remain open.
+they do not enter debt or flow ratios. Historical interest coverage is now built on each company's checked basis;
+see the three coverage reviews. [Release 1 ratio reconciliation](ratio_reconciliation.md) checks app/individual
+workbook parity. Complete updated maturity calendars and a full obligations review remain open.

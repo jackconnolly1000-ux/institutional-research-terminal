@@ -1,4 +1,5 @@
 import {addBorrowingLeaseSheet,finishBorrowingLeaseSheet} from './borrowing_lease_sheet.mjs';
+import {addRatioSheet,finishRatioSheet} from './ratio_sheet.mjs';
 import {documentationLinks} from './workbook_style.mjs';
 import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Build only Lilly's checked review. No network or application dependency is required.
@@ -23,6 +24,7 @@ if(!review.cash||!review.notes_schedule||review.disclosures.length!==10)throw ne
 const wb=Workbook.create();
 const funding=addFundingSheet(wb,root,'LLY');
 const borrowingLeases=addBorrowingLeaseSheet(wb,root,'LLY');
+const ratios=addRatioSheet(wb,root,'LLY');
 const main=wb.worksheets.add('Debt and liquidity');
 const repayment=wb.worksheets.add('Repayment review');
 const data=wb.worksheets.add('Data'),about=wb.worksheets.add('About');
@@ -40,13 +42,9 @@ function leaf(f){
  return `IF(ISNUMBER(${cell}),${cell},NA())`;
 }
 const m=snapshot.metrics;
-const formulas={cash:'='+leaf(m.cash),gross_debt:'='+m.gross_debt.inputs.map(leaf).join('+'),
- current_ratio:`=IF(${leaf(m.current_ratio.inputs.current_liabilities)}>0,${leaf(m.current_ratio.inputs.current_assets)}/${leaf(m.current_ratio.inputs.current_liabilities)},NA())`};
-for(const key of ['operating_cash_flow','capital_spending']){
- formulas[key]='='+m[key].inputs.map((f,i)=>(i?' + ':'')+`(${f.coefficient}*${leaf(f)})`).join('');
-}
-Object.assign(formulas,{net_debt:'=B7-B6',free_cash_flow:'=B10-B11',
- ocf_to_debt:'=IF(B7>0,B10/B7,NA())',fcf_to_debt:'=IF(B7>0,B12/B7,NA())'});
+leaf(m.cash);m.gross_debt.inputs.forEach(leaf);
+leaf(m.current_ratio.inputs.current_liabilities);leaf(m.current_ratio.inputs.current_assets);
+for(const key of ['operating_cash_flow','capital_spending'])m[key].inputs.forEach(leaf);
 data.getRange(`A1:O${inputs.length+1}`).values=[['Input','USD millions','Period start','Period end','Form','Filed','Accession','Tag','Context','Scale','Decimals','Source','Selection rule','Unavailable reason','Notes'],...inputs];
 data.getRange(`B2:B${inputs.length+1}`).format.font.color='#0000FF';
 data.getRange(`B2:B${inputs.length+1}`).setNumberFormat(USD);
@@ -55,14 +53,6 @@ main.getRange('A2').values=[['Eli Lilly and Company']];
 main.getRange('A3').values=[['Balance sheet June 30, 2026. TTM July 2025–June 2026. USD millions unless ratio or %.']];
 main.getRange('A5:D5').values=[['Measure','Value','Period end','Basis / limitation']];
 const order=['cash','gross_debt','net_debt','current_ratio','operating_cash_flow','capital_spending','free_cash_flow','ocf_to_debt','fcf_to_debt'];
-for(const [i,key] of order.entries()){
- const n=i+6,metric=m[key];
- main.getRange(`A${n}:D${n}`).values=[[metric.label,null,date(metric.period_end),
-  key.includes('to_debt')?'Historical TTM flow / period-end debt. Not repayment coverage.':
-   [...(metric.notes||[]),...(metric.caveats||[]),...(metric.not_added?['Excluded: '+metric.not_added]:[])].join(' ')||metric.detail||'']];
- main.getRange(`B${n}`).formulas=[[formulas[key]]];
- main.getRange(`B${n}`).format.font.color=formulas[key].includes("'Data'!")?'#008000':'#000000';
-}
 main.getRange('B6:B14').setNumberFormat(USD);main.getRange('B9').setNumberFormat('0.00"x"');main.getRange('B13:B14').setNumberFormat('0.0%');
 main.getRange('C6:C14').setNumberFormat('mmm d, yyyy');
 main.getRange('A17').values=[['Selected obligations, separate from borrowing']];
@@ -306,6 +296,7 @@ for(const a of ['A33:D44','A46:D46','A48:D50'])frame(main,a);header(main,'A33:D3
 for(const n of [40,44,48,49,50])subtotal(main,`A${n}:D${n}`);
 main.getRange('A52:D55').format.rowHeight=65;main.getRange('A15:D15').format.rowHeight=65;
 about.getRange('A11:C12').format.rowHeight=100;frame(about,'A1:C12');
+const ratioManifest=await finishRatioSheet(wb,root,'LLY',ratios);
 wb.recalculate();
 for(const [cell,value] of [['B40',ic.periods.fy.operating_income],['C40',ic.periods.current.operating_income],['D40',ic.periods.prior.operating_income],['B44',0],['C44',0],['D44',0],['B48',ic.operating_income],['B49',ic.interest],['B50',ic.value],['B15',ic.value]])if(main.getRange(cell).values[0][0]!==value)throw new Error('Coverage reconciliation failed '+cell);
 const interestCells=['fy','current','prior'].map(role=>data.getRange(`B${auditRows.get('coverage_'+role+'_interest')}`)),savedInterest=interestCells.map(cell=>cell.values);
@@ -329,6 +320,7 @@ cashCell.values=original;wb.recalculate();
 documentationLinks(about);
 const fundingManifest=await finishFundingSheet(wb,root,'LLY',funding);
 Object.assign(fundingManifest,await finishBorrowingLeaseSheet(wb,root,'LLY',borrowingLeases));
+Object.assign(fundingManifest,ratioManifest);
 const out=path.join(root,'samples/lly_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(out);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.writeFile(out.replace('.xlsx','.manifest.json'),JSON.stringify({...fundingManifest,sources:{'liquidity_pilots.json':digest(source),'lly_liquidity.json':digest(reviewBytes),'lly_financing.json':digest(financingBytes),'lly_interest.json':digest(interestBytes)},workbook_sha256:digest(await fs.readFile(out))},null,2)+'\n');

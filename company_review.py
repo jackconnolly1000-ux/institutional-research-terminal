@@ -226,7 +226,7 @@ def render(snapshot):
         ("Cash and equivalents", money(m["cash"]["value"]), "Excludes restricted cash"),
         ("Baseline gross debt", money(m["gross_debt"]["value"]), "Borrowing, excluding leases"),
         ("Net debt", money(m["net_debt"]["value"]), "Gross debt less cash"),
-        ("Current ratio", f'{m["current_ratio"]["value"]:.2f}x' if m["current_ratio"]["value"] is not None else "Unavailable", "Current assets / liabilities"),
+        ("Current ratio", f'{m["current_ratio"]["value"]:.2f}x' if m["current_ratio"]["value"] is not None else "Unavailable", "Current assets / current liabilities"),
     ):
         output += f'<div><div class="lr-stat-label">{esc(label)}</div><div class="lr-stat-value">{esc(value)}</div><div class="lr-stat-detail">{esc(detail)}</div></div>'
     from funding_conclusions import render as funding_html
@@ -303,16 +303,22 @@ def evidence_html(snapshot: dict) -> str:
     """Read-only display; every input keeps its filing and selection information."""
     import ui
     from liquidity_pilot import leaf_inputs
+    import ratio_review
+    reconciled = {r["key"]: r for r in ratio_review.build(snapshot)["rows"]}
     metrics = snapshot["metrics"]
     output = '<details class="irt-evidence"><summary>Calculations and filing evidence</summary>'
-    for metric in metrics.values():
+    for key, metric in metrics.items():
+        row = reconciled[key]
         output += f'<p><strong>{ui.esc(metric["label"])}</strong>'
+        period = ((row["period_start"] + " to ") if row["period_start"] else "As of ") + row["period_end"]
+        output += f'<br>{ui.esc(ratio_review.display(row))} · {ui.esc(period)}'
         if metric.get("formula"):
             output += f' · {ui.esc(metric["formula"])}'
         if metric["value"] is None:
             output += f'<br>Unavailable: {ui.esc(metric["detail"])}'
         for note in metric.get("notes", []):
             output += f'<br>{ui.esc(note)}'
+        output += f'<br>{ui.esc(row["basis"])}'
         output += '</p><ul class="irt-ol" style="overflow-wrap:anywhere">'
         # Ratios and net debt reference the metrics already documented above.
         facts = [] if metric.get("unit") == "fraction" or metric["label"] in {"Net debt", "Free cash flow"} else leaf_inputs(metric)
@@ -329,7 +335,9 @@ def evidence_html(snapshot: dict) -> str:
                        f'<br><a href="{ui.esc(fact.get("source_url") or snapshot["source_url"])}" target="_blank" rel="noopener noreferrer">Source filing</a></li>')
         output += '</ul>'
     debt = metrics["gross_debt"]
-    caveats = [*debt.get("caveats", []), *debt.get("notes", [])]
+    # The reconciled borrowing explanation already includes filing-specific caveats;
+    # metric notes were displayed with the calculation above.
+    caveats = []
     if debt.get("not_added"):
         caveats.append("Excluded from baseline debt: " + debt["not_added"])
     output += ''.join(f'<p class="irt-note">{ui.esc(n)}</p>' for n in caveats)
@@ -568,6 +576,9 @@ def saved_workbook(snapshots, folder=None, ticker=None):
         if snapshots != saved["snapshots"]:
             return None
         if ticker == "LLY":
+            import ratio_review
+            if manifest.get("ratios_sha256") != ratio_review.fingerprint():
+                return None
             import borrowing_leases
             if manifest.get("borrowing_leases_sha256") != borrowing_leases.fingerprint():
                 return None

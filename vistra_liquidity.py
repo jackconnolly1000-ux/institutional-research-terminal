@@ -214,6 +214,9 @@ def workbook_bytes(review):
     try:
         content=WORKBOOK.read_bytes()
         m=json.loads(WORKBOOK.with_suffix('.manifest.json').read_text())
+        import ratio_review
+        if m.get('ratios_sha256') != ratio_review.fingerprint():
+            return None
         import borrowing_leases
         if m.get('borrowing_leases_sha256') != borrowing_leases.fingerprint():
             return None

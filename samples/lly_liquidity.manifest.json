@@ -1,11 +1,20 @@
 {
   "funding_sha256": "39618aa4d149c91583c6158fdb91ba693c0a2b4b6fe19a841d91d6055745ad6a",
   "borrowing_leases_sha256": "5071768f770c41063f1e2e9f89796417c5a2a85a024faabb8839e792c500fefa",
+  "ratios_sha256": {
+    "ratio_review.py": "efe06493218912afce97c5d49a5a3093f8cfbf530b1cbbd1cb784851350a5f9d",
+    "liquidity_pilot.py": "779bc075a935cf852bb3b28177ca965d2d59f6409b9144ba515b91ca6bf08660",
+    "cash_generation.py": "422a475b9dde90f508cc5c5be5cbed292362a333e140cd8ac7cb9bb0abb945c7",
+    "samples/liquidity_pilots.json": "7277641a931df81119db973b3340eb3e31249453c4fa706efcd4c3f333241760",
+    "samples/lly_interest.json": "9a82bb4336cf164825a2502de10a0cdc038b139ec505485ea914d6c1e038a614",
+    "samples/oracle_interest.json": "0aa090b90a9f7207b693697be60f215bb6c4e5177fa3423a3d5e6e56d3ac6cec",
+    "samples/vistra_interest.json": "6a18cf366130ac1aeaf1edccb748b96a1abc3361864651a13b99504d2defa2d4"
+  },
   "sources": {
     "liquidity_pilots.json": "7277641a931df81119db973b3340eb3e31249453c4fa706efcd4c3f333241760",
     "lly_liquidity.json": "542757d63352a595c467c4105e10ac6dfa5139bd6562c043d2881e352aa0808b",
     "lly_financing.json": "d13be6bc052357ce2745b83131784d2c52c95ab1addcef36fa81c7965ed9425e",
     "lly_interest.json": "9a82bb4336cf164825a2502de10a0cdc038b139ec505485ea914d6c1e038a614"
   },
-  "workbook_sha256": "aa7cf522257a0294573a56410537debbb0dc5703c94a8783a60ca1ed2df41306"
+  "workbook_sha256": "972ff4244349120f880199170ed727d9a9873ded86c8ae707cc18fd654c29259"
 }
