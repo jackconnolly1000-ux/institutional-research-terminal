@@ -36,6 +36,14 @@ CAUTION_SOLID, CAUTION_TEXT = "#f0b429", "#f5c451"
 INFO_SOLID, INFO_TEXT = "#2962ff", "#7aa2ff"
 ACCENT = "#2962ff"        # white text on it: 4.9:1
 
+# Identity colors for the debt and liquidity reviews. They say WHICH quantity a mark is, never whether it is good
+# or bad, so they avoid green/red. Used only for cash and baseline borrowing: their bars in "How did borrowing and
+# cash change?" and a matching swatch beside the same headline figures. Text stays in text tokens.
+# Validated Oct 17, 2026 with the dataviz six checks (all pairs, dark mode) on BG and SURFACE: CVD ΔE 26.8,
+# normal-vision ΔE 31.8, both >= 3:1 against the surface. The chart also labels each panel, so color is never alone.
+SERIES_CASH = "#3987e5"        # cash and cash equivalents
+SERIES_BORROWING = "#d95926"   # baseline borrowing (carrying value, excludes leases)
+
 # Chart series that carry no meaning get hues outside the semantic set (no green/red/amber/blue)
 SERIES_SMA_FAST = "#a78bfa"   # 50-day moving average
 SERIES_SMA_SLOW = "#b2b5be"   # 200-day moving average (drawn dotted, so it differs by more than color)

@@ -21,8 +21,10 @@ class CoreCharts(unittest.TestCase):
     def test_app_has_zero_basis_dates_and_no_double_counted_flow_instruction(self):
         for s in self.snapshots:
             text=c.render_flow(s,company_review.money)+c.render_balances(s,company_review.money)
-            self.assertIn('not another cash flow',text);self.assertIn('zero',text);self.assertIn('USD billions',text)
-            self.assertIn(s['metrics']['cash']['period_end'],text)
+            self.assertIn('not another cash flow',text);self.assertIn('zero',text);self.assertIn('USD',text)
+            from datetime import date
+            end=date.fromisoformat(s['metrics']['cash']['period_end'])
+            self.assertIn(f"{end:%b} {end.day}, {end:%Y}",text)   # the app shows Jun 30, 2026; Excel keeps ISO dates
 
     def test_two_native_charts_and_source_formula_bindings(self):
         for s in self.snapshots:

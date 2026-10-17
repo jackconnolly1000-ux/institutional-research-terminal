@@ -68,7 +68,7 @@ CSS = """<style>
 .lr-grid {display:grid;grid-template-columns:1.15fr 1fr;gap:30px;margin:24px 0;}
 .lr-section {min-width:0;}
 .lr-chart {margin:18px 0;}
-.lr-bar-row {display:grid;grid-template-columns:115px minmax(40px,1fr) 85px;gap:12px;align-items:center;margin:12px 0;font-size:.8rem;}
+.lr-bar-row {display:grid;grid-template-columns:150px minmax(40px,1fr) 85px;gap:12px;align-items:center;margin:12px 0;font-size:.8rem;}
 .lr-bar-value {text-align:right;color:var(--text-strong);white-space:nowrap;}
 .lr-track {display:grid;grid-template-columns:1fr 1fr;height:19px;}
 .lr-half {display:flex;align-items:center;min-width:0;}
@@ -97,13 +97,24 @@ CSS = """<style>
 .lr-history th:first-child,.lr-history td:first-child {text-align:left;}
 .lr-review + .irt-evidence {max-width:1180px;margin:12px auto;}
 .lr-funding {padding:22px 0;border-bottom:1px solid var(--border);}
+.lr-bal-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px;margin:16px 0 6px;}
+.lr-bal-panel h4 {display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:600;margin:0 0 6px;color:var(--text-strong);}
+.lr-swatch {display:inline-block;width:10px;height:10px;border-radius:2px;flex:none;margin-right:6px;}
+.lr-cash {background:var(--series-cash);}
+.lr-borrowing {background:var(--series-borrowing);}
+.lr-bal-row {display:grid;grid-template-columns:96px minmax(40px,1fr) 80px;gap:12px;align-items:center;margin:10px 0;font-size:.82rem;}
+.lr-bal-date {color:var(--text-muted);}
+.lr-bal-track {display:flex;align-items:center;height:16px;border-left:1px solid var(--border-strong);}
+.lr-bal-bar {display:block;height:14px;border-radius:0 4px 4px 0;}
+.lr-bal-value {text-align:right;white-space:nowrap;font-weight:600;color:var(--text-strong);}
+@media(max-width:760px) {.lr-bal-grid {grid-template-columns:1fr;gap:18px;} .lr-bal-row {grid-template-columns:88px minmax(30px,1fr) 72px;gap:8px;}}
 .lr-funding-row {display:grid;grid-template-columns:165px minmax(0,1fr);gap:20px;padding:12px 0;border-top:1px solid var(--border);}
 .lr-funding-row h4 {font-size:.9rem;margin:8px 0;font-weight:600;}
 .lr-funding-row p {margin-top:6px;}
 .lr-funding .lr-meta {overflow-wrap:anywhere;}
 .lr-funding details {margin-top:14px;font-size:.85rem;}
 @media(max-width:760px) {.lr-funding-row {grid-template-columns:1fr;gap:0;}}
-@media(max-width:760px) {.lr-grid {grid-template-columns:1fr;gap:28px;} .lr-summary {grid-template-columns:repeat(2,minmax(0,1fr));} .lr-obligation,.lr-event {grid-template-columns:1fr;gap:4px;} .lr-review h2 {font-size:1.7rem;} .lr-review h3 {font-size:1.15rem;} .lr-bar-row {grid-template-columns:96px minmax(30px,1fr) 75px;gap:7px;} .lr-stat-value {font-size:1.3rem;}}
+@media(max-width:760px) {.lr-grid {grid-template-columns:1fr;gap:28px;} .lr-summary {grid-template-columns:repeat(2,minmax(0,1fr));} .lr-obligation,.lr-event {grid-template-columns:1fr;gap:4px;} .lr-review h2 {font-size:1.7rem;} .lr-review h3 {font-size:1.15rem;} .lr-bar-row {grid-template-columns:112px minmax(30px,1fr) 75px;gap:7px;} .lr-stat-value {font-size:1.3rem;}}
 </style>"""
 
 # Nested style blocks are parsed as raw text by the Markdown renderer and can hide headings.
@@ -174,7 +185,8 @@ def principal_html(snapshot):
     output += '<div><h4>By fiscal year</h4><div class="ol-table-wrap"><table class="ol-table">'
     output += '<thead><tr><th>Fiscal year</th><th>Period</th><th>Principal</th></tr></thead><tbody>'
     for bucket in review["calendar"]:
-        period = (f'{bucket["start"]} to {bucket["end"]}' if bucket["end"] else f'From {bucket["start"]}')
+        nice = lambda iso: (lambda d: f"{d:%b} {d.day}, {d:%Y}")(date.fromisoformat(iso))
+        period = (f'{nice(bucket["start"])} – {nice(bucket["end"])}' if bucket["end"] else f'From {nice(bucket["start"])}')
         output += f'<tr><td>{esc(bucket["label"])}</td><td>{esc(period)}</td><td>{esc(money(bucket["principal"], 3))}</td></tr>'
     output += (f'<tr><td>Total</td><td>Excludes commercial paper</td><td>{esc(money(rec["known_principal_excluding_cp"], 3))}</td></tr>'
                '</tbody></table></div><p class="lr-meta">FY2028 includes the term-loan remainder. Only fiscal 2027 differs from '
@@ -314,7 +326,10 @@ def render(snapshot):
         ("Net debt", money(m["net_debt"]["value"]), "Gross debt less cash"),
         ("Current ratio", f'{m["current_ratio"]["value"]:.2f}x' if m["current_ratio"]["value"] is not None else "Unavailable", "Current assets / current liabilities"),
     ):
-        output += f'<div><div class="lr-stat-label">{esc(label)}</div><div class="lr-stat-value">{esc(value)}</div><div class="lr-stat-detail">{esc(detail)}</div></div>'
+        # The same identity swatch as the balance chart, so the headline figure and its bars read as one quantity
+        swatch = {"Cash and equivalents": "cash", "Baseline gross debt": "borrowing"}.get(label)
+        mark = f'<span class="lr-swatch lr-{swatch}" aria-hidden="true"></span>' if swatch else ''
+        output += f'<div><div class="lr-stat-label">{mark}{esc(label)}</div><div class="lr-stat-value">{esc(value)}</div><div class="lr-stat-detail">{esc(detail)}</div></div>'
     from funding_conclusions import render as funding_html
     output += '</div>' + funding_html(snapshot)
     output += '<div class="lr-grid"><section class="lr-section"><h3>What remained after capital spending?</h3>'
