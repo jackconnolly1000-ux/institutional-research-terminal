@@ -145,7 +145,7 @@ class OracleInterest(unittest.TestCase):
         from openpyxl import load_workbook
         b = ol.workbook_bytes(json.loads(ol.SAMPLE.read_text()));self.assertIsNotNone(b)
         v, f = load_workbook(BytesIO(b), data_only=True), load_workbook(BytesIO(b), data_only=False)
-        self.assertEqual(v.sheetnames, ["Funding conclusion","Borrowing and leases","Debt and liquidity","History","Repayment review", "Cash analysis", "Payment dates", "Data", "About"])
+        self.assertEqual(v.sheetnames, ["Funding conclusion","Borrowing and leases","Debt and liquidity","History","Core charts","Repayment review", "Cash analysis", "Payment dates", "Data", "About"])
         for cell, value in {"E45":23057e6,"E46":5104e6,"E47":357e6,"B49":23057/5104}.items():
             self.assertAlmostEqual(v["Cash analysis"][cell].value, value)
             self.assertTrue(f["Cash analysis"][cell].value.startswith("="))

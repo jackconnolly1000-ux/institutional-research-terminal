@@ -237,19 +237,8 @@ def render(snapshot):
     output += '</div>' + funding_html(snapshot)
     output += '<div class="lr-grid"><section class="lr-section"><h3>What remained after capital spending?</h3>'
     output += f'<div class="lr-meta">TTM ended {esc(end)} · USD billions · 10-K and 10-Q cash-flow statements</div>'
-    bars = [("Operating cash flow", m["operating_cash_flow"]["value"]),
-            ("Capital spending", -m["capital_spending"]["value"] if m["capital_spending"]["value"] is not None else None),
-            ("Free cash flow", m["free_cash_flow"]["value"])]
-    maximum = max((abs(v) for _, v in bars if v is not None), default=1) or 1
-    output += '<div class="lr-chart">'
-    for name, value in bars:
-        width = abs(value) / maximum * 100 if value is not None else 0
-        bar = f'<span class="lr-bar" style="width:{width:.4f}%"></span>' if value else ''
-        output += (f'<div class="lr-bar-row"><span>{esc(name)}</span><div class="lr-track" aria-hidden="true">'
-                   f'<div class="lr-half">{bar if value is not None and value < 0 else ""}</div>'
-                   f'<div class="lr-half">{bar if value is not None and value > 0 else ""}</div></div>'
-                   f'<span class="lr-bar-value">{esc(money(value))}</span></div>')
-    output += '</div>'
+    import core_charts
+    output += core_charts.render_flow(snapshot, money)
     output += f'<p class="lr-meta">{esc(m["free_cash_flow"]["notes"][0])}</p>'
     output += '<div class="lr-ratios">'
     for key, label in (("ocf_to_debt", "TTM operating cash flow / debt"), ("fcf_to_debt", "TTM free cash flow / debt")):
@@ -287,6 +276,7 @@ def render(snapshot):
     output += vistra_interest_html(snapshot, money)
     import company_history
     output += company_history.render(snapshot, money)
+    output += core_charts.render_balances(snapshot, money)
     output += maturity_html(snapshot)
     output += '<section class="lr-obligations"><h3>What sits outside baseline borrowing?</h3><p class="lr-meta">Selected disclosures, each shown separately. Commitments are not all payable now and are not added to debt or to each other.</p>'
     for item in NOTES[snapshot["ticker"]]:
@@ -582,6 +572,9 @@ def saved_workbook(snapshots, folder=None, ticker=None):
         if snapshots != saved["snapshots"]:
             return None
         if ticker == "LLY":
+            import core_charts
+            if manifest.get("charts_sha256") != core_charts.fingerprint():
+                return None
             import company_history
             if manifest.get("history_sha256") != company_history.fingerprint():
                 return None
