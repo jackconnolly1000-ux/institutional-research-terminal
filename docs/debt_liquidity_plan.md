@@ -1,6 +1,6 @@
 # Debt and liquidity: first-release plan
 
-Status (checked against merged `main` at `0f7df28`, Oct 16, 2026): **delivery steps 1–6 and 8–10 are built for the three pilots as frozen, dated reviews; step 7 is partly built.** Release 1 steps 1–3 are merged (PRs #42–#43). Step 4 merged as PR #44 (`f0f246f`); step 5 is on `two-date-history`. See "Release 1 status" at the end for what is built, remaining and deferred.
+Status (checked against merged `main` at `0f7df28`, Oct 16, 2026): **delivery steps 1–6 and 8–10 are built for the three pilots as frozen, dated reviews; step 7 is partly built.** Release 1 steps 1–3 are merged (PRs #42–#43). Step 4 merged as PR #44 (`f0f246f`); step 5 merged as PR #45 (`5fb46ce`); step 6 is on `two-core-charts`. See "Release 1 status" at the end for what is built, remaining and deferred.
 
 ## Goal
 
@@ -150,14 +150,14 @@ Release 1 order (agreed Oct 16, 2026). One step per pull request; each keeps the
 **Built** (on `main` unless noted):
 - Delivery steps 1–6 for LLY, ORCL and VST: pilot data, cash, current ratio, baseline gross debt and net debt, financing filings notice (Vistra and Oracle joined to the live index by accession; Lilly screened in its own audit), obligations notes, validated FCF, OCF/debt, FCF/debt and historical interest coverage (LLY 31.17x, ORCL 4.52x, VST 3.19x).
 - First versions of delivery steps 8–10: the cash-flow and maturity/payment charts, one checked workbook per company plus the combined export, and the reconciliation files in `docs/`. Release 1 steps 6–8 revisit them.
-- Delivery step 7, partly: metrics and short factual findings (dated funding conclusions) are shown; comparable history is not (Release 1 step 5).
+- Delivery step 7: metrics, dated funding conclusions and checked two-date history are built (Release 1 step 5, PR #45).
 - Release 1 steps 1–2 (merged as PR #42 at `7e984f1`): roadmap reconciled; the reviews are the default page, open from a company selector without Run analysis, and load without secrets or network. General filing research is secondary and labeled experimental; AAPL/STRL is the archived filing-research example.
 
 - Release 1 step 3 merged as PR #43 (`0f7df28`): borrowing components, lease liabilities on their own dates and uncommenced leases are separate. See `borrowing_lease_presentation.md`.
 
 **Remaining:**
 - Step 4 merged as PR #44. Oracle and Vistra's primary exports now include current ratio, net debt and flow/debt calculations that were missing from their workbooks. All three workbooks and the app preserve their checked inputs and distinct interest-coverage bases. See `ratio_reconciliation.md`.
-- Step 5 adds checked two-date history (`company_history.md`); fiscal-year and later TTM flows overlap, and unsupported older Vistra debt remains Unavailable. Steps 6–8 remain next.
+- Step 5 merged as PR #45 (`company_history.md`); fiscal-year and later TTM flows overlap, and unsupported older Vistra debt remains Unavailable. Step 6 adds checked cash-generation and two-date balance charts (`core_charts.md`), with two formula-backed native charts in each individual workbook. Steps 7–8 remain next.
 - Leases: Oracle's August 31, 2026 operating (34.621B) and finance (9.185B) lease liabilities are shown separately from borrowing, and its 288B of leases not yet commenced is shown as a commitment. Lilly's and Vistra's June 30, 2026 10-Q reviews establish no lease liability amounts, so June 30 amounts are Unavailable; the latest reported amounts are at Dec 31, 2025 (Lilly: 1,362M operating, no finance leases described; Vistra: 105M operating and 222M finance). No review has a complete lease or obligations extraction, and lease interest is not added to any coverage ratio.
 - Funding: future funding coverage is Unavailable for all three. The decisive unknowns are the remaining principal calendar (Lilly has only the May 2026 issuance schedule; Oracle only its May 31 schedule), drawable credit and draw conditions (Lilly's post-August facility renewal, Oracle's current revolver availability, Vistra's borrowing base), covenant headroom, the timing and overlap of acquisition, manufacturing, capital-call and uncommenced-lease payments, Vistra's Parent-accessible cash, and all-in financing cost. Each is stated in its review; none is estimated.
 - Outside Release 1: supported-filer detection for banks, non-USD and non-U.S. GAAP filers (decision 4), the live pipeline computing these metrics beyond the three pilots, and refreshing a review when a newer filing arrives (today each review is rebuilt and checked by hand).

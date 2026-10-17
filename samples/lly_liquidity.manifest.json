@@ -23,11 +23,27 @@
       "samples/vistra_interest.json": "6a18cf366130ac1aeaf1edccb748b96a1abc3361864651a13b99504d2defa2d4"
     }
   },
+  "charts_sha256": {
+    "code": "b7887cd0aefc214ec068c121d6098328eec735ff8eb34bac9d1b53625e097024",
+    "history": {
+      "code": "4bcf1c3865935b121da475b0e978209c3f6ffb8fe40aa6ceffe4314f7b79dcc7",
+      "facts": "69082f1c56993e848a3e358f280224f536303b9199f4ec0f57fd944a00b9184c",
+      "ratios": {
+        "ratio_review.py": "efe06493218912afce97c5d49a5a3093f8cfbf530b1cbbd1cb784851350a5f9d",
+        "liquidity_pilot.py": "779bc075a935cf852bb3b28177ca965d2d59f6409b9144ba515b91ca6bf08660",
+        "cash_generation.py": "422a475b9dde90f508cc5c5be5cbed292362a333e140cd8ac7cb9bb0abb945c7",
+        "samples/liquidity_pilots.json": "7277641a931df81119db973b3340eb3e31249453c4fa706efcd4c3f333241760",
+        "samples/lly_interest.json": "9a82bb4336cf164825a2502de10a0cdc038b139ec505485ea914d6c1e038a614",
+        "samples/oracle_interest.json": "0aa090b90a9f7207b693697be60f215bb6c4e5177fa3423a3d5e6e56d3ac6cec",
+        "samples/vistra_interest.json": "6a18cf366130ac1aeaf1edccb748b96a1abc3361864651a13b99504d2defa2d4"
+      }
+    }
+  },
   "sources": {
     "liquidity_pilots.json": "7277641a931df81119db973b3340eb3e31249453c4fa706efcd4c3f333241760",
     "lly_liquidity.json": "542757d63352a595c467c4105e10ac6dfa5139bd6562c043d2881e352aa0808b",
     "lly_financing.json": "d13be6bc052357ce2745b83131784d2c52c95ab1addcef36fa81c7965ed9425e",
     "lly_interest.json": "9a82bb4336cf164825a2502de10a0cdc038b139ec505485ea914d6c1e038a614"
   },
-  "workbook_sha256": "974b16c1500f1547b2e773bbf00230e213f7f370df35cffacacace35721fcab1"
+  "workbook_sha256": "3537a12a06f0ef4d47c8deca18b18c98463ef03d2e49cb22893d3e7d79ddc236"
 }
