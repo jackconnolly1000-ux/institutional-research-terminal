@@ -16,8 +16,9 @@ Filing facts: starting cash and dated note/term-loan principal (oracle_principal
 Its corners are anchored to checked historical figures, but history doesn't establish future bounds or that any
 value is most likely. Capex and dividends are decisions. OCF and prepayments can be correlated (default 0).
 
-Only end-of-window cash is tested: cash could fall below zero on a payment date inside the window while ending cash
-is positive. Uses left out are in EXCLUDED (overlap shown by a filing) and oracle_uses_outside_model() (not
+monthly_path() also steps each trial through the twelve month ends: dated principal falls in the month the principal
+calendar dates it, and the yearly flows are spread evenly (an assumption; the filings give no timing within the
+year). It tests month-end cash, not each payment date within a month. Uses left out are in EXCLUDED (overlap shown by a filing) and oracle_uses_outside_model() (not
 shown to overlap; their effect is measured by added_uses, never folded into the base result).
 No Streamlit, no network. Seeded, so the same inputs and seed give identical output.
 """
@@ -41,9 +42,22 @@ CORRELATION_BASIS = ("No filing establishes how OCF excluding prepayments and cu
                      "the default is 0 (independent). Positive: strong cloud demand could raise both. Negative: "
                      "prepaid cash is not collected again later. The setting is the correlation of the normal scores "
                      "behind each draw; the realized correlation of the dollar draws is reported beside it.")
-TIMING_LIMIT = ("Ending cash is measured once, on August 31, 2027. The model does not test cash on each payment date: "
-                "a maturity early in the window could exceed cash on hand even when ending cash is positive, and the "
-                "timing of OCF, capex and dividends within the year is not modelled.")
+MONTHS = ("Sep 2026", "Oct 2026", "Nov 2026", "Dec 2026", "Jan 2027", "Feb 2027", "Mar 2027", "Apr 2027", "May 2027",
+          "Jun 2027", "Jul 2027", "Aug 2027")
+MONTH_ENDS = ("2026-09-30", "2026-10-31", "2026-11-30", "2026-12-31", "2027-01-31", "2027-02-28", "2027-03-31",
+              "2027-04-30", "2027-05-31", "2027-06-30", "2027-07-31", "2027-08-31")
+# Commercial paper has no disclosed maturity dates. Placing all of it in the first month is the earliest, most
+# demanding timing; at $0.287B–$0.387B it is small beside the dated principal.
+COMMERCIAL_PAPER_MONTH = 0
+MONTHLY_BASIS = ("Assumed timing: OCF, prepayments, capex, dividends and any added use are spread evenly, one twelfth "
+                 "per month; the filings give no timing within the year. Commercial paper outstanding at August 31 "
+                 "is assumed repaid in September 2026 (its maturity dates are not disclosed). Where the revolver is "
+                 "assumed usable, a draw fills a month-end gap and is repaid as cash recovers.")
+TIMING_LIMIT = ("Cash is tested at each month end, September 2026 to August 2027, as well as on August 31, 2027. Dated "
+                "note and term-loan principal falls in the month the principal calendar dates it; the other flows are "
+                "spread evenly by month, an assumption. The model does not test cash on each payment date within a "
+                "month (a maturity on April 1 is netted against all of April's assumed cash flow), and it does not "
+                "model OCF seasonality or the timing of capex and dividends within the year.")
 TRIANGLE_BASIS = ("Assumed distribution. The corners are anchored to checked historical figures; history does not "
                   "establish that future values stay inside them or that the middle value is most likely.")
 TEN_K = "10-K fiscal 2026, accession 0001193125-26-277521"
@@ -131,6 +145,7 @@ class Inputs:
     sources: dict = field(default_factory=dict)
     correlation: float = 0.0      # OCF excluding prepayments vs prepayments, normal-score correlation
     added_uses: float = 0.0       # a fixed extra use, for measuring uses outside the base model; 0 in the base
+    principal_schedule: tuple = ()  # ((date, amount), ...) from the principal calendar; sums to principal_due
 
 
 @dataclass(frozen=True)
@@ -166,6 +181,7 @@ def oracle_inputs(folder: Path | None = None) -> Inputs | None:
     return Inputs(
         starting_cash=q["closing_cash"]["value"],
         principal_due=calendar["next_twelve_months"]["principal"],
+        principal_schedule=tuple((r["date"], r["amount"]) for r in calendar["next_twelve_months"]["rows"]),
         revolver_commitment=10 * B,
         ocf_ex_prepayments=Triangular(fiscal_year, ttm_ex, quarter_ex,
             "Assumed. Low set at fiscal 2026 OCF; most likely set at TTM OCF less the specified prepayments; high set "
@@ -266,8 +282,9 @@ def ending_cash(inputs: Inputs, decision: Decision, ocf, prepayments, commercial
     return before, before + draw
 
 
-def simulate(inputs: Inputs, decision: Decision, trials: int = DEFAULT_TRIALS, seed: int = DEFAULT_SEED) -> dict:
-    """Seeded trials for one decision. Draw order is fixed, so each seed is reproducible."""
+def _draws(inputs: Inputs, trials: int, seed: int):
+    """The random inputs for each trial. Draw order is fixed, so each seed is reproducible, and simulate() and
+    monthly_path() see the same trials for the same seed."""
     if trials < 1:
         raise ValueError("trials must be positive")
     rng = np.random.default_rng(seed)
@@ -275,6 +292,12 @@ def simulate(inputs: Inputs, decision: Decision, trials: int = DEFAULT_TRIALS, s
     ocf = inputs.ocf_ex_prepayments.quantile(u_ocf)
     pre = inputs.prepayments.quantile(u_pre)
     cp = inputs.commercial_paper_due.draw(rng, trials)
+    return ocf, pre, cp
+
+
+def simulate(inputs: Inputs, decision: Decision, trials: int = DEFAULT_TRIALS, seed: int = DEFAULT_SEED) -> dict:
+    """Seeded trials for one decision, tested at the end of the window."""
+    ocf, pre, cp = _draws(inputs, trials, seed)
     before, after = ending_cash(inputs, decision, ocf, pre, cp)
     short = after < 0
     varies = trials > 1 and ocf.std() > 0 and pre.std() > 0
@@ -290,6 +313,58 @@ def simulate(inputs: Inputs, decision: Decision, trials: int = DEFAULT_TRIALS, s
         "mean_shortfall": float(-after[short].mean()) if short.any() else 0.0,
         "share_revolver_used": float((after > before).mean()) if decision.revolver else 0.0,
         "ending_cash": after,
+    }
+
+
+def month_index(day: str) -> int:
+    """0 for September 2026 through 11 for August 2027."""
+    index = (int(day[:4]) - 2026) * 12 + int(day[5:7]) - 9
+    if not 0 <= index < len(MONTHS):
+        raise ValueError(f"{day} is outside the window {HORIZON[0]} to {HORIZON[1]}")
+    return index
+
+
+def principal_by_month(inputs: Inputs) -> np.ndarray:
+    """Dated principal in the month of each instrument date, taken from the calendar, never re-derived."""
+    months = np.zeros(len(MONTHS))
+    for day, amount in inputs.principal_schedule:
+        months[month_index(day)] += amount
+    if abs(months.sum() - inputs.principal_due) > 0.5:
+        raise ValueError("The dated principal schedule does not sum to the principal due in the window")
+    return months
+
+
+def monthly_path(inputs: Inputs, decision: Decision, trials: int = DEFAULT_TRIALS, seed: int = DEFAULT_SEED) -> dict:
+    """The same trials as simulate(), stepped through each month end (MONTHLY_BASIS states the assumed timing).
+
+    Month-end cash = starting cash + the year's flows x months elapsed / 12 - dated principal paid so far
+    - commercial paper (from September). Month twelve is the full year, so it equals simulate()'s ending cash.
+    """
+    ocf, pre, cp = _draws(inputs, trials, seed)
+    principal = principal_by_month(inputs)
+    elapsed = np.arange(1, len(MONTHS) + 1) / len(MONTHS)
+    flows = ocf + pre - decision.capex - decision.dividends - inputs.added_uses
+    paper = np.outer(cp, np.arange(len(MONTHS)) >= COMMERCIAL_PAPER_MONTH)
+    before = inputs.starting_cash + np.outer(flows, elapsed) - np.cumsum(principal) - paper
+    after = before
+    if decision.revolver:
+        after = before + np.minimum(np.maximum(-before, 0), inputs.revolver_commitment)
+    # The month of the deepest need is read before any draw: a draw holds cash at zero in several months, which
+    # would tie. A remaining tie goes to the earlier month.
+    lowest, where = after.min(axis=1), before.argmin(axis=1)
+    counts = np.bincount(where, minlength=len(MONTHS))
+    return {
+        "decision": decision.name, "trials": trials, "seed": seed, "label": LABEL,
+        "principal_by_month": principal,
+        # Shares of simulated trials under the stated assumptions; not probabilities of default or of a funding gap.
+        "share_below_zero_any_month": float((after < 0).any(axis=1).mean()),
+        "lowest_mean": float(lowest.mean()), "lowest_p10": float(np.percentile(lowest, 10)),
+        "lowest_month": MONTHS[int(counts.argmax())], "lowest_month_share": float(counts.max() / trials),
+        "month_mean": after.mean(axis=0), "month_p10": np.percentile(after, 10, axis=0),
+        "month_share_below_zero": (after < 0).mean(axis=0),
+        "share_net_outflow": float((flows < 0).mean()),   # cash then falls every month, so the minimum is the end
+        "share_revolver_used_any_month": float((after > before).any(axis=1).mean()) if decision.revolver else 0.0,
+        "path": after,
     }
 
 

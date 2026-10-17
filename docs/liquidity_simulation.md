@@ -32,7 +32,43 @@ ending cash = starting cash + OCF excluding prepayments + prepayments
 
 Every default is editable in the app. Trials default to 10,000 with seed 2026, and the same inputs and seed reproduce the results exactly.
 
-**What "ending cash" tests, and what it doesn't.** Cash is measured once, on August 31, 2027. The model doesn't test cash on each payment date. A maturity early in the window could exceed cash on hand even when ending cash is positive, and the timing of OCF, capex and dividends within the year isn't modelled.
+**What it tests, and what it doesn't.** Cash is tested at the end of the window (August 31, 2027) and, since the month-end path below was added, at every month end from September 2026 to August 2027. It doesn't test cash on each payment date within a month, and it doesn't model OCF seasonality or when capex and dividends fall within the year.
+
+## Month-end cash path (added October 17, 2026)
+
+**What it asks:** does cash go below zero at any month end on the way, not only at the end?
+
+**How each trial is stepped** (`monthly_path` in `liquidity_simulation.py`, the same draws as the ending-cash result for the same seed):
+
+```
+month-end cash (month m of 12) = starting cash + (OCF + prepayments − capex − dividends) × m / 12
+                                 − dated principal paid through month m − commercial paper (from September)
+                                 (+ a revolver draw that fills a month-end gap, where assumed usable)
+```
+
+| Item | Timing | Kind |
+|---|---|---|
+| Note and term-loan principal | In the month the principal calendar dates each payment: $0.141B term-loan installments in Sep, Dec 2026 and Mar, Jun 2027; the 2.80% notes ($2.250B) on April 1, 2027; the term-loan remainder ($4.504B) on August 16, 2027 | Filing fact (dates read from `oracle_principal.json`, never re-derived) |
+| OCF, prepayments, capex, dividends | One twelfth each month | Assumption. The filings give no timing within the year. |
+| Commercial paper ($0.287B–$0.387B) | All in September 2026 | Assumption. Maturity dates aren't disclosed, so the earliest month is used. |
+| Revolver (hypothetical) | A draw fills a month-end gap, up to $10B, and is repaid as cash recovers | Hypothetical, as in the base model; interest on a draw isn't modelled |
+
+Because month twelve covers the full year, the last month-end equals the ending cash of the same trial; a test checks this for every trial.
+
+**Outputs, beside the ending-cash result:** the share of trials below zero at any month end, the mean and 10th percentile of each trial's lowest month-end cash, and the month where cash before any revolver draw is lowest most often. The month is read before any draw, because a draw holds cash at zero for several months, which would tie.
+
+**Default results (10,000 trials, seed 2026):**
+
+| Decision | Share below zero at Aug 31, 2027 | Share below zero at any month end | Mean lowest month-end cash | Month most often lowest |
+|---|---:|---:|---:|---|
+| A: TTM capex | 99.5% | 99.5% | −$11.23B | Aug 2027 (100% of trials) |
+| A, revolver usable | 62.6% | 62.6% | −$2.40B | Aug 2027 (100%) |
+| B: FY2026 capex | 0.2% | 0.2% | $8.76B | Aug 2027 (100%) |
+| B, revolver usable | 0.0% | 0.0% | $8.76B | Aug 2027 (100%) |
+
+**Reading it:** at the defaults the two tests agree. In every trial the year's flows are a net outflow (capex and dividends exceed even the highest assumed OCF plus prepayments), so cash falls every month and the largest payment, the term-loan remainder, falls in the last month. Under decision A, mean month-end cash first goes below zero in June 2027. The same holds with the three outside uses added. So, under the even-spread assumption, the ending-cash test doesn't hide an earlier month-end gap for these decisions. The monthly test would differ where the year's flows are positive and a large maturity comes early, as in the hand-checked test: $1B of cash, $12B of OCF and $4B due in October give −$1B at the end of October and +$9B at the end of August.
+
+**What it still doesn't test:** cash on a payment date within a month (the April 1 maturity is netted against all of April's assumed flows), OCF seasonality, quarterly dividend and capex timing, and when the finance-lease, capex-financing and purchase-obligation uses would fall (they're spread evenly when added).
 
 ## Cash uses the model leaves out
 
@@ -122,6 +158,7 @@ All three settings reuse the same seed, so the same underlying normal scores app
 | Stability | 10,000 and 50,000 trials agree; the same seed reproduces exactly, with or without correlation. The app also shows a live stability check (5× the trials, new seed). | Pass |
 | Correlation | The inverse CDF hits each triangle's corners and mode; correlated draws keep each triangle and reach the target within 0.05; without the revolver, −0.5, 0 and +0.5 give the same mean and a rising standard deviation; ±1 or beyond is rejected | Pass |
 | Exclusions | Every exclusion cites the filing or standard that shows the overlap; finance-lease principal is not among them; each outside use traces to the checked evidence; an added use lowers every trial by exactly its amount; the effects table starts from the unchanged base | Pass |
+| Month-end path | A hand-checked case ($4B due in October) goes below zero in October while ending cash is +$9B, and a $1B revolver draw fills it; dated principal falls in its calendar month and sums to $7.317B; the last month equals ending cash for every trial; seeds reproduce; the path never shows fewer trials below zero than the ending test; commercial paper is due in September | Pass |
 | Wording | No result is named a probability; the timing limit and the assumption basis are stated in the panel and the workbook | Pass |
 
 ## The Excel record
@@ -133,6 +170,8 @@ All three settings reuse the same seed, so the same underlying normal scores app
 | Scenario | Label, horizon, seed and trials. Each input with its **kind** (filing fact, assumption, derived range, hypothetical), low, most likely, high and basis. The timing limit and the share-of-trials note. |
 | Results | One row per decision: mean, standard deviation, percentiles, share of trials below zero and the average shortfall in those trials |
 | Correlation | −0.5, 0 and +0.5 for the decision shown |
+| Monthly path | One row per decision: share below zero at August 31, 2027 and at any month end, mean ending cash, mean and 10th percentile of the lowest month-end cash, the month most often lowest and its share, and the share of trials with a net outflow over the year |
+| Monthly path by month | Every decision × twelve month ends: dated principal, mean and 10th percentile month-end cash, share of trials below zero at that month end |
 | Outside-use effects | Every decision × (base, each outside use, all three) |
 | Uses not modelled | Each left-out use, its treatment (measured, excluded with proof, or not quantified), amount, basis, reason and source |
 
@@ -146,7 +185,7 @@ Findings, all fixed in the same pull request:
 3. **Short-term capex financing was not considered.** It's a separate financing line with an undisclosed balance. It's now measured, using cumulative net proceeds as an indicator.
 4. **Results were labelled "shortfall probability".** They're now "share of trials below zero", with a note that they aren't probabilities of default.
 5. **Historical anchors were described as if they set the range.** The basis text now says they're assumptions anchored to history.
-6. **The end-of-window limit wasn't stated.** It now appears in the panel, the workbook and this document.
+6. **The end-of-window limit wasn't stated.** It now appears in the panel, the workbook and this document. (Later the same day the month-end path was added; the limit now states what that path does and doesn't test.)
 7. **Stale principal wording elsewhere.** Two Oracle review texts and the combined workbook's About sheet still said August 31 principal was not established. They now point to the principal calendar; the combined workbook was patched in one cell (`tests/offline/patch_combined_principal_note.py`) and its manifest rebound.
 
 ## Five-minute interview walkthrough
@@ -155,6 +194,7 @@ Findings, all fixed in the same pull request:
 2. **Why simulation (30 s).** When an answer depends on an uncertain input, show the whole distribution instead of guessing one number. That's the Module 2 idea: uncertain inputs, business logic, then outputs.
 3. **The model (90 s).** Walk through the formula. Say which inputs are filing facts (cash, dated principal), which are assumptions (the triangles, anchored to history but not established by it) and which are decisions (capex, dividends, the revolver). Then explain the exclusions: operating leases and interest are already in OCF per Oracle's own policy, while finance-lease principal, capex financing and purchase obligations aren't shown to overlap, so their effect is measured.
 4. **The result (60 s).** At the TTM capex pace, 99% of trials end below zero, and even the full revolver lifts only about a third above it. At the fiscal 2026 level the base model looks comfortable, but adding the unresolved uses moves 63% of trials below zero. The honest conclusion is that the answer depends on items the filings don't settle.
+   The month-end path checks the timing question: with dated principal in its calendar month and the other flows spread evenly, cash falls every month at the defaults, so the lowest point is August 2027 and the two tests agree.
 5. **Why trust it (60 s).** The checks run as automated tests, the runs are seeded, every percentage is a share of simulated trials, and it never changes the checked conclusion.
 
 **Likely interview question:** *"Why triangular distributions?"* There are only a few checked periods. A low, most likely and high anchored to those periods is a transparent way to state an assumption, and anyone can see and change it. It doesn't claim the history sets the bounds. A fitted normal distribution would imply more precision than three observations support.
@@ -162,7 +202,7 @@ Findings, all fixed in the same pull request:
 ## Limits
 
 - The OCF triangle is an assumption anchored to three checked periods. The high corner annualizes a single quarter. History doesn't set future bounds.
-- Only end-of-window cash is tested, not cash on each payment date.
+- Cash is tested at month ends, not on each payment date within a month. OCF, prepayments, capex and dividends are spread evenly by month (an assumption), so OCF seasonality isn't modelled. Commercial paper is assumed due in September 2026.
 - Three outside uses are measured at stated amounts, not modelled as uncertain; several more have no measurable amount (see above).
 - The OCF–prepayment correlation is an assumption with no filing evidence. Its default of 0 is a neutral choice, not a finding. Commercial paper is drawn independently.
 - Capex and dividends are held at the decision values, with no timing within the year.

@@ -1,14 +1,14 @@
 """Release 2, steps 2–3: the Oracle stress scenario in the app, with editable assumptions and an Excel record.
 
 The model is liquidity_simulation.py. This view shows the math model and the assumption basis before any result
-(as in class), runs the four decisions side by side, measures the cash uses the model leaves out, shows a stability
-check, and offers the scenario as its own workbook. It is kept out of the checked evidence workbooks on purpose:
+(as in class), runs the four decisions side by side, tests month-end cash for the decision shown, measures the cash
+uses the model leaves out, shows a stability check, and offers the scenario as its own workbook. It is kept out of the checked evidence workbooks on purpose:
 assumptions are not filing facts. Results are shares of simulated trials, never probabilities of default.
 """
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime
+from datetime import date, datetime
 from io import BytesIO
 from zoneinfo import ZoneInfo
 
@@ -73,6 +73,27 @@ def results_table(st, results):
                "or of a funding gap.")
 
 
+def monthly_table(st, end, path):
+    """The decision shown, tested once at the end of the window and again at every month end."""
+    import pandas as pd
+    rows = [{"Cash at": "Aug 31, 2027", SHARE: end["share_below_zero"] * 100,
+             "Mean ($B)": round(end["mean"] / B, 2), "10th percentile ($B)": round(end["p10"] / B, 2)},
+            {"Cash at": "Lowest month end", SHARE: path["share_below_zero_any_month"] * 100,
+             "Mean ($B)": round(path["lowest_mean"] / B, 2), "10th percentile ($B)": round(path["lowest_p10"] / B, 2)}]
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                 column_config={SHARE: st.column_config.NumberColumn(format="%.1f%%")})
+    dated = ", ".join(f"{m} ${a / B:.3f}B" for m, a in zip(ls.MONTHS, path["principal_by_month"]) if a)
+    where = (f"The month with the lowest cash before any revolver draw is {path['lowest_month']} in "
+             f"{path['lowest_month_share']:.1%} of trials.")
+    if path["lowest_month"] == ls.MONTHS[-1] and path["lowest_month_share"] == 1:
+        why = (" The year's flows are a net outflow in every trial, so cash falls every month, and the" if
+               path["share_net_outflow"] == 1 else " The")
+        where += f"{why} two tests agree on these assumptions."
+    st.caption(f"Lowest month end: each trial's lowest of the twelve month ends, Sep 2026–Aug 2027; below zero means "
+               f"below zero in any month. {where}")
+    st.caption(_dollars(f"Dated principal by month: {dated}. {ls.MONTHLY_BASIS}"))
+
+
 def correlation_table(st, comparison, revolver):
     """The same decision and seed at three correlations: each input keeps its triangle, so only the spread moves."""
     import pandas as pd
@@ -135,10 +156,10 @@ SHARE_NOTE = ("Shares of trials below zero describe the simulated trials under t
               "probabilities of default or of a funding gap.")
 
 
-def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=None) -> bytes:
+def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=None, monthly=None) -> bytes:
     """The scenario on screen as its own record: inputs (each marked filing fact, derived, assumption or hypothetical)
-    with sources, seed, trials, results, the correlation comparison for the decision shown, and the effect of each
-    use the model leaves out, for every decision. Arial 10."""
+    with sources, seed, trials, results, the correlation comparison for the decision shown, the effect of each use
+    the model leaves out and the month-end path, for every decision. Arial 10."""
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font
     wb = Workbook()
@@ -173,7 +194,9 @@ def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=
     ws.append([ls.TIMING_LIMIT])
     ws.append([SHARE_NOTE])
     ws.append(["Cash uses the model leaves out, and why, are on the Uses not modelled sheet; their effect on each "
-               "decision is on Outside-use effects. Capex and dividends are decisions, shown on Results."])
+               "decision is on Outside-use effects. Capex and dividends are decisions, shown on Results. Month-end "
+               "cash is on Monthly path and Monthly path by month."])
+    ws.append([ls.MONTHLY_BASIS])
     res = wb.create_sheet("Results")
     res.append(["Decision", "Capex" + USD, "Dividends" + USD, "Revolver assumed usable", "Mean ending cash" + USD,
                 "Std dev" + USD, "10th percentile" + USD, "Median" + USD, "90th percentile" + USD,
@@ -188,6 +211,26 @@ def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=
         for r in comparison:
             cor.append([r["decision"], r["correlation"], r["realized_correlation"], r["mean"], r["sd"], r["p10"],
                         r["share_below_zero"]])
+    if monthly:
+        mon = wb.create_sheet("Monthly path")
+        mon.append(["Decision", "Revolver assumed usable", "Share of trials below zero at Aug 31, 2027",
+                    "Share of trials below zero at any month end", "Mean ending cash" + USD,
+                    "Mean lowest month-end cash" + USD, "10th percentile of lowest month-end cash" + USD,
+                    "Month most often lowest (before any revolver draw)", "Share of trials lowest in that month",
+                    "Share of trials with a net outflow over the year"])
+        for d, end, path in monthly:
+            mon.append([d.name, "Yes" if d.revolver else "No", end["share_below_zero"],
+                        path["share_below_zero_any_month"], end["mean"], path["lowest_mean"], path["lowest_p10"],
+                        path["lowest_month"], path["lowest_month_share"], path["share_net_outflow"]])
+        by = wb.create_sheet("Monthly path by month")
+        by.append(["Decision", "Month", "Month end", "Dated note and term-loan principal" + USD,
+                   "Mean month-end cash" + USD, "10th percentile month-end cash" + USD,
+                   "Share of trials below zero at this month end"])
+        for d, _, path in monthly:
+            for k, month in enumerate(ls.MONTHS):
+                by.append([d.name, month, date.fromisoformat(ls.MONTH_ENDS[k]), float(path["principal_by_month"][k]),
+                           float(path["month_mean"][k]), float(path["month_p10"][k]),
+                           float(path["month_share_below_zero"][k])])
     if outside:
         eff = wb.create_sheet("Outside-use effects")
         eff.append(["Decision", "Scenario", "Added use" + USD, "Mean ending cash" + USD, "10th percentile" + USD,
@@ -210,7 +253,8 @@ def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=
     money_fmt = '#,##0,,;(#,##0,,);"-"'
     # Non-USD cells by sheet: column numbers (or the correlation row on Scenario) and their format.
     ratio = {"Results": {10: "0.0%"}, "Correlation": {2: "+0.0;-0.0;0.0", 3: "+0.00;-0.00;0.00", 7: "0.0%"},
-             "Outside-use effects": {6: "0.0%"}}
+             "Outside-use effects": {6: "0.0%"}, "Monthly path": {3: "0.0%", 4: "0.0%", 9: "0.0%", 10: "0.0%"},
+             "Monthly path by month": {7: "0.0%"}}
     for sheet in wb:
         for row in sheet.iter_rows():
             for cell in row:
@@ -221,6 +265,8 @@ def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=
                         cell.number_format = "+0.0;-0.0;0.0"
                     else:
                         cell.number_format = ratio.get(sheet.title, {}).get(cell.column, money_fmt)
+                elif isinstance(cell.value, date):
+                    cell.number_format = "yyyy-mm-dd"
         sheet.freeze_panes = None if sheet.title == "Scenario" else "A2"
         for col in "ABCDEFGHIJK":
             sheet.column_dimensions[col].width = 22
@@ -248,11 +294,12 @@ def render(st, snapshot) -> None:
         st.markdown(_dollars(
             "**Question:** if operating cash flow fell anywhere in the assumed range below, in what share of "
             "simulated trials would August 31 cash plus that cash flow end the twelve months below the cash uses "
-            "the model subtracts?\n\n"
+            "the model subtracts, or go below zero at a month end on the way?\n\n"
             f"**Model, per trial:** ending cash = ${inputs.starting_cash / B:.3f}B cash + OCF excluding prepayments "
             f"+ prepayments − capex − dividends − ${inputs.principal_due / B:.3f}B dated debt principal − commercial "
             "paper due (+ a revolver draw up to $10B, only where the decision assumes it is usable; drawable credit "
-            "is Unavailable in the filings).\n\n"
+            "is Unavailable in the filings). The month-end path subtracts each dated principal payment in its "
+            "calendar month and spreads the other flows evenly.\n\n"
             "**Filing facts:** the starting cash (10-Q balance sheet, August 31, 2026) and the note and term-loan "
             "principal due in the window (Oracle's August 31 principal calendar). **Assumptions:** the OCF, "
             "prepayment and commercial-paper triangles and the correlation; their defaults are anchored to checked "
@@ -268,6 +315,9 @@ def render(st, snapshot) -> None:
         pick = st.radio("Show the distribution for", [d.name for d in decisions], horizontal=True, key="sim_pick")
         histogram(st, next(r for r, d in results if d.name == pick))
         shown = next(d for d in decisions if d.name == pick)
+        monthly = [(d, r, ls.monthly_path(edited, d, trials, seed)) for r, d in results]
+        st.markdown(f"**Cash at each month end** · {shown.name}")
+        monthly_table(st, *next((r, m) for d, r, m in monthly if d.name == pick))
         comparison = ls.compare_correlations(edited, shown, trials, seed)
         st.markdown(f"**How correlation changes the spread** · {shown.name}")
         correlation_table(st, comparison, shown.revolver)
@@ -282,5 +332,5 @@ def render(st, snapshot) -> None:
         st.caption("Also not modelled: new borrowing or equity. The funding conclusion above is unchanged: future "
                    "funding coverage remains Unavailable.")
         st.download_button("Download this scenario (Excel)",
-                           workbook(edited, results, trials, seed, comparison, outside, uses),
+                           workbook(edited, results, trials, seed, comparison, outside, uses, monthly),
                            file_name=f"Oracle_Stress_Scenario_seed{seed}.xlsx", mime=XLSX, key="sim_download")

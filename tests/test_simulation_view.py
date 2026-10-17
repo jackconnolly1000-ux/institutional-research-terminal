@@ -42,9 +42,9 @@ class ScenarioPanel(unittest.TestCase):
         self.assertIn("Stress scenario (illustrative) · Sep 2026–Aug 2027", self.labels())
         text = "\n".join(m.value for m in self.app.markdown)
         self.assertIn(ls.LABEL, text)
-        self.assertEqual(len(self.app.dataframe), 3)   # results, correlation, uses outside the model
+        self.assertEqual(len(self.app.dataframe), 4)   # results, month ends, correlation, uses outside the model
         self.assertEqual(len(self.app.dataframe[0].value), 4)
-        self.assertEqual(list(self.app.dataframe[1].value["Correlation setting"]), list(ls.COMPARE_CORRELATIONS))
+        self.assertEqual(list(self.app.dataframe[2].value["Correlation setting"]), list(ls.COMPARE_CORRELATIONS))
         for ticker in ("LLY", "VST"):
             self.pick(ticker)
             self.assertFalse(any(label.startswith("Stress scenario") for label in self.labels()))
@@ -59,7 +59,8 @@ class ScenarioPanel(unittest.TestCase):
         self.pick("ORCL")
         button = next(b for b in self.app.get("download_button") if b.proto.label == "Download this scenario (Excel)")
         wb = load_workbook(BytesIO(SERVED[button.proto.url.rsplit("/", 1)[-1].split(".")[0]]))
-        self.assertEqual(wb.sheetnames, ["Scenario", "Results", "Correlation", "Outside-use effects", "Uses not modelled"])
+        self.assertEqual(wb.sheetnames, ["Scenario", "Results", "Correlation", "Monthly path", "Monthly path by month",
+                                         "Outside-use effects", "Uses not modelled"])
         self.assertEqual([wb["Correlation"].cell(r, 2).value for r in (2, 3, 4)], list(ls.COMPARE_CORRELATIONS))
         self.assertEqual(wb["Scenario"]["A2"].value, ls.LABEL)
         self.assertIn("Seed 2026, 10,000 trials", wb["Scenario"]["A3"].value)
@@ -86,10 +87,10 @@ class ScenarioPanel(unittest.TestCase):
         text = "\n".join([m.value for m in self.app.markdown] + [c.value for c in self.app.caption])
         self.assertIn("**Filing facts:**", text)
         self.assertIn("**Assumptions:**", text)
-        self.assertIn("each payment date", text)
+        self.assertIn("each payment date within a month", text)
         self.assertIn("not probabilities of default", text)
         self.assertNotIn("probability", " ".join(self.app.dataframe[0].value.columns).lower())
-        uses = self.app.dataframe[2].value
+        uses = self.app.dataframe[3].value
         self.assertEqual(list(uses["Scenario"]), ["Base model", "Finance-lease principal",
                                                  "Short-term financing related to capex",
                                                  "Purchase and other obligations", "All three together"])
@@ -109,6 +110,43 @@ class ScenarioPanel(unittest.TestCase):
         everything = " ".join(str(c.value) for s in wb for row in s.iter_rows() for c in row if c.value)
         self.assertNotIn("Shortfall probability", everything)
         self.assertNotIn("finance lease payments (inside OCF", everything)   # the corrected claim
+
+
+    def test_month_end_table_sits_beside_the_end_of_window_result(self):
+        self.pick("ORCL")
+        table = self.app.dataframe[1].value
+        self.assertEqual(list(table["Cash at"]), ["Aug 31, 2027", "Lowest month end"])
+        end = ls.simulate(ls.oracle_inputs(), ls.oracle_decisions()[0], 10_000, 2026)
+        path = ls.monthly_path(ls.oracle_inputs(), ls.oracle_decisions()[0], 10_000, 2026)
+        self.assertAlmostEqual(table[sv.SHARE][0], end["share_below_zero"] * 100)
+        self.assertAlmostEqual(table[sv.SHARE][1], path["share_below_zero_any_month"] * 100)
+        self.assertAlmostEqual(table["Mean ($B)"][1], round(path["lowest_mean"] / ls.B, 2))
+        captions = " ".join(c.value for c in self.app.caption)
+        self.assertIn("Aug 2027 in 100.0% of trials", captions)
+        self.assertIn("Apr 2027 \$2.250B", captions)
+        self.assertIn("September 2026", captions)                      # where commercial paper is assumed due
+        self.assertNotIn("probability", " ".join(table.columns).lower())
+
+    def test_download_records_the_month_end_path(self):
+        self.pick("ORCL")
+        button = next(b for b in self.app.get("download_button") if b.proto.label == "Download this scenario (Excel)")
+        wb = load_workbook(BytesIO(SERVED[button.proto.url.rsplit("/", 1)[-1].split(".")[0]]))
+        summary = list(wb["Monthly path"].iter_rows(min_row=2, values_only=True))
+        self.assertEqual(len(summary), 4)
+        path = ls.monthly_path(ls.oracle_inputs(), ls.oracle_decisions()[0], 10_000, 2026)
+        self.assertAlmostEqual(summary[0][3], path["share_below_zero_any_month"])
+        self.assertAlmostEqual(summary[0][5], path["lowest_mean"], delta=1)
+        self.assertEqual(wb["Monthly path"]["D2"].number_format, "0.0%")
+        self.assertEqual(wb["Monthly path"]["F2"].number_format, '#,##0,,;(#,##0,,);"-"')
+        by = wb["Monthly path by month"]
+        self.assertEqual(by.max_row, 1 + 4 * 12)
+        self.assertIn("(USD, displayed in millions)", by["D1"].value)
+        april = next(r for r in by.iter_rows(min_row=2, max_row=13, values_only=True) if r[1] == "Apr 2027")
+        self.assertEqual(april[3], 2_250_000_000)
+        self.assertIsInstance(april[4], float)
+        self.assertEqual(by["C2"].number_format, "yyyy-mm-dd")
+        self.assertEqual((by["E2"].font.name, by["E2"].font.sz), ("Arial", 10.0))
+        self.assertEqual(wb["Scenario"]["A17"].value, ls.MONTHLY_BASIS)
 
 
 class PrincipalCalendarWording(unittest.TestCase):
