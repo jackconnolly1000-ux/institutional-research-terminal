@@ -1,6 +1,6 @@
 # Release 2 plan: liquidity stress simulation
 
-**Status: built (October 17, 2026).** Step 1: `liquidity_simulation.py`. Step 2: the Oracle app panel (`simulation_view.py`). Step 3: a scenario Excel download. Step 4: [`liquidity_simulation.md`](liquidity_simulation.md). Correlation between OCF and prepayments remains a possible addition. Release 2 was chosen by Jack on October 17 (option A of four, recorded below). Nothing in this plan changes the checked reviews, their figures or their funding conclusions.
+**Status: built (October 17, 2026).** Step 1: `liquidity_simulation.py`. Step 2: the Oracle app panel (`simulation_view.py`). Step 3: a scenario Excel download. Step 4: [`liquidity_simulation.md`](liquidity_simulation.md). Correlation between OCF and prepayments was added the same day (default 0; see [`liquidity_simulation.md`](liquidity_simulation.md)). Release 2 was chosen by Jack on October 17 (option A of four, recorded below). Nothing in this plan changes the checked reviews, their figures or their funding conclusions.
 
 ## The question
 
@@ -109,7 +109,7 @@ Subtracting them again would count the same cash twice. The cash uses outside OC
    - most likely $35.577B (TTM OCF less the specified prepayments);
    - high $46.960B (Jun–Aug 2026 excluding prepayments, times four; an optimistic bound).
    - Prepayments are triangular from $0 to $11.363B, with a mode of $0.
-3. **Correlation:** not modelled in step 1. It could be added in step 2 as covered in class.
+3. **Correlation:** not modelled in step 1. Added October 17 as an editable setting, default 0 (independent), with a −0.5 / 0 / +0.5 comparison.
 
 **Decisions compared:** capex at the TTM rate ($75.66B) or the fiscal 2026 level ($55.663B), each with the revolver assumed unusable or usable up to $10B (a hypothetical).
 

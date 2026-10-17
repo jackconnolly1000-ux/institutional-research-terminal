@@ -42,8 +42,9 @@ class ScenarioPanel(unittest.TestCase):
         self.assertIn("Stress scenario (illustrative) · Sep 2026–Aug 2027", self.labels())
         text = "\n".join(m.value for m in self.app.markdown)
         self.assertIn(ls.LABEL, text)
-        self.assertEqual(len(self.app.dataframe), 1)
+        self.assertEqual(len(self.app.dataframe), 2)
         self.assertEqual(len(self.app.dataframe[0].value), 4)
+        self.assertEqual(list(self.app.dataframe[1].value["Correlation setting"]), list(ls.COMPARE_CORRELATIONS))
         for ticker in ("LLY", "VST"):
             self.pick(ticker)
             self.assertFalse(any(label.startswith("Stress scenario") for label in self.labels()))
@@ -58,13 +59,27 @@ class ScenarioPanel(unittest.TestCase):
         self.pick("ORCL")
         button = next(b for b in self.app.get("download_button") if b.proto.label == "Download this scenario (Excel)")
         wb = load_workbook(BytesIO(SERVED[button.proto.url.rsplit("/", 1)[-1].split(".")[0]]))
-        self.assertEqual(wb.sheetnames, ["Scenario", "Results"])
+        self.assertEqual(wb.sheetnames, ["Scenario", "Results", "Correlation"])
+        self.assertEqual([wb["Correlation"].cell(r, 2).value for r in (2, 3, 4)], list(ls.COMPARE_CORRELATIONS))
         self.assertEqual(wb["Scenario"]["A2"].value, ls.LABEL)
         self.assertIn("Seed 2026, 10,000 trials", wb["Scenario"]["A3"].value)
         self.assertEqual(wb["Results"].max_row, 5)
         expected = ls.simulate(ls.oracle_inputs(), ls.oracle_decisions()[0], 10_000, 2026)
         self.assertAlmostEqual(wb["Results"]["E2"].value, expected["mean"], delta=1)
         self.assertAlmostEqual(wb["Results"]["J2"].value, expected["probability_shortfall"])
+
+    def test_the_correlation_setting_reaches_every_result_and_the_download(self):
+        self.pick("ORCL")
+        self.app.slider(key="sim_rho").set_value(0.5).run()
+        self.assertFalse(self.app.exception)
+        button = next(b for b in self.app.get("download_button") if b.proto.label == "Download this scenario (Excel)")
+        wb = load_workbook(BytesIO(SERVED[button.proto.url.rsplit("/", 1)[-1].split(".")[0]]))
+        self.assertEqual(wb["Scenario"]["B12"].value, 0.5)
+        from dataclasses import replace
+        tied = replace(ls.oracle_inputs(), correlation=0.5)
+        expected = ls.simulate(tied, ls.oracle_decisions()[0], 10_000, 2026)
+        self.assertAlmostEqual(wb["Results"]["E2"].value, expected["mean"], delta=1)
+        self.assertAlmostEqual(wb["Results"]["F2"].value, expected["sd"], delta=1)
 
 
 class ScenarioWorkbook(unittest.TestCase):
@@ -75,7 +90,9 @@ class ScenarioWorkbook(unittest.TestCase):
         cell = wb["Results"]["E2"]
         self.assertIsInstance(cell.value, float)
         self.assertEqual((cell.font.name, cell.font.sz), ("Arial", 10.0))
-        self.assertIn("Not modelled", wb["Scenario"]["A13"].value)
+        self.assertIn("Not modelled", wb["Scenario"]["A14"].value)
+        self.assertEqual(wb["Scenario"]["B12"].number_format, "+0.0;-0.0;0.0")   # a ratio, not $ millions
+        self.assertNotIn("Correlation", wb.sheetnames)                            # only when a comparison is passed
 
 
 if __name__ == "__main__":

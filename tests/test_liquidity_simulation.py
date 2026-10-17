@@ -104,6 +104,43 @@ class Distribution(unittest.TestCase):
         self.assertLess(abs(peak - t.mode), (t.high - t.low) / 20)
 
 
+class Correlation(unittest.TestCase):
+    """Correlation changes how OCF and prepayments move together, not each one's own triangle (class rule)."""
+
+    def setUp(self):
+        self.i = ls.oracle_inputs()
+
+    def test_inverse_cdf_hits_the_corners_and_the_mode(self):
+        t = ls.Triangular(10, 20, 40)
+        self.assertEqual(list(t.quantile([0, 1 / 3, 1])), [10, 20, 40])   # a third of the area lies left of 20
+        self.assertEqual(list(ls.Triangular(0, 0, 9).quantile([0, 1])), [0, 9])
+        self.assertEqual(list(fixed(5).quantile([0.2, 0.9])), [5, 5])
+
+    def test_correlated_draws_keep_each_triangle(self):
+        u1, u2 = ls.correlated_uniforms(np.random.default_rng(3), 200_000, 0.6)
+        for t, u in ((self.i.ocf_ex_prepayments, u1), (self.i.prepayments, u2)):
+            x = t.quantile(u)
+            self.assertGreaterEqual(x.min(), t.low)
+            self.assertLessEqual(x.max(), t.high)
+            self.assertAlmostEqual(x.mean(), t.mean, delta=0.01 * t.high)
+        x, y = self.i.ocf_ex_prepayments.quantile(u1), self.i.prepayments.quantile(u2)
+        self.assertAlmostEqual(np.corrcoef(x, y)[0, 1], 0.6, delta=0.05)
+
+    def test_correlation_moves_spread_not_mean(self):
+        d = ls.oracle_decisions()[0]                     # no revolver, so ending cash is linear in the inputs
+        low, zero, high = ls.compare_correlations(self.i, d, 50_000)
+        self.assertAlmostEqual(low["mean"], zero["mean"], delta=0.05 * B)
+        self.assertAlmostEqual(high["mean"], zero["mean"], delta=0.05 * B)
+        self.assertLess(low["sd"], zero["sd"])
+        self.assertLess(zero["sd"], high["sd"])
+        self.assertAlmostEqual(zero["realized_correlation"], 0, delta=0.02)
+
+    def test_correlation_must_be_inside_minus_one_to_one(self):
+        for rho in (1.0, -1.0, 1.5):
+            with self.assertRaises(ValueError):
+                ls.simulate(replace(self.i, correlation=rho), ls.oracle_decisions()[0], 10)
+
+
 class Stability(unittest.TestCase):
     """Check 4: more trials settle the estimates; the same seed reproduces exactly."""
 
@@ -114,6 +151,9 @@ class Stability(unittest.TestCase):
         self.assertAlmostEqual(small["probability_shortfall"], large["probability_shortfall"], delta=0.02)
         again = ls.simulate(i, d, 10_000, seed=1)
         self.assertTrue(np.array_equal(small["ending_cash"], again["ending_cash"]))
+        tied = replace(i, correlation=0.5)
+        self.assertTrue(np.array_equal(ls.simulate(tied, d, 5_000, seed=4)["ending_cash"],
+                                       ls.simulate(tied, d, 5_000, seed=4)["ending_cash"]))
 
 
 if __name__ == "__main__":

@@ -37,12 +37,16 @@ def assumptions(st, inputs, decisions):
     c6, c7 = st.columns(2)
     capex_a = _billions(c6, "Capex, decision A", decisions[0].capex, "sim_capex_a", help="Default: TTM cash capex.")
     capex_b = _billions(c7, "Capex, decision B", decisions[2].capex, "sim_capex_b", help="Default: fiscal 2026 cash capex.")
+    rho = st.slider("Correlation, OCF excl. prepayments and prepayments", -0.9, 0.9, inputs.correlation, 0.1,
+                    format="%.1f", key="sim_rho")
+    st.caption(ls.CORRELATION_BASIS)
     c8, c9 = st.columns(2)
     trials = c8.selectbox("Trials", [10_000, 50_000], key="sim_trials")
     seed = int(c9.number_input("Seed", value=ls.DEFAULT_SEED, step=1, key="sim_seed"))
     try:
         edited = replace(inputs, ocf_ex_prepayments=ls.Triangular(low, mode, high, t.basis),
-                         prepayments=ls.Triangular(0, 0, max(prepay, 0), inputs.prepayments.basis))
+                         prepayments=ls.Triangular(0, 0, max(prepay, 0), inputs.prepayments.basis),
+                         correlation=float(rho))
     except ValueError:
         st.warning("The OCF range needs low ≤ most likely ≤ high. Nothing was run.")
         return None
@@ -62,6 +66,25 @@ def results_table(st, results):
                  column_config={"Shortfall probability": st.column_config.NumberColumn(format="%.1f%%")})
 
 
+def correlation_table(st, comparison, revolver):
+    """The same decision and seed at three correlations: each input keeps its triangle, so only the spread moves."""
+    import pandas as pd
+    rows = [{"Correlation setting": r["correlation"], "Realized correlation": r["realized_correlation"],
+             "Mean ending cash ($B)": round(r["mean"] / B, 2), "Std dev ($B)": round(r["sd"] / B, 2),
+             "10th percentile ($B)": round(r["p10"] / B, 2), "Shortfall probability": r["probability_shortfall"] * 100}
+            for r in comparison]
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                 column_config={"Correlation setting": st.column_config.NumberColumn(format="%.1f"),
+                                "Realized correlation": st.column_config.NumberColumn(format="%+.2f"),
+                                "Shortfall probability": st.column_config.NumberColumn(format="%.1f%%")})
+    note = ("Without the revolver, ending cash is a sum of the inputs, so the mean stays put and only the spread "
+            "changes.")
+    if revolver:
+        note = ("With the revolver, a draw fills only shortfalls and stops at \\$10B, so a wider spread can also move "
+                "the mean.")
+    st.caption(f"Same decision, seed and trials at each setting. {note}")
+
+
 def histogram(st, result):
     import plotly.graph_objects as go
     import theme as T
@@ -79,8 +102,9 @@ def histogram(st, result):
     st.plotly_chart(fig, width="stretch", theme=None, config=CHART_CONFIG)
 
 
-def workbook(inputs, results, trials, seed) -> bytes:
-    """The scenario on screen as its own record: inputs with sources, seed, trials and results. Arial 10."""
+def workbook(inputs, results, trials, seed, comparison=None) -> bytes:
+    """The scenario on screen as its own record: inputs with sources, seed, trials, results and, when given, the
+    correlation comparison for the decision shown. Arial 10."""
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font
     wb = Workbook()
@@ -100,9 +124,12 @@ def workbook(inputs, results, trials, seed) -> bytes:
             ("Specified customer prepayments", p.low, p.mode, p.high, p.basis),
             ("Commercial paper due", c.low, c.mode, c.high, c.basis),
             ("Revolver commitment (hypothetical)", inputs.revolver_commitment, inputs.revolver_commitment,
-             inputs.revolver_commitment, inputs.sources["revolver_commitment"])]
+             inputs.revolver_commitment, inputs.sources["revolver_commitment"]),
+            ("OCF–prepayment correlation (ratio, not USD)", inputs.correlation, inputs.correlation,
+             inputs.correlation, ls.CORRELATION_BASIS)]
     for row in rows:
         ws.append(list(row))
+    rho_row = ws.max_row
     ws.append([])
     ws.append(["Not modelled: operating and finance lease payments (inside OCF; principal split not disclosed), "
                "purchase obligations (overlap capex), interest (inside OCF), new borrowing or equity, and the $288B "
@@ -114,15 +141,27 @@ def workbook(inputs, results, trials, seed) -> bytes:
     for r, d in results:
         res.append([r["decision"], d.capex, d.dividends, "Yes" if d.revolver else "No", r["mean"], r["sd"], r["p10"],
                     r["p50"], r["p90"], r["probability_shortfall"], r["mean_shortfall"]])
+    if comparison:
+        cor = wb.create_sheet("Correlation")
+        cor.append(["Decision", "Correlation setting", "Realized correlation", "Mean ending cash (USD)",
+                    "Std dev (USD)", "10th percentile (USD)", "Shortfall probability"])
+        for r in comparison:
+            cor.append([r["decision"], r["correlation"], r["realized_correlation"], r["mean"], r["sd"], r["p10"],
+                        r["probability_shortfall"]])
     money_fmt = '#,##0,,;(#,##0,,);"-"'
+    # Non-USD cells by sheet: column numbers (or the correlation row on Scenario) and their format.
+    ratio = {"Results": {10: "0.0%"}, "Correlation": {2: "+0.0;-0.0;0.0", 3: "+0.00;-0.00;0.00", 7: "0.0%"}}
     for sheet in wb:
         for row in sheet.iter_rows():
             for cell in row:
                 cell.font = Font(name="Arial", size=10, bold=cell.row in ((1, 5) if sheet.title == "Scenario" else (1,)))
                 cell.alignment = Alignment(vertical="top", wrap_text=True)
                 if isinstance(cell.value, float | int) and not isinstance(cell.value, bool):
-                    cell.number_format = "0.0%" if (sheet.title == "Results" and cell.column == 10) else money_fmt
-        sheet.freeze_panes = "A2" if sheet.title == "Results" else None
+                    if sheet.title == "Scenario" and cell.row == rho_row:
+                        cell.number_format = "+0.0;-0.0;0.0"
+                    else:
+                        cell.number_format = ratio.get(sheet.title, {}).get(cell.column, money_fmt)
+        sheet.freeze_panes = None if sheet.title == "Scenario" else "A2"
         for col in "ABCDEFGHIJK":
             sheet.column_dimensions[col].width = 22
     wb["Scenario"].column_dimensions["E"].width = 70
@@ -148,7 +187,8 @@ def render(st, snapshot) -> None:
             "**Model, per trial:** ending cash = $36.369B cash + OCF excluding prepayments + prepayments − capex − "
             "dividends − $7.317B dated debt principal − commercial paper due (+ a revolver draw up to $10B, only where "
             "the decision assumes it is usable; drawable credit is Unavailable in the filings). OCF, prepayments and "
-            "commercial paper are uncertain (triangular); capex and dividends are decisions.".replace("$", "\\$"))
+            "commercial paper are uncertain (triangular), and OCF and prepayments can be set to move together; "
+            "capex and dividends are decisions.".replace("$", "\\$"))
         chosen = assumptions(st, inputs, ls.oracle_decisions())
         if chosen is None:
             return
@@ -158,6 +198,10 @@ def render(st, snapshot) -> None:
         results_table(st, results)
         pick = st.radio("Show the distribution for", [d.name for d in decisions], horizontal=True, key="sim_pick")
         histogram(st, next(r for r, d in results if d.name == pick))
+        shown = next(d for d in decisions if d.name == pick)
+        comparison = ls.compare_correlations(edited, shown, trials, seed)
+        st.markdown(f"**How correlation changes the spread** · {shown.name}")
+        correlation_table(st, comparison, shown.revolver)
         check = ls.simulate(edited, decisions[0], trials * 5, seed + 1)
         drift = abs(check["probability_shortfall"] - results[0][0]["probability_shortfall"])
         st.caption(f"Stability check: rerunning decision A with {trials * 5:,} trials and a new seed changes the "
@@ -166,5 +210,5 @@ def render(st, snapshot) -> None:
         st.caption("Not modelled: lease payments and interest (already inside OCF), purchase obligations (overlap "
                    "capex), new borrowing or equity, and the $288B of leases not yet commenced. The funding "
                    "conclusion above is unchanged: future funding coverage remains Unavailable.".replace("$", "\\$"))
-        st.download_button("Download this scenario (Excel)", workbook(edited, results, trials, seed),
+        st.download_button("Download this scenario (Excel)", workbook(edited, results, trials, seed, comparison),
                            file_name=f"Oracle_Stress_Scenario_seed{seed}.xlsx", mime=XLSX, key="sim_download")
