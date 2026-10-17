@@ -1,3 +1,4 @@
+import {finishExportGuide} from './export_guide.mjs';
 import {addCoreChartSheet,finishCoreChartSheet} from './core_chart_sheet.mjs';
 import {addBorrowingLeaseSheet,finishBorrowingLeaseSheet} from './borrowing_lease_sheet.mjs';
 import {addRatioSheet,finishRatioSheet} from './ratio_sheet.mjs';
@@ -323,6 +324,7 @@ Object.assign(fundingManifest,await finishBorrowingLeaseSheet(wb,root,'VST',borr
 Object.assign(fundingManifest,await finishRatioSheet(wb,root,'VST',ratios));
 Object.assign(fundingManifest,await finishHistorySheet(wb,root,'VST',history));
 Object.assign(fundingManifest,await finishCoreChartSheet(wb,root,'VST',coreCharts));
+Object.assign(fundingManifest,await finishExportGuide(wb,root,'VST'));
 const output=path.join(root,'samples/vistra_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(output);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({...fundingManifest,review_sha256:digest(bytes),interest_sha256:digest(interestBytes),workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');

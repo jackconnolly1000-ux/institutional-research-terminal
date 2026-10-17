@@ -18,7 +18,7 @@ Pick Eli Lilly (LLY), Oracle (ORCL) or Vistra (VST) and its saved review opens. 
 - Two common chart questions: what remained after capital spending, and how borrowing/cash changed across the checked dates. Vistra compares cash only because its older borrowing is unsupported. Workbook charts link to the same calculations and dates; see `docs/core_charts.md`.
 - A dated funding conclusion, historical interest coverage with each company's denominator limits, selected obligations outside borrowing, and what remains unresolved.
 - Company-specific reviews: Oracle's May 31 maturity schedule, cash reconciliation, repayment funding and revolver audit; Vistra's repayment review and checked financing filings after June 30; Lilly's first-half cash review and May debt terms.
-- One Excel workbook per company, with formulas, source facts and an About sheet, plus an optional combined export. Each download is a saved file checked against its manifest's fingerprints; if a source changed, the download says Unavailable instead.
+- One primary Excel workbook per company, with a contents guide, formulas, source facts and an About sheet, plus an optional combined summary. The company files contain the full review, history and charts; the combined file retains its original core metric summary and source rows. URLs in Excel remain full, copyable text. See `docs/excel_parity.md`. Each download is a saved file checked against its manifest's fingerprints; if a source changed, the download says Unavailable instead.
 
 ### General filing research — experimental (secondary page)
 

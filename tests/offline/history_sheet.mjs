@@ -38,13 +38,13 @@ export async function finishHistorySheet(wb,root,ticker,{model,sheet}){
  sheet.getRange('A3').values=[['USD millions unless x or %. Fiscal year and later TTM both span twelve months and overlap.']];
  sheet.getRange('A5:D5').values=[['Measure','As of / FY ended '+model.annual_end,'As of / TTM ended '+model.period_end,'Basis / limits']];
  for(const [i,r] of model.rows.entries()){
-  const basis=r.key==='ocf_to_debt'?'Twelve-month OCF / borrowing at each period end. Prior column uses the fiscal year; later column uses TTM. Not repayment coverage.':r.key==='fcf_to_debt'?'Twelve-month FCF / borrowing at each period end. Prior column uses the fiscal year; later column uses TTM. Not repayment coverage.':r.basis;
+  const basis=r.history_basis;
   const n=i+6;sheet.getRange(`A${n}:D${n}`).values=[[r.label,r.annual_value===null?'Unavailable':null,null,r.annual_detail||basis]];
   if(r.annual_value!==null)sheet.getRange(`B${n}`).formulas=[[annual[r.key]]];
   sheet.getRange(`C${n}`).formulas=[[`='Debt and liquidity'!B${n}`]];
   sheet.getRange(`B${n}:C${n}`).setNumberFormat(r.unit==='ratio'?'0.00"x"':r.unit==='fraction'?'0.0%':USD);
   sheet.getRange(`B${n}`).format.font.color=(annual[r.key]||'').includes("'Data'!")||r.key==='interest_coverage'?'#008000':'#000000';sheet.getRange(`C${n}`).format.font.color='#008000';
-  sheet.getRange(`A${n}:D${n}`).format.rowHeight=Math.max(45,Math.ceil(String(r.annual_detail||r.basis).length/70)*13+10);
+  sheet.getRange(`A${n}:D${n}`).format.rowHeight=Math.max(45,Math.ceil(String(r.annual_detail||basis).length/70)*13+10);
  }
  sheet.getRange('A17').values=[['Period definitions']];sheet.getRange('D17').values=[[model.note]];
  sheet.getRange('A18').values=[['Fiscal-year flows']];sheet.getRange('D18').values=[[model.annual_start+' to '+model.annual_end]];

@@ -1,3 +1,4 @@
+import {finishExportGuide} from './export_guide.mjs';
 import {addCoreChartSheet,finishCoreChartSheet} from './core_chart_sheet.mjs';
 import {addBorrowingLeaseSheet,finishBorrowingLeaseSheet} from './borrowing_lease_sheet.mjs';
 import {addRatioSheet,finishRatioSheet} from './ratio_sheet.mjs';
@@ -327,6 +328,7 @@ Object.assign(fundingManifest,await finishBorrowingLeaseSheet(wb,root,'LLY',borr
 Object.assign(fundingManifest,ratioManifest);
 Object.assign(fundingManifest,await finishHistorySheet(wb,root,'LLY',history));
 Object.assign(fundingManifest,await finishCoreChartSheet(wb,root,'LLY',coreCharts));
+Object.assign(fundingManifest,await finishExportGuide(wb,root,'LLY'));
 const out=path.join(root,'samples/lly_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(out);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.writeFile(out.replace('.xlsx','.manifest.json'),JSON.stringify({...fundingManifest,sources:{'liquidity_pilots.json':digest(source),'lly_liquidity.json':digest(reviewBytes),'lly_financing.json':digest(financingBytes),'lly_interest.json':digest(interestBytes)},workbook_sha256:digest(await fs.readFile(out))},null,2)+'\n');
