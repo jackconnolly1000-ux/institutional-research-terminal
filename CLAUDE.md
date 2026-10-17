@@ -39,6 +39,7 @@ Stock Project/
 │   ├── company_history.py  checked two-date company history; annual facts in samples/company_history.json
 │   ├── ratio_review.py  reconcile saved ratio values, input provenance, exact TTM periods and company-specific bases for the app and individual workbooks
 │   ├── company_review.py  the default page: company selector, saved review (cash-flow chart, borrowing breakdown, selected obligations, unresolved questions) and checked workbook downloads
+│   ├── liquidity_simulation.py  Release 2 illustrative Monte Carlo: Oracle's 12-month cash vs dated uses under triangular OCF; seeded; never a funding conclusion (tested)
 │   ├── oracle_principal.py  Oracle's August 31, 2026 principal by instrument and date from the 10-K's tagged debt table; term-loan schedule from stated terms; commercial paper Unavailable; samples/oracle_principal.json built by tests/offline/build_oracle_principal.py (tested)
 │   ├── oracle_revolver.py  exact saved-source revolver audit: dated commitment/advances, historical undrawn arithmetic, draw conditions and unresolved availability
 │   ├── liquidity_pilot.py  frozen LLY/ORCL/VST company reviews, same-filing net debt, flow/debt ratios and formula-based Excel export; samples/liquidity_pilots.json is rebuilt by tests/offline/build_liquidity_pilot.py
@@ -179,7 +180,8 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 
 **How to pass work between them**
 - **Chat to Claude Code:** when a plan in chat is ready to build, end with a ready-to-paste prompt for Claude Code in a code block. It should start with "Read CLAUDE.md," say what to change, and name anything that needs my OK (see the next rule).
-- **When Claude Code waits for my OK:** only before paid runs, merges to `main`, deleting things, or changes outside a branch. Otherwise it proceeds on a branch and reports what it did.
+- **When Claude Code waits for my OK:** only before paid runs, deleting things, or changes outside a branch. Otherwise it proceeds on a branch and reports what it did.
+- **Merging (standing rule since Oct 17, 2026):** open each PR, then merge it into `main` once its tests and checks pass, without asking. After every merge, check the live site (each company loads with no error and offers its downloads) and fix anything broken right away.
 - **Claude Code to chat:** after Claude Code finishes something, it should end with a one-line "Take this to chat" note: what changed, and which file and function. The question to ask chat so I learn it goes in `C:\Users\jackc\Stock Project\docs\Learning_Questions.md` (date, question, file and function), appended as a new entry, not in the reply.
 - **Keep both in sync:** when the known-problems list changes, Claude Code updates `app/CLAUDE.md` and `docs/Project_Instructions.md`, then reminds me to re-paste the instructions into the claude.ai project.
 - In chat, if I ask for code changes, don't just write the code. Give me the Claude Code prompt instead, plus the explanation. Exception: a short snippet to show a concept is fine.
@@ -191,7 +193,7 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 - Use the real technical terms and define each one the first time it comes up.
 - Give full functions or files I can paste in, plus the explanation. Both, every time.
 - When it fits, name one question an interviewer could ask about that piece.
-- Plan first. Wait for my OK only where the handoff rule says (paid runs, merges to `main`, deleting things, changes outside a branch); otherwise proceed on a branch and report.
+- Plan first. Wait for my OK only where the handoff rule says (paid runs, deleting things, changes outside a branch); otherwise proceed on a branch, merge when checks pass, check the live site and report.
 
 **Testing**
 - Before saying a button or feature works, run the app and test it, then report exactly what happened. Offline and saved-sample runs are free; real-key runs need my OK.
@@ -226,6 +228,6 @@ Step 4 is merged as PR #44 (`f0f246f`): current ratio, net debt, OCF/debt, FCF/d
 
 **Deferred** (the plan's later phases): full financing terms and covenants, recalculating debt and cash from later financing events, complete obligations analysis, industry peers, stress scenarios, category assessments. Never: grades, default probabilities or recommendations.
 
-**Release 2: liquidity stress simulation (chosen Oct 17, 2026; planned, not built).** An Oracle-first, illustrative Monte Carlo scenario. It asks how often checked August 31 cash plus uncertain operating cash flow falls short of the obligations the filings date over the next twelve months, comparing two decisions (capex level; the revolver as a hypothetical). It applies VSB 2008 simulation and never changes a funding conclusion. Steps: model and tests, app section, Excel record, docs. Build after the Oct 19 and 21 simulation classes. Full plan and open questions: `docs/release2_plan.md`.
+**Release 2: liquidity stress simulation (chosen Oct 17, 2026; planned, not built).** An Oracle-first, illustrative Monte Carlo scenario. It asks how often checked August 31 cash plus uncertain operating cash flow falls short of the obligations the filings date over the next twelve months, comparing two decisions (capex level; the revolver as a hypothetical). It applies VSB 2008 simulation and never changes a funding conclusion. Steps: model and tests (built Oct 17: `liquidity_simulation.py`, the four class validation checks as tests), app section, Excel record, docs. Full plan and open questions: `docs/release2_plan.md`.
 
 **Course features** (simulation is the core of Release 2), in this order: Monte Carlo simulation first, then LP allocation, then CAPM regression after the Nov 11 and 13 classes.
