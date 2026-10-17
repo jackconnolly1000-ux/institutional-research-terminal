@@ -8,11 +8,9 @@ assumptions are not filing facts. Results are shares of simulated trials, never 
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime
-from io import BytesIO
-from zoneinfo import ZoneInfo
 
 import liquidity_simulation as ls
+from scenario_export import SHARE_NOTE
 
 B = 1_000_000_000
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -152,133 +150,10 @@ def histogram(st, result):
     st.plotly_chart(fig, width="stretch", theme=None, config=CHART_CONFIG)
 
 
-SHARE_NOTE = ("Shares of trials below zero describe the simulated trials under the stated assumptions. They are not "
-              "probabilities of default or of a funding gap.")
-
-
 def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=None, monthly=None) -> bytes:
-    """The scenario on screen as its own record: inputs (each marked filing fact, derived, assumption or hypothetical)
-    with sources, seed, trials, results, the correlation comparison for the decision shown, the effect of each use
-    the model leaves out and the month-end path, for every decision. Arial 10."""
-    from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Font
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Scenario"
-    stamp = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d %H:%M ET")
-    ws.append(["Oracle liquidity stress scenario"])
-    ws.append([ls.LABEL])
-    ws.append([f"Horizon {ls.HORIZON[0]} to {ls.HORIZON[1]}. Created {stamp}. Seed {seed}, {trials:,} trials; "
-               "rerunning with the same inputs and seed reproduces these results."])
-    ws.append([])
-    ws.append(["Input", "Kind", "Low" + USD, "Most likely" + USD, "High" + USD, "Basis / source"])
-    t, p, c = inputs.ocf_ex_prepayments, inputs.prepayments, inputs.commercial_paper_due
-
-    def fixed(value):
-        return value, value, value
-
-    rows = [("Starting cash", "Filing fact", *fixed(inputs.starting_cash), inputs.sources["starting_cash"]),
-            ("Dated note and term-loan principal due", "Filing fact", *fixed(inputs.principal_due),
-             inputs.sources["principal_due"]),
-            ("OCF excluding prepayments", "Assumption", t.low, t.mode, t.high, t.basis),
-            ("Specified customer prepayments", "Assumption", p.low, p.mode, p.high, p.basis),
-            ("Commercial paper due", "Derived range; assumed shape", c.low, c.mode, c.high, c.basis),
-            ("Revolver commitment", "Filing fact; usable amount hypothetical", *fixed(inputs.revolver_commitment),
-             inputs.sources["revolver_commitment"]),
-            ("OCF–prepayment correlation (ratio, not USD)", "Assumption", *fixed(inputs.correlation),
-             ls.CORRELATION_BASIS)]
-    for row in rows:
-        ws.append(list(row))
-    rho_row = ws.max_row
-    ws.append([])
-    ws.append([ls.TIMING_LIMIT])
-    ws.append([SHARE_NOTE])
-    ws.append(["Cash uses the model leaves out, and why, are on the Uses not modelled sheet; their effect on each "
-               "decision is on Outside-use effects. Capex and dividends are decisions, shown on Results. Month-end "
-               "cash is on Monthly path and Monthly path by month."])
-    ws.append([ls.MONTHLY_BASIS])
-    ws.append([ls.SENSITIVITY_NOTE])
-    res = wb.create_sheet("Results")
-    res.append(["Decision", "Capex" + USD, "Dividends" + USD, "Revolver assumed usable", "Mean ending cash" + USD,
-                "Std dev" + USD, "10th percentile" + USD, "Median" + USD, "90th percentile" + USD,
-                SHARE, "Average shortfall in trials below zero" + USD])
-    for r, d in results:
-        res.append([r["decision"], d.capex, d.dividends, "Yes" if d.revolver else "No", r["mean"], r["sd"], r["p10"],
-                    r["p50"], r["p90"], r["share_below_zero"], r["mean_shortfall"]])
-    if comparison:
-        cor = wb.create_sheet("Correlation")
-        cor.append(["Decision", "Correlation setting", "Realized correlation", "Mean ending cash" + USD,
-                    "Std dev" + USD, "10th percentile" + USD, SHARE])
-        for r in comparison:
-            cor.append([r["decision"], r["correlation"], r["realized_correlation"], r["mean"], r["sd"], r["p10"],
-                        r["share_below_zero"]])
-    if monthly:
-        mon = wb.create_sheet("Monthly path")
-        mon.append(["Decision", "Revolver assumed usable", "Share of trials below zero at Aug 31, 2027",
-                    "Share of trials below zero at any month end", "Mean ending cash" + USD,
-                    "Mean lowest month-end cash" + USD, "10th percentile of lowest month-end cash" + USD,
-                    "Month most often lowest (before any revolver draw)", "Share of trials lowest in that month",
-                    "Share of trials with a net outflow over the year"])
-        for d, end, path in monthly:
-            mon.append([d.name, "Yes" if d.revolver else "No", end["share_below_zero"],
-                        path["share_below_zero_any_month"], end["mean"], path["lowest_mean"], path["lowest_p10"],
-                        path["lowest_month"], path["lowest_month_share"], path["share_net_outflow"]])
-        by = wb.create_sheet("Monthly path by month")
-        by.append(["Decision", "Month", "Month end", "Dated note and term-loan principal" + USD,
-                   "Mean month-end cash" + USD, "10th percentile month-end cash" + USD,
-                   "Share of trials below zero at this month end"])
-        for d, _, path in monthly:
-            for k, month in enumerate(ls.MONTHS):
-                by.append([d.name, month, date.fromisoformat(ls.MONTH_ENDS[k]), float(path["principal_by_month"][k]),
-                           float(path["month_mean"][k]), float(path["month_p10"][k]),
-                           float(path["month_share_below_zero"][k])])
-    if outside:
-        eff = wb.create_sheet("Outside-use effects")
-        eff.append(["Decision", "Scenario", "Sensitivity amount" + USD, "Mean ending cash" + USD, "10th percentile" + USD,
-                    SHARE, "Average shortfall in trials below zero" + USD])
-        for decision, effects in outside:
-            for e in effects:
-                eff.append([decision.name, e["scenario"], e["added_uses"], e["mean"], e["p10"],
-                            e["share_below_zero"], e["mean_shortfall"]])
-    if uses is not None:
-        notes = wb.create_sheet("Uses not modelled")
-        notes.append(["Cash use", "Treatment", "Sensitivity amount used" + USD, "Amount basis", "Reason",
-                      "Source"])
-        for u in uses:
-            notes.append([u.name, "Outside the base model; sensitivity measured", u.amount, u.amount_basis,
-                          u.why_outside, u.source])
-        for name, status, proof in ls.EXCLUDED:
-            notes.append([name, f"Excluded: {status[0].lower()}{status[1:]}", None, "", proof, ""])
-        for name, note in ls.UNQUANTIFIED:
-            notes.append([name, "Not modelled; no measurable amount", None, "", note, ""])
-    money_fmt = '#,##0,,;(#,##0,,);"-"'
-    # Non-USD cells by sheet: column numbers (or the correlation row on Scenario) and their format.
-    ratio = {"Results": {10: "0.0%"}, "Correlation": {2: "+0.0;-0.0;0.0", 3: "+0.00;-0.00;0.00", 7: "0.0%"},
-             "Outside-use effects": {6: "0.0%"}, "Monthly path": {3: "0.0%", 4: "0.0%", 9: "0.0%", 10: "0.0%"},
-             "Monthly path by month": {7: "0.0%"}}
-    for sheet in wb:
-        for row in sheet.iter_rows():
-            for cell in row:
-                cell.font = Font(name="Arial", size=10, bold=cell.row in ((1, 5) if sheet.title == "Scenario" else (1,)))
-                cell.alignment = Alignment(vertical="top", wrap_text=True)
-                if isinstance(cell.value, float | int) and not isinstance(cell.value, bool):
-                    if sheet.title == "Scenario" and cell.row == rho_row:
-                        cell.number_format = "+0.0;-0.0;0.0"
-                    else:
-                        cell.number_format = ratio.get(sheet.title, {}).get(cell.column, money_fmt)
-                elif isinstance(cell.value, date):
-                    cell.number_format = "yyyy-mm-dd"
-        sheet.freeze_panes = None if sheet.title == "Scenario" else "A2"
-        for col in "ABCDEFGHIJK":
-            sheet.column_dimensions[col].width = 22
-    wb["Scenario"].column_dimensions["A"].width = 34
-    wb["Scenario"].column_dimensions["F"].width = 70
-    if uses is not None:
-        for col, width in (("A", 30), ("B", 26), ("D", 50), ("E", 60), ("F", 40)):
-            wb["Uses not modelled"].column_dimensions[col].width = width
-    out = BytesIO()
-    wb.save(out)
-    return out.getvalue()
+    """Record the current run with the source documentation and layout authored offline."""
+    import scenario_export
+    return scenario_export.workbook(inputs, results, trials, seed, comparison, outside, uses, monthly)
 
 
 VIEWS = ("Checked review", "Stress scenario (illustrative)")
@@ -313,7 +188,7 @@ def render(st, snapshot) -> None:
             "paper due (+ a revolver draw up to $10B, only where the decision assumes it is usable; drawable credit "
             "is Unavailable in the filings). The month-end path subtracts each dated principal payment in its "
             "calendar month and spreads the other flows evenly.\n\n"
-            "**Filing facts:** the starting cash (10-Q balance sheet, August 31, 2026) and the note and term-loan "
+            "**Checked inputs:** reported starting cash (10-Q balance sheet, August 31, 2026) and derived note and term-loan "
             "principal due in the window (Oracle's August 31 principal calendar). **Assumptions:** the OCF, "
             "prepayment and commercial-paper triangles and the correlation; their defaults are anchored to checked "
             "history, which does not set future bounds. **Decisions:** capex, dividends and the revolver."))
@@ -344,6 +219,10 @@ def render(st, snapshot) -> None:
                    f"share of trials below zero by {drift:.1%}. The logic, boundary, distribution and stability "
                    "checks from class also run as automated tests.")
         st.caption("Also not modelled: new borrowing or equity.")
-        st.download_button("Download this scenario (Excel)",
-                           workbook(edited, results, trials, seed, comparison, outside, uses, monthly),
-                           file_name=f"Oracle_Stress_Scenario_seed{seed}.xlsx", mime=XLSX, key="sim_download")
+        try:
+            content = workbook(edited, results, trials, seed, comparison, outside, uses, monthly)
+        except (OSError, ValueError, KeyError):
+            st.caption("Scenario workbook Unavailable: its verified layout could not be loaded.")
+        else:
+            st.download_button("Download this scenario (Excel)", content,
+                               file_name=f"Oracle_Stress_Scenario_seed{seed}.xlsx", mime=XLSX, key="sim_download")

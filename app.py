@@ -23,6 +23,7 @@ import budget
 import filing_review
 import reviewed_financing
 import liquidity_simulation
+import scenario_export
 import simulation_view
 import core_charts
 import company_review
@@ -76,6 +77,7 @@ reload(lly_interest)
 reload(lly_interest_view)
 reload(lly_liquidity_view)
 reload(liquidity_simulation)
+reload(scenario_export)
 reload(simulation_view)
 reload(core_charts)   # imported lazily by company_review, so a reload of that module alone keeps old chart HTML
 reload(company_review)

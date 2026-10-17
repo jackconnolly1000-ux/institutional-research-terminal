@@ -196,3 +196,11 @@ The Debt & Liquidity page needs no secrets. Live general research needs `ANTHROP
 ```
 
 Unit tests import the production modules (`sec_data.py`, `compare.py`, `analysis.py`, `market_data.py`, `budget.py`, `xbrl.py`) and make no network calls. `tests/test_app_pages.py` runs the whole app in Streamlit's AppTest with no secrets and every outside connection refused: default page, company selection, navigation, kept selections, missing and stale reviews, the archived example and download bytes. `tests/offline/` runs the whole app on fake SEC, Yahoo and Anthropic responses; `tests/check_risk_extraction.py` checks section extraction against live EDGAR filings without calling Anthropic.
+## Export organization
+
+Individual company downloads are the primary checked research records. The optional combined export
+contains only the core metrics, their inputs and About; differing dates and definitions preclude a peer
+ranking. Oracle's illustrative scenario has a separate saved-run export with Data and About sheets.
+See [export organization](docs/export_organization.md) for layout, reproduction and verification limits.
+The scenario layout is authored in `tests/offline/organize_exports.mjs` and hydrated by
+`scenario_export.py`; `samples/scenario_template.xlsx` and its manifest are required at deployment.
