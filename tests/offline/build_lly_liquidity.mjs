@@ -1,5 +1,6 @@
 import {addBorrowingLeaseSheet,finishBorrowingLeaseSheet} from './borrowing_lease_sheet.mjs';
 import {addRatioSheet,finishRatioSheet} from './ratio_sheet.mjs';
+import {addHistorySheet,finishHistorySheet} from './history_sheet.mjs';
 import {documentationLinks} from './workbook_style.mjs';
 import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Build only Lilly's checked review. No network or application dependency is required.
@@ -26,6 +27,7 @@ const funding=addFundingSheet(wb,root,'LLY');
 const borrowingLeases=addBorrowingLeaseSheet(wb,root,'LLY');
 const ratios=addRatioSheet(wb,root,'LLY');
 const main=wb.worksheets.add('Debt and liquidity');
+const history=addHistorySheet(wb,root,'LLY');
 const repayment=wb.worksheets.add('Repayment review');
 const data=wb.worksheets.add('Data'),about=wb.worksheets.add('About');
 const USD='#,##0,,;(#,##0,,);"-"',date=s=>s?new Date(s+'T00:00:00Z'):null;
@@ -321,6 +323,7 @@ documentationLinks(about);
 const fundingManifest=await finishFundingSheet(wb,root,'LLY',funding);
 Object.assign(fundingManifest,await finishBorrowingLeaseSheet(wb,root,'LLY',borrowingLeases));
 Object.assign(fundingManifest,ratioManifest);
+Object.assign(fundingManifest,await finishHistorySheet(wb,root,'LLY',history));
 const out=path.join(root,'samples/lly_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(out);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.writeFile(out.replace('.xlsx','.manifest.json'),JSON.stringify({...fundingManifest,sources:{'liquidity_pilots.json':digest(source),'lly_liquidity.json':digest(reviewBytes),'lly_financing.json':digest(financingBytes),'lly_interest.json':digest(interestBytes)},workbook_sha256:digest(await fs.readFile(out))},null,2)+'\n');

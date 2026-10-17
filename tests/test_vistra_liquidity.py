@@ -179,7 +179,7 @@ class VistraLiquidity(unittest.TestCase):
     def test_workbook_values_dates_formulas_chart_and_blank_capacity(self):
         b=vl.WORKBOOK.read_bytes();w=load_workbook(BytesIO(b),data_only=True)
         formulas=load_workbook(BytesIO(b),data_only=False)
-        self.assertEqual(w.sheetnames,['Funding conclusion','Borrowing and leases','Debt and liquidity','Cash review','Payment dates','Financing capacity','Data','About'])
+        self.assertEqual(w.sheetnames,['Funding conclusion','Borrowing and leases','Debt and liquidity','History','Cash review','Payment dates','Financing capacity','Data','About'])
         self.assertEqual([w['Cash review'][k].value for k in ['B8','B13','B14','B23','B37','B47']],
                          [650*M,959*M,-309*M,-162*M,-341*M,435*M])
         for c in ['B32','B35','B39','B44','B49']:self.assertEqual(w['Cash review'][c].value,0)

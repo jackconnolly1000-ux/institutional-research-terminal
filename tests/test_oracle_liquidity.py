@@ -173,7 +173,7 @@ class OracleLiquidity(unittest.TestCase):
         content=ol.workbook_bytes(self.saved)
         formulas=load_workbook(BytesIO(content),data_only=False)
         values=load_workbook(BytesIO(content),data_only=True)
-        self.assertEqual(formulas.sheetnames,["Funding conclusion","Borrowing and leases","Debt and liquidity","Repayment review","Cash analysis","Payment dates","Data","About"])
+        self.assertEqual(formulas.sheetnames,["Funding conclusion","Borrowing and leases","Debt and liquidity","History","Repayment review","Cash analysis","Payment dates","Data","About"])
         self.assertEqual(formulas["Cash analysis"]["B12"].value,"=B8-B10")
         self.assertEqual(values["Cash analysis"]["B12"].value,-16759*M)
         self.assertEqual(values["Cash analysis"]["B19"].value,0)

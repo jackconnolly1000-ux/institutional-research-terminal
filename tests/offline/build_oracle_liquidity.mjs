@@ -1,5 +1,6 @@
 import {addBorrowingLeaseSheet,finishBorrowingLeaseSheet} from './borrowing_lease_sheet.mjs';
 import {addRatioSheet,finishRatioSheet} from './ratio_sheet.mjs';
+import {addHistorySheet,finishHistorySheet} from './history_sheet.mjs';
 import {documentationLinks} from './workbook_style.mjs';
 import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Run from a temporary directory using the Codex artifact runtime; deployment only serves the saved file.
@@ -35,6 +36,7 @@ const wb = Workbook.create();
 const funding=addFundingSheet(wb,root,'ORCL');
 const borrowingLeases=addBorrowingLeaseSheet(wb,root,'ORCL');
 const ratios=addRatioSheet(wb,root,'ORCL');
+const history=addHistorySheet(wb,root,'ORCL');
 const repay = wb.worksheets.add('Repayment review');
 const main = wb.worksheets.add('Cash analysis');
 const due = wb.worksheets.add('Payment dates');
@@ -462,6 +464,7 @@ documentationLinks(about);
 const fundingManifest=await finishFundingSheet(wb,root,'ORCL',funding);
 Object.assign(fundingManifest,await finishBorrowingLeaseSheet(wb,root,'ORCL',borrowingLeases));
 Object.assign(fundingManifest,await finishRatioSheet(wb,root,'ORCL',ratios));
+Object.assign(fundingManifest,await finishHistorySheet(wb,root,'ORCL',history));
 const output=path.join(root,'samples/oracle_liquidity.xlsx');
 await (await SpreadsheetFile.exportXlsx(wb)).save(output);
 await fs.rm(output+'.inspect.ndjson',{force:true});
