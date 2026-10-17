@@ -139,7 +139,6 @@ In priority order. Delete a line once it's fixed.
 6. **Risk factors incorporated by reference aren't read.** Some filers (JPM) put Item 1A in an annual-report exhibit, so it shows as missing.
 7. **"No close match" is a text test.** A heavily rewritten paragraph can land there (MSFT's FY2026 "We may experience outages…"). The label says "no close match", not "new risk".
 8. **8-K exhibits aren't read by the AI pipeline.** Only each 8-K's primary document is sent; the hand-checked Vistra and Oracle financing filings cite their exhibits separately.
-9. **Individual Excel source URLs are copyable text, not native hyperlink actions.** App links are clickable. The workbook guide explains how to open the source. Native desktop Excel and physical-phone testing are not available in the current environment.
 10. **Section extraction is tested on seven filers** (AAPL, FAST, STRL, MSFT, WMT, JNJ, JPM) plus synthetic cases. Other formats show "Section not found", not wrong text.
 
 ## Excel export standard
