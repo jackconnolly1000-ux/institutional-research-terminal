@@ -14,6 +14,7 @@ This case study uses only evidence already checked and saved in the app (`sample
 | Quarter cash flows | June 1–August 31, 2026 | Same 10-Q |
 | TTM cash flows and interest | September 1, 2025–August 31, 2026 (FY2026 + Q1 FY2027 − Q1 FY2026) | FY2026 10-K and Q1 10-Q |
 | Debt principal schedule | As of May 31, 2026 (historical; not rolled forward) | 10-K filed June 22, 2026 |
+| Note and term-loan principal calendar | At August 31, 2026, by instrument and date; commercial paper Unavailable (checked Oct 17) | 10-K debt table rolled to the 10-Q; [`oracle_principal_calendar.md`](oracle_principal_calendar.md) |
 | Revolver agreement | Dated March 6, 2026; original maturity March 6, 2031 | Exhibit 10.17, 10-Q filed March 11, 2026 |
 | Later filings screened | August 31–October 15, 2026 (SEC submissions index) | Two 8-Ks, filed Sep 10 and Sep 14 |
 | Review checks | Balance-sheet facts Oct 14; cash analysis and revolver audit Oct 15; interpretation Oct 16, 2026 | `pilot_evidence_oracle.md`, `oracle_liquidity_reconciliation.md`, `oracle_revolver_reconciliation.md` |
@@ -178,4 +179,4 @@ Observed on October 17, 2026 on the deployed app at desktop width and in the sav
 
 ## Update: illustrative stress scenario
 
-Release 2 adds an Oracle-only stress scenario ([`liquidity_simulation.md`](liquidity_simulation.md)). With the default assumptions, capex at the TTM rate leaves ending cash below zero in 99% of trials (63% if the full revolver were usable); at the fiscal 2026 capex level, under 1%. This is a scenario from stated assumptions. It doesn't change the supported conclusion above or make funding coverage anything other than Unavailable.
+Release 2 adds an Oracle-only stress scenario ([`liquidity_simulation.md`](liquidity_simulation.md)). With the default assumptions, capex at the TTM rate leaves ending cash below zero in 99% of simulated trials (63% if the full revolver were usable); at the fiscal 2026 capex level, under 1%. That last figure isn't robust. Finance-lease principal, short-term capex financing and purchase obligations aren't shown to overlap the modelled lines, and subtracting them at their stated amounts moves 63% of fiscal-2026-level trials below zero. These are shares of trials under stated assumptions, not probabilities, and only the end-of-window balance is tested. It doesn't change the supported conclusion above or make funding coverage anything other than Unavailable.
