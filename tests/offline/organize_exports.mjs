@@ -82,7 +82,7 @@ for(const [name,rows] of Object.entries(data)){
  const padded=rows.map(r=>Array.from({length:c},(_,i)=>r[i]??null));
  s.getRange('A1').write(padded.map(row=>row.map(v=>v&&typeof v==='object'?v.value:v)));s.showGridLines=false;
  const f=s.getRangeByIndexes(0,0,n,c).format;f.font.name='Arial';f.font.size=10;f.wrapText=true;f.verticalAlignment='top';
- const widths=name==='About'?[30,120]:name==='Scenario'?[39,40,24,24,24,105]:name==='Data'?[45,30,26,19,19,16,19,32,105,75,40,100]:name==='Uses not modelled'?[49,38,25,105,100,58]:name==='Results'?[48,24,24,27,26,26,28,24,27,30,38]:name==='Monthly path'?[48,27,30,32,28,29,32,40,30,30]:name==='Monthly path by month'?[48,19,20,28,28,30,30]:name==='Outside-use effects'?[48,56,28,30,29,30,35]:[48,26,26,28,28,28,30];
+ const widths=name==='About'?[30,120]:name==='Scenario'?[39,40,24,24,24,105]:name==='Data'?[45,30,26,19,19,16,19,32,105,75,40,100]:name==='Uses not modelled'?[49,38,25,105,100,58]:name==='Results'?[48,24,24,27,26,26,28,24,27,30,38]:name==='Monthly path'?[48,27,30,32,28,29,32,40,30,30]:name==='Monthly path by month'?[48,19,20,28,28,30,30,28,28,26]:name==='Outside-use effects'?[48,56,28,30,29,30,35]:[48,26,26,28,28,28,30];
  widths.forEach((width,k)=>s.getRangeByIndexes(0,k,n,1).format.columnWidth=width);
  for(let r=0;r<n;r++){
   const maxLines=Math.max(...padded[r].map((v,k)=>typeof v==='string'?Math.ceil(v.length/(widths[k]*.95)):1));
@@ -110,6 +110,16 @@ for(const [name,rows] of Object.entries(data)){
  meta.sheets[name]={path:`xl/worksheets/sheet${++id}.xml`,rows:n,cols:c};
 }
 w.recalculate();
+const monthSheet=w.worksheets.getItem('Monthly path by month');
+const cashChart=monthSheet.charts.add('line',['B1:B13','F1:F13','H1:H13','I1:I13','J1:J13'].map(a=>monthSheet.getRange(a)));
+cashChart.title='Simulated month-end cash: p10, median, p90 and zero';cashChart.titleTextStyle.fontSize=12;cashChart.titleTextStyle.typeface='Arial';
+cashChart.xAxis={axisType:'textAxis',textStyle:{typeface:'Arial',fontSize:10}};
+cashChart.yAxis={numberFormatCode:'#,##0,,;(#,##0,,)',numberFormatSourceLinked:false,textStyle:{typeface:'Arial',fontSize:10}};
+cashChart.yAxis.title.text='USD millions';cashChart.legend={position:'bottom',textStyle:{typeface:'Arial',fontSize:10}};
+['#A4B7D3','#3987E5','#A4B7D3','#777777'].forEach((color,i)=>{cashChart.series.items[i].line={fill:color,style:i===3?'dashed':'solid',width:i===1?2:1};});
+cashChart.setPosition('L2','X23');
+const cpng=await w.render({sheetName:'Monthly path by month',range:'L1:X24',scale:1});
+await fs.writeFile(`${out}/scenario-monthly-chart.png`,new Uint8Array(await cpng.arrayBuffer()));
 for(const [name,info] of Object.entries(meta.sheets)){
  const s=w.worksheets.getItem(name);
  for(let start=0;start<info.rows;start+=15){
@@ -120,6 +130,7 @@ for(const [name,info] of Object.entries(meta.sheets)){
 const dest=`${root}/samples/scenario_template.xlsx`;
 await(await SpreadsheetFile.exportXlsx(w)).save(dest);
 meta.sha256=digest(await fs.readFile(dest));
+meta.monthly_chart={path:'xl/drawings/charts/chart1.xml',sheet:'Monthly path by month'};
 await fs.writeFile(dest.replace('.xlsx','.manifest.json'),JSON.stringify(meta,null,2)+'\n');
 if(!process.env.SCENARIO_ONLY)await fs.writeFile(`${out}/layout-ranges.json`,JSON.stringify(ranges));
 console.log('Layouts rendered; template and combined workbook authored.');

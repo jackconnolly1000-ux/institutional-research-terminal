@@ -150,6 +150,29 @@ def histogram(st, result):
     st.plotly_chart(fig, width="stretch", theme=None, config=CHART_CONFIG)
 
 
+def monthly_figure(path):
+    """Pointwise simulated percentiles, not a predicted cash path or a confidence interval."""
+    import plotly.graph_objects as go
+    import theme as T
+    fig = go.Figure()
+    rgb = tuple(int(T.SERIES_CASH[k:k+2],16) for k in (1,3,5))
+    fig.add_trace(go.Scatter(x=ls.MONTH_ENDS, y=path["month_p90"] / B, mode="lines", line=dict(width=0),
+                             showlegend=False, name="90th percentile", hovertemplate="%{x}: %{y:.2f}B<extra>90th percentile</extra>"))
+    fig.add_trace(go.Scatter(x=ls.MONTH_ENDS, y=path["month_p10"] / B, mode="lines", line=dict(width=0),
+                             fill="tonexty", fillcolor=f"rgba({rgb[0]},{rgb[1]},{rgb[2]},0.22)", name="Simulated 10th–90th percentiles",
+                             hovertemplate="%{x}: %{y:.2f}B<extra>10th percentile</extra>"))
+    fig.add_trace(go.Scatter(x=ls.MONTH_ENDS, y=path["month_p50"] / B, mode="lines+markers",
+                             line=dict(color=T.SERIES_CASH, width=2), marker=dict(size=4), name="Simulated median",
+                             hovertemplate="%{x}: %{y:.2f}B<extra>Median</extra>"))
+    fig.add_hline(y=0, line_color=T.TEXT_MUTED, line_width=1, line_dash="dash")
+    fig.update_layout(height=330, margin=dict(l=52,r=8,t=12,b=50), paper_bgcolor="rgba(0,0,0,0)",
+                      plot_bgcolor="rgba(0,0,0,0)", font=dict(color=T.TEXT,size=11),
+                      legend=dict(orientation="h",y=-.22,x=0),
+                      xaxis=dict(type="date",tickformat="%b %y",nticks=6,gridcolor=T.BORDER),
+                      yaxis=dict(title="Cash, USD billions",rangemode="tozero",gridcolor=T.BORDER))
+    return fig
+
+
 def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=None, monthly=None) -> bytes:
     """Record the current run with the source documentation and layout authored offline."""
     import scenario_export
@@ -207,6 +230,12 @@ def render(st, snapshot) -> None:
         monthly = [(d, r, ls.monthly_path(edited, d, trials, seed)) for r, d in results]
         st.markdown(f"**Cash at each month end** · {shown.name}")
         monthly_table(st, *next((r, m) for d, r, m in monthly if d.name == pick))
+        from charts import CHART_CONFIG
+        path = next(m for d, _, m in monthly if d.name == pick)
+        st.plotly_chart(monthly_figure(path), width="stretch", theme=None, config=CHART_CONFIG)
+        st.caption("Shading shows the 10th–90th percentiles at each month end; the line is the simulated median. "
+                   "These are pointwise summaries of assumed trials, not a forecast band or one individual path. "
+                   "The dashed line is zero. Even monthly allocation does not establish payment-date liquidity.")
         comparison = ls.compare_correlations(edited, shown, trials, seed)
         st.markdown(f"**How correlation changes the spread** · {shown.name}")
         correlation_table(st, comparison, shown.revolver)

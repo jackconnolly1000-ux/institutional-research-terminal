@@ -73,6 +73,18 @@ def _column(index):
     return name
 
 
+def chart_cache(cache, values):
+    """Artifact Tool exports range bindings without point caches; seed them for other readers."""
+    ns = 'http://schemas.openxmlformats.org/drawingml/2006/chart'
+    for child in list(cache):
+        if child.tag in (f'{{{ns}}}ptCount', f'{{{ns}}}pt'):
+            cache.remove(child)
+    ET.SubElement(cache, f'{{{ns}}}ptCount', val=str(len(values)))
+    for k, value in enumerate(values):
+        point = ET.SubElement(cache, f'{{{ns}}}pt', idx=str(k))
+        ET.SubElement(point, f'{{{ns}}}v').text = str(value)
+
+
 def workbook(*args, **kwargs):
     """Hydrate reserved template cells without altering its styles or native features."""
     payload = tables(*args, **kwargs)
@@ -132,6 +144,31 @@ def workbook(*args, **kwargs):
             rp = path.replace("worksheets/", "worksheets/_rels/") + ".rels"
             replacement[rp] = ET.tostring(rels, encoding="utf-8", xml_declaration=True)
         replacement[path] = ET.tostring(sheet, encoding="utf-8", xml_declaration=True)
+    if kwargs.get("monthly") or (len(args) > 7 and args[7]):
+        monthly = kwargs.get("monthly") or args[7]
+        comparison = kwargs.get("comparison") or (args[4] if len(args) > 4 else None)
+        chosen = comparison[0]["decision"] if comparison else monthly[0][0].name
+        index, (_, _, path_values) = next((k, row) for k, row in enumerate(monthly) if row[0].name == chosen)
+        first, last = 2 + index * 12, 13 + index * 12
+        chart_path = meta["monthly_chart"]["path"]
+        chart = ET.fromstring(src.read(chart_path))
+        cns = "http://schemas.openxmlformats.org/drawingml/2006/chart"
+        ans = "http://schemas.openxmlformats.org/drawingml/2006/main"
+        series = chart.findall(f".//{{{cns}}}ser")
+        for ser, col, values in zip(series, ("F", "H", "I", "J"),
+                                    (path_values["month_p10"], path_values["month_p50"], path_values["month_p90"], [0.] * 12)):
+            cat = ser.find(f"{{{cns}}}cat/{{{cns}}}strRef")
+            if cat is not None:
+                cat.find(f"{{{cns}}}f").text = f"'Monthly path by month'!$B${first}:$B${last}"
+                chart_cache(cat.find(f"{{{cns}}}strCache"), ls.MONTHS)
+            value_ref = ser.find(f"{{{cns}}}val/{{{cns}}}numRef")
+            value_ref.find(f"{{{cns}}}f").text = f"'Monthly path by month'!${col}${first}:${col}${last}"
+            cache = value_ref.find(f"{{{cns}}}numCache")
+            chart_cache(cache, [float(v) for v in values])
+        title = chart.find(f".//{{{cns}}}title//{{{ans}}}t")
+        if title is not None:
+            title.text = "Simulated month-end cash: " + chosen + ". p10 / median / p90; zero reference"
+        replacement[chart_path] = ET.tostring(chart, encoding="utf-8", xml_declaration=True)
     out = BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dest:
         for info in src.infolist():
@@ -202,12 +239,14 @@ def tables(inputs, results, trials, seed, comparison=None, outside=None, uses=No
         by = add("Monthly path by month")
         by.append(["Decision", "Month", "Month end", "Dated note and term-loan principal" + USD,
                    "Mean month-end cash" + USD, "10th percentile month-end cash" + USD,
-                   "Share of trials below zero at this month end"])
+                   "Share of trials below zero at this month end", "Median month-end cash" + USD,
+                   "90th percentile month-end cash" + USD, "Zero reference" + USD])
         for d, _, path in monthly:
             for k, month in enumerate(ls.MONTHS):
                 by.append([d.name, month, date.fromisoformat(ls.MONTH_ENDS[k]), float(path["principal_by_month"][k]),
                            float(path["month_mean"][k]), float(path["month_p10"][k]),
-                           float(path["month_share_below_zero"][k])])
+                           float(path["month_share_below_zero"][k]),float(path["month_p50"][k]),
+                           float(path["month_p90"][k]),0.0])
     if outside:
         eff = add("Outside-use effects")
         eff.append(["Decision", "Scenario", "Sensitivity amount" + USD, "Mean ending cash" + USD, "10th percentile" + USD,

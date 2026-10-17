@@ -13,7 +13,7 @@
     "Monthly path by month": {
       "path": "xl/worksheets/sheet3.xml",
       "rows": 49,
-      "cols": 7
+      "cols": 10
     },
     "Correlation": {
       "path": "xl/worksheets/sheet4.xml",
@@ -46,5 +46,9 @@
       "cols": 2
     }
   },
-  "sha256": "2667078d26aa01713ea48f462c25d40d3b8269f35f57a23f162950e3cd147a8a"
+  "sha256": "f13052d1a27eb48a552f5212cad25eb2522c7e932b36825d8ac2699a3d6ea164",
+  "monthly_chart": {
+    "path": "xl/drawings/charts/chart1.xml",
+    "sheet": "Monthly path by month"
+  }
 }

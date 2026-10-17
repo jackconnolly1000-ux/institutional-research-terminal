@@ -377,6 +377,7 @@ def monthly_path(inputs: Inputs, decision: Decision, trials: int = DEFAULT_TRIAL
         "lowest_mean": float(lowest.mean()), "lowest_p10": float(np.percentile(lowest, 10)),
         "lowest_month": MONTHS[int(counts.argmax())], "lowest_month_share": float(counts.max() / trials),
         "month_mean": after.mean(axis=0), "month_p10": np.percentile(after, 10, axis=0),
+        "month_p50": np.percentile(after, 50, axis=0), "month_p90": np.percentile(after, 90, axis=0),
         "month_share_below_zero": (after < 0).mean(axis=0),
         "share_net_outflow": float((flows < 0).mean()),   # cash then falls every month, so the minimum is the end
         "share_revolver_used_any_month": float((after > before).any(axis=1).mean()) if decision.revolver else 0.0,
