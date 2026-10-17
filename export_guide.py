@@ -21,7 +21,7 @@ DETAILS = {
 TAIL = [("Data", "Reported inputs with filing dates, accessions, tags, contexts and source URLs; separate evidence blocks."),
         ("About", "Definitions, source scope, missing values, colors and methodology references.")]
 CAPTION = "Individual workbook: funding conclusion, borrowing and leases, reconciled ratios, dated history, charts, company detail and source evidence. Figures are historical; editing inputs does not update the checked narrative."
-COMBINED_CAPTION = "The optional combined workbook contains the original core metric summary and source rows. Use each company's primary download for its full review, history, charts and limitations."
+COMBINED_CAPTION = "The optional combined workbook contains the original core metric summary, source inputs and About sheet only. Company dates, fiscal periods and definitions differ; this is not a peer ranking. Use each company's primary download for its full review, history, charts and limitations."
 
 
 def contents(ticker):

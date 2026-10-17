@@ -1,0 +1,50 @@
+{
+  "sheets": {
+    "Results": {
+      "path": "xl/worksheets/sheet1.xml",
+      "rows": 5,
+      "cols": 11
+    },
+    "Monthly path": {
+      "path": "xl/worksheets/sheet2.xml",
+      "rows": 5,
+      "cols": 10
+    },
+    "Monthly path by month": {
+      "path": "xl/worksheets/sheet3.xml",
+      "rows": 49,
+      "cols": 7
+    },
+    "Correlation": {
+      "path": "xl/worksheets/sheet4.xml",
+      "rows": 4,
+      "cols": 7
+    },
+    "Outside-use effects": {
+      "path": "xl/worksheets/sheet5.xml",
+      "rows": 21,
+      "cols": 7
+    },
+    "Scenario": {
+      "path": "xl/worksheets/sheet6.xml",
+      "rows": 12,
+      "cols": 6
+    },
+    "Uses not modelled": {
+      "path": "xl/worksheets/sheet7.xml",
+      "rows": 13,
+      "cols": 6
+    },
+    "Data": {
+      "path": "xl/worksheets/sheet8.xml",
+      "rows": 24,
+      "cols": 12
+    },
+    "About": {
+      "path": "xl/worksheets/sheet9.xml",
+      "rows": 14,
+      "cols": 2
+    }
+  },
+  "sha256": "2667078d26aa01713ea48f462c25d40d3b8269f35f57a23f162950e3cd147a8a"
+}

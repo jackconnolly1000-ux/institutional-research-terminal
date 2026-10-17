@@ -93,8 +93,8 @@ class ScenarioPanel(unittest.TestCase):
         self.scenario()
         button = next(b for b in self.app.get("download_button") if b.proto.label == "Download this scenario (Excel)")
         wb = load_workbook(BytesIO(SERVED[button.proto.url.rsplit("/", 1)[-1].split(".")[0]]))
-        self.assertEqual(wb.sheetnames, ["Scenario", "Results", "Correlation", "Monthly path", "Monthly path by month",
-                                         "Outside-use effects", "Uses not modelled"])
+        self.assertEqual(wb.sheetnames, ["Results", "Monthly path", "Monthly path by month", "Correlation",
+                                         "Outside-use effects", "Scenario", "Uses not modelled", "Data", "About"])
         self.assertEqual([wb["Correlation"].cell(r, 2).value for r in (2, 3, 4)], list(ls.COMPARE_CORRELATIONS))
         self.assertEqual(wb["Scenario"]["A2"].value, ls.LABEL)
         self.assertIn("Seed 2026, 10,000 trials", wb["Scenario"]["A3"].value)
@@ -119,7 +119,7 @@ class ScenarioPanel(unittest.TestCase):
     def test_panel_separates_facts_from_assumptions_and_states_its_limits(self):
         self.scenario()
         text = "\n".join([m.value for m in self.app.markdown] + [c.value for c in self.app.caption])
-        self.assertIn("**Filing facts:**", text)
+        self.assertIn("**Checked inputs:**", text)
         self.assertIn("**Assumptions:**", text)
         self.assertIn("each payment date within a month", text)
         self.assertIn("not probabilities of default", text)
@@ -141,7 +141,7 @@ class ScenarioPanel(unittest.TestCase):
         notes = list(wb["Uses not modelled"].iter_rows(min_row=2, values_only=True))
         self.assertEqual(len(notes), 3 + len(ls.EXCLUDED) + len(ls.UNQUANTIFIED))
         kinds = [wb["Scenario"].cell(r, 2).value for r in range(6, 13)]
-        self.assertEqual(kinds[:3], ["Filing fact", "Filing fact", "Assumption"])
+        self.assertEqual(kinds[:3], ["Filing fact", "Derived checked calendar", "Assumption"])
         everything = " ".join(str(c.value) for s in wb for row in s.iter_rows() for c in row if c.value)
         self.assertNotIn("Shortfall probability", everything)
         self.assertNotIn("finance lease payments (inside OCF", everything)   # the corrected claim
@@ -184,7 +184,7 @@ class ScenarioPanel(unittest.TestCase):
         self.assertIsInstance(april[4], float)
         self.assertEqual(by["C2"].number_format, "yyyy-mm-dd")
         self.assertEqual((by["E2"].font.name, by["E2"].font.sz), ("Arial", 10.0))
-        self.assertEqual(wb["Scenario"]["A17"].value, ls.MONTHLY_BASIS)
+        self.assertEqual(wb["About"]["B9"].value, ls.MONTHLY_BASIS)
 
 
 class PrincipalCalendarWording(unittest.TestCase):
@@ -200,7 +200,7 @@ class PrincipalCalendarWording(unittest.TestCase):
         self.assertNotIn("does not establish remaining August 31 payments", company_review.LIMITS["ORCL"])
         about = zipfile.ZipFile(os.path.join(ROOT, "samples", "liquidity_pilots.xlsx")).read("xl/worksheets/sheet3.xml")
         self.assertNotIn(b"August schedule and revolver availability are Unavailable", about)
-        self.assertIn(b"August 31 note and term-loan principal is dated", about)
+        self.assertIn(b"primary LLY, ORCL and VST downloads", about)
 
 
 class ScenarioWorkbook(unittest.TestCase):
@@ -211,8 +211,8 @@ class ScenarioWorkbook(unittest.TestCase):
         cell = wb["Results"]["E2"]
         self.assertIsInstance(cell.value, float)
         self.assertEqual((cell.font.name, cell.font.sz), ("Arial", 10.0))
-        self.assertEqual(wb["Scenario"]["A14"].value, ls.TIMING_LIMIT)
-        self.assertEqual(wb["Scenario"]["A15"].value, sv.SHARE_NOTE)
+        self.assertEqual(wb["About"]["B8"].value, ls.TIMING_LIMIT)
+        self.assertEqual(wb["About"]["B11"].value, sv.SHARE_NOTE)
         self.assertEqual(wb["Scenario"]["C12"].number_format, "+0.0;-0.0;0.0")   # a ratio, not $ millions
         self.assertNotIn("Correlation", wb.sheetnames)                            # only when a comparison is passed
 
