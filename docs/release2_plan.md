@@ -39,13 +39,13 @@ ending cash = starting cash + OCF excluding prepayments + prepayments
               (+ revolver draw up to $10B, only where the decision assumes it is usable)
 ```
 
-- **Horizon:** September 1, 2026–August 31, 2027. Only the ending balance is tested, not cash on each payment date.
+- **Horizon:** September 1, 2026–August 31, 2027. Cash is tested at the end and at each month end (added October 17): dated principal falls in its calendar month and the other flows are spread evenly, an assumption. Cash on each payment date within a month and OCF seasonality aren't tested.
 - **Filing facts:** starting cash ($36.369B, excluding restricted cash) and dated note and term-loan principal ($7.317B).
 - **Assumptions:** triangles for OCF excluding prepayments, prepayments and commercial paper, plus an OCF–prepayment correlation (default 0). Their corners are anchored to checked history, which does not establish future bounds or a most-likely value.
 - **Decisions:** capex at the TTM rate ($75.66B) or the fiscal 2026 level ($55.663B); dividends ($6.26B); the revolver assumed unusable or usable up to $10B (a hypothetical, since drawable capacity is Unavailable).
 - **Excluded because a filing shows the overlap:** operating lease payments, finance-lease interest, interest and taxes (all inside OCF).
 - **Measured separately because overlap isn't established:** finance-lease principal, short-term financing related to capex, and purchase and other obligations. Each is subtracted at a stated amount and its effect is shown; none is in the base result.
-- **Outputs:** mean, standard deviation, percentiles, the share of trials with ending cash below zero, the average shortfall in those trials, and a histogram. Seeded, 10,000 trials by default.
+- **Outputs:** mean, standard deviation, percentiles, the share of trials with ending cash below zero, the average shortfall in those trials, and a histogram. For the month-end path: the share of trials below zero at any month end, the lowest month-end cash (mean and 10th percentile) and the month most often lowest. Seeded, 10,000 trials by default.
 
 ## Changes from the original plan
 

@@ -81,7 +81,7 @@ class Exclusions(unittest.TestCase):
     def test_results_are_shares_of_trials_and_state_the_timing_limit(self):
         r = ls.simulate(ls.oracle_inputs(), ls.oracle_decisions()[0], 100)
         self.assertFalse([k for k in r if "probability" in k])
-        self.assertIn("each payment date", ls.TIMING_LIMIT)
+        self.assertIn("each payment date within a month", ls.TIMING_LIMIT)
         for t in (ls.oracle_inputs().ocf_ex_prepayments, ls.oracle_inputs().prepayments):
             self.assertTrue(t.basis.startswith("Assumed"))
 
@@ -195,6 +195,84 @@ class Stability(unittest.TestCase):
         tied = replace(i, correlation=0.5)
         self.assertTrue(np.array_equal(ls.simulate(tied, d, 5_000, seed=4)["ending_cash"],
                                        ls.simulate(tied, d, 5_000, seed=4)["ending_cash"]))
+
+
+class MonthlyPath(unittest.TestCase):
+    """Cash at each month end, with dated principal in its calendar month and the other flows spread evenly."""
+
+    def setUp(self):
+        self.i = ls.oracle_inputs()
+
+    def test_principal_falls_in_the_calendar_month(self):
+        months = dict(zip(ls.MONTHS, ls.principal_by_month(self.i)))
+        self.assertEqual(months["Apr 2027"], 2_250 * M)                    # 2.80% notes due April 1, 2027
+        self.assertEqual(months["Aug 2027"], 4_504 * M)                    # term-loan remainder, August 16, 2027
+        for month in ("Sep 2026", "Dec 2026", "Mar 2027", "Jun 2027"):
+            self.assertEqual(months[month], 140.75 * M)                    # 2.50% term-loan installments
+        self.assertEqual(sum(months.values()), self.i.principal_due)
+        self.assertEqual(self.i.principal_schedule[0], ("2026-09-30", 140_750_000))   # read from the calendar
+
+    def test_a_large_maturity_month_dips_below_zero_while_ending_cash_is_positive(self):
+        # Hand check: $1B cash, $12B OCF ($1B a month), $4B due in October, nothing else.
+        # Sep 1 + 1 = 2; Oct 2 + 1 - 4 = -1; Nov 0; ... Aug 1 + 12 - 4 = 9.
+        i = ls.Inputs(starting_cash=1 * B, principal_due=4 * B, revolver_commitment=10 * B,
+                      ocf_ex_prepayments=fixed(12 * B), prepayments=fixed(0), commercial_paper_due=fixed(0),
+                      principal_schedule=(("2026-10-15", 4 * B),))
+        d = ls.Decision("hand check", capex=0, dividends=0, revolver=False)
+        end, path = ls.simulate(i, d, 10), ls.monthly_path(i, d, 10)
+        self.assertEqual(end["share_below_zero"], 0.0)
+        self.assertAlmostEqual(end["mean"], 9 * B, delta=1)
+        self.assertEqual(path["share_below_zero_any_month"], 1.0)
+        expected = [2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.assertTrue(np.allclose(path["month_mean"], [x * B for x in expected], atol=1))
+        self.assertAlmostEqual(path["lowest_mean"], -1 * B, delta=1)
+        self.assertEqual((path["lowest_month"], path["lowest_month_share"]), ("Oct 2026", 1.0))
+        revolver = ls.monthly_path(i, replace(d, revolver=True), 10)
+        self.assertEqual(revolver["share_below_zero_any_month"], 0.0)       # a $1B draw fills October
+        self.assertEqual(revolver["share_revolver_used_any_month"], 1.0)
+        self.assertEqual(ls.simulate(i, replace(d, revolver=True), 10)["share_revolver_used"], 0.0)
+        self.assertEqual(revolver["lowest_month"], "Oct 2026")              # the deepest need, before the draw
+
+    def test_commercial_paper_is_assumed_repaid_in_september(self):
+        i = ls.Inputs(starting_cash=1 * B, principal_due=0, revolver_commitment=0, ocf_ex_prepayments=fixed(0),
+                      prepayments=fixed(0), commercial_paper_due=fixed(0.3 * B))
+        path = ls.monthly_path(i, ls.Decision("cp", 0, 0, False), 5)
+        self.assertTrue(np.allclose(path["month_mean"], 0.7 * B))
+        self.assertIn("September 2026", ls.MONTHLY_BASIS)
+
+    def test_final_month_equals_ending_cash_for_every_trial(self):
+        for rho in (0.0, 0.5):
+            for d in ls.oracle_decisions():
+                i = replace(self.i, correlation=rho, added_uses=1.5 * B)
+                end = ls.simulate(i, d, 5_000, seed=9)["ending_cash"]
+                path = ls.monthly_path(i, d, 5_000, seed=9)["path"]
+                np.testing.assert_allclose(path[:, -1], end, rtol=0, atol=0.01)   # float rounding only
+
+    def test_seeds_reproduce(self):
+        d = ls.oracle_decisions()[1]
+        a, b = ls.monthly_path(self.i, d, 5_000, seed=3), ls.monthly_path(self.i, d, 5_000, seed=3)
+        self.assertTrue(np.array_equal(a["path"], b["path"]))
+        self.assertFalse(np.array_equal(a["path"], ls.monthly_path(self.i, d, 5_000, seed=4)["path"]))
+
+    def test_monthly_path_never_beats_ending_cash(self):
+        for d in ls.oracle_decisions():
+            end, path = ls.simulate(self.i, d, 5_000), ls.monthly_path(self.i, d, 5_000)
+            self.assertGreaterEqual(path["share_below_zero_any_month"], end["share_below_zero"])
+            self.assertLessEqual(path["lowest_mean"], end["mean"] + 1)
+
+    def test_a_schedule_that_does_not_match_the_principal_is_refused(self):
+        with self.assertRaises(ValueError):
+            ls.monthly_path(replace(self.i, principal_schedule=()), ls.oracle_decisions()[0], 10)
+        with self.assertRaises(ValueError):
+            ls.month_index("2027-09-01")
+
+    def test_wording_is_shares_of_trials_and_states_what_is_not_tested(self):
+        r = ls.monthly_path(self.i, ls.oracle_decisions()[0], 100)
+        self.assertFalse([k for k in r if "probability" in k])
+        self.assertIn("each month end", ls.TIMING_LIMIT)
+        self.assertIn("within a month", ls.TIMING_LIMIT)
+        self.assertIn("seasonality", ls.TIMING_LIMIT)
+        self.assertIn("Assumed timing", ls.MONTHLY_BASIS)
 
 
 if __name__ == "__main__":
