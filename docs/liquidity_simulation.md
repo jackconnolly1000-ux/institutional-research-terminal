@@ -68,7 +68,7 @@ Because month twelve covers the full year, the last month-end equals the ending 
 
 **Reading it:** at the defaults the two tests agree. In every trial the year's flows are a net outflow (capex and dividends exceed even the highest assumed OCF plus prepayments), so cash falls every month and the largest payment, the term-loan remainder, falls in the last month. Under decision A, mean month-end cash first goes below zero in June 2027. The same holds with the three outside uses added. So, under the even-spread assumption, the ending-cash test doesn't hide an earlier month-end gap for these decisions. The monthly test would differ where the year's flows are positive and a large maturity comes early, as in the hand-checked test: $1B of cash, $12B of OCF and $4B due in October give −$1B at the end of October and +$9B at the end of August.
 
-**What it still doesn't test:** cash on a payment date within a month (the April 1 maturity is netted against all of April's assumed flows), OCF seasonality, quarterly dividend and capex timing, and when the finance-lease, capex-financing and purchase-obligation uses would fall (they're spread evenly when added).
+**What it still doesn't test:** evenly spread monthly flows don't establish liquidity on actual payment dates. That includes cash on a payment date within a month (the April 1 maturity is netted against all of April's assumed flows), OCF seasonality, quarterly dividend and capex timing, and when the finance-lease, capex-financing and purchase-obligation uses would fall (they're spread evenly when added).
 
 ## Cash uses the model leaves out
 
@@ -83,24 +83,26 @@ A use is left out of the base model for one of two reasons. Either a filing show
 | Interest on borrowing, income taxes | Inside OCF | US GAAP classifies cash interest and taxes as operating (ASC 230). Historical OCF reflects historical interest, not interest on debt raised since. |
 | Restricted cash ($2.565B) | Not in starting cash | A balance choice, not a cash use |
 
-**Measured separately (overlap not established).** Each is subtracted at the stated amount, with the same seed, so its effect is visible. None is in the base results.
+**Measured separately as sensitivities (overlap not established).** Each is subtracted at a stated **sensitivity amount**, with the same seed, so its effect is visible. None is in the base results. **These amounts are not established balances or payments due in the window.** In the month-end path they are spread evenly by month.
 
-| Use | Amount used | Why it's outside the base model | What the amount over- or understates |
+| Use | Sensitivity amount | Why it's outside the base model | What the amount is, and what it over- or understates |
 |---|---:|---|---|
-| Finance-lease principal | $0.620B | Oracle classifies the principal component as a **financing** cash flow (10-K Note 1), so it's in neither OCF nor capex | It's Sep 2026–May 2027 finance-lease payments (10-Q Note 6), which include interest already in OCF, so it overstates principal for those nine months. Jun–Aug 2027 is Unavailable. |
-| Short-term financing related to capex | $3.937B | A separate financing line, so repaying it isn't in cash capex or OCF | Cumulative net proceeds: $1.422B (FY2025) + $3.345B (FY2026) − $0.830B (Jun–Aug 2026). It's an indicator only, since the balance, terms and due dates aren't disclosed ([`pilot_evidence_oracle.md`](pilot_evidence_oracle.md)). Whether it would be repaid or rolled isn't stated. |
-| Purchase and other obligations | $5.449B | Primarily cloud-infrastructure components (likely capex when paid) and data-center power (likely in OCF). The filing doesn't split them, so overlap with the capex decision and OCF is possible but not established. | Sep 2026–May 2027 only (10-Q Note 6). Jun–Aug 2027 sits inside fiscal 2028's $6.176B and is Unavailable. |
+| Finance-lease payments (principal proxy) | $0.620B | Oracle classifies the principal component as a **financing** cash flow (10-K Note 1), so it's in neither OCF nor capex | Not principal. It's the undiscounted Sep 2026–May 2027 finance-lease **payments** (10-Q Note 6), which include interest already inside OCF, so it overstates principal and counts that interest twice. The principal for the window isn't disclosed. Jun–Aug 2027 is Unavailable and not included. |
+| Short-term capex financing (cumulative proceeds proxy) | $3.937B | A separate financing line, so repaying it isn't in cash capex or OCF | **Not an outstanding balance and not a payment due.** It's cumulative net proceeds: $1.422B (FY2025) + $3.345B (FY2026) − $0.830B (Jun–Aug 2026). The balance, terms and due dates aren't disclosed ([`pilot_evidence_oracle.md`](pilot_evidence_oracle.md)), so the amount due in the window could be lower, higher, or nil if it is rolled. |
+| Purchase and other obligations | $5.449B | Primarily cloud-infrastructure components (likely capex when paid) and data-center power (likely in OCF). The filing doesn't split them, so overlap with the capex decision and OCF is possible but not established. | The disclosed amount due Sep 2026–May 2027 (10-Q Note 6). It may double count purchases already in the capex decision. Jun–Aug 2027 sits inside fiscal 2028's $6.176B and is Unavailable, so a quarter is missing. |
+
+**Overlap between them.** The three can overlap each other and the modelled lines, so the "All three together (may overlap)" row can count the same cash twice. Missing June–August 2027 amounts push the other way. The combined row is a sensitivity bound, not an estimate of cash due.
 
 **Effect at the defaults (10,000 trials, seed 2026), as the share of trials below zero:**
 
-| Decision | Base | + finance-lease principal | + capex financing | + purchase obligations | All three |
+| Decision | Base | + finance-lease payments | + capex financing proxy | + purchase obligations | All three (may overlap) |
 |---|---:|---:|---:|---:|---:|
 | A: TTM capex | 99.5% | 99.7% | 100.0% | 100.0% | 100.0% |
 | A, revolver usable | 62.6% | 67.7% | 88.1% | 93.6% | 99.5% |
 | B: FY2026 capex | 0.2% | 0.7% | 13.0% | 23.4% | 62.6% |
 | B, revolver usable | 0.0% | 0.0% | 0.0% | 0.0% | 0.2% |
 
-With all three subtracted, decision B's mean ending cash falls from $8.76B to −$1.24B. The base result for decision B depends heavily on these unresolved uses.
+With all three subtracted, decision B's mean ending cash falls from $8.76B to −$1.24B. The base result for decision B is sensitive to these unresolved items. Because the amounts are proxies that may overlap or miss months, this shows sensitivity, not a measured shortfall.
 
 **Left out with no measurable amount:** the $288B of leases not yet commenced (their payments would enter OCF after commencement and aren't in the historical OCF the triangle is anchored to; annual amounts are Unavailable); the lessor-borrowing guarantee of up to $3.3B (status at August 31 not stated); "other financing activities, net" ($0.242B in Jun–Aug 2026, composition not stated, may include finance-lease principal); June–August 2027 lease and purchase payments; and share repurchases or acquisitions (none in the quarter; they would be decisions). Also excluded: new borrowing or equity.
 
@@ -157,7 +159,7 @@ All three settings reuse the same seed, so the same underlying normal scores app
 | Distribution | 200,000 draws stay within the range, the mean is within 1% of (low + mode + high) / 3, and the histogram peaks at the mode | Pass |
 | Stability | 10,000 and 50,000 trials agree; the same seed reproduces exactly, with or without correlation. The app also shows a live stability check (5× the trials, new seed). | Pass |
 | Correlation | The inverse CDF hits each triangle's corners and mode; correlated draws keep each triangle and reach the target within 0.05; without the revolver, −0.5, 0 and +0.5 give the same mean and a rising standard deviation; ±1 or beyond is rejected | Pass |
-| Exclusions | Every exclusion cites the filing or standard that shows the overlap; finance-lease principal is not among them; each outside use traces to the checked evidence; an added use lowers every trial by exactly its amount; the effects table starts from the unchanged base | Pass |
+| Exclusions | Every exclusion cites the filing or standard that shows the overlap; finance-lease principal is not among them; each outside amount is labelled a sensitivity, not a balance or payment due; each outside use traces to the checked evidence; an added use lowers every trial by exactly its amount; the effects table starts from the unchanged base | Pass |
 | Month-end path | A hand-checked case ($4B due in October) goes below zero in October while ending cash is +$9B, and a $1B revolver draw fills it; dated principal falls in its calendar month and sums to $7.317B; the last month equals ending cash for every trial; seeds reproduce; the path never shows fewer trials below zero than the ending test; commercial paper is due in September | Pass |
 | Wording | No result is named a probability; the timing limit and the assumption basis are stated in the panel and the workbook | Pass |
 
@@ -180,7 +182,7 @@ It is deliberately separate from Oracle's checked evidence workbook: assumptions
 ## Audit, October 17, 2026
 
 Findings, all fixed in the same pull request:
-1. **Finance-lease principal was wrongly excluded as double counting.** Oracle's 10-K policy puts the principal component in financing cash flows, so it's outside OCF. It's now measured as an outside use.
+1. **Finance-lease principal was wrongly excluded as double counting.** (Measured since as "finance-lease payments (principal proxy)"; the payments include interest.) Oracle's 10-K policy puts the principal component in financing cash flows, so it's outside OCF. It's now measured as an outside use.
 2. **Purchase obligations were excluded as "overlapping capex" without proof.** The filing doesn't split them, so overlap isn't established. They're now measured as an outside use.
 3. **Short-term capex financing was not considered.** It's a separate financing line with an undisclosed balance. It's now measured, using cumulative net proceeds as an indicator.
 4. **Results were labelled "shortfall probability".** They're now "share of trials below zero", with a note that they aren't probabilities of default.
@@ -192,7 +194,7 @@ Findings, all fixed in the same pull request:
 
 1. **The problem (30 s).** The checked review can date $7.3B of note and term-loan principal due in twelve months, but it can't say whether Oracle can fund it. Drawable credit and future cash flow aren't in the filings, so the app reports coverage as Unavailable.
 2. **Why simulation (30 s).** When an answer depends on an uncertain input, show the whole distribution instead of guessing one number. That's the Module 2 idea: uncertain inputs, business logic, then outputs.
-3. **The model (90 s).** Walk through the formula. Say which inputs are filing facts (cash, dated principal), which are assumptions (the triangles, anchored to history but not established by it) and which are decisions (capex, dividends, the revolver). Then explain the exclusions: operating leases and interest are already in OCF per Oracle's own policy, while finance-lease principal, capex financing and purchase obligations aren't shown to overlap, so their effect is measured.
+3. **The model (90 s).** Walk through the formula. Say which inputs are filing facts (cash, dated principal), which are assumptions (the triangles, anchored to history but not established by it) and which are decisions (capex, dividends, the revolver). Then explain the exclusions: operating leases and interest are already in OCF per Oracle's own policy, while finance-lease payments, capex financing and purchase obligations aren't shown to overlap, so their effect is measured as a sensitivity. Their amounts are proxies, not balances due (finance-lease payments include interest; the capex-financing figure is cumulative proceeds).
 4. **The result (60 s).** At the TTM capex pace, 99% of trials end below zero, and even the full revolver lifts only about a third above it. At the fiscal 2026 level the base model looks comfortable, but adding the unresolved uses moves 63% of trials below zero. The honest conclusion is that the answer depends on items the filings don't settle.
    The month-end path checks the timing question: with dated principal in its calendar month and the other flows spread evenly, cash falls every month at the defaults, so the lowest point is August 2027 and the two tests agree.
 5. **Why trust it (60 s).** The checks run as automated tests, the runs are seeded, every percentage is a share of simulated trials, and it never changes the checked conclusion.

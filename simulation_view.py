@@ -117,16 +117,15 @@ def correlation_table(st, comparison, revolver):
 def outside_uses(st, effects, uses, decision):
     """The base result beside each use the model leaves out, then the uses excluded because they are inside OCF."""
     import pandas as pd
-    rows = [{"Scenario": e["scenario"], "Added use ($B)": round(e["added_uses"] / B, 3),
+    rows = [{"Scenario": e["scenario"], "Sensitivity amount ($B)": round(e["added_uses"] / B, 3),
              "Mean ending cash ($B)": round(e["mean"] / B, 2), SHARE: e["share_below_zero"] * 100}
             for e in effects]
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
                  column_config={SHARE: st.column_config.NumberColumn(format="%.1f%%")})
-    measured = "\n".join(f"- **{u.name}** (${u.amount / B:.3f}B). {u.why_outside} {u.amount_basis}" for u in uses)
+    measured = "\n".join(f"- **{u.name}.** {u.amount_basis} {u.why_outside}" for u in uses)
     excluded = "\n".join(f"- **{name}:** {status}. {proof}" for name, status, proof in ls.EXCLUDED)
     unmeasured = "\n".join(f"- **{name}:** {note}" for name, note in ls.UNQUANTIFIED)
-    st.markdown(_dollars(f"{decision.name}, same seed and trials. Each amount is subtracted once over the window; "
-                         "none is in the base result above.\n\n" + measured))
+    st.markdown(_dollars(f"{decision.name}, same seed and trials. {ls.SENSITIVITY_NOTE}\n\n" + measured))
     st.markdown(_dollars("**Left out because a filing shows they are inside a modelled line**\n\n" + excluded))
     st.markdown(_dollars("**Left out with no measurable amount**\n\n" + unmeasured))
 
@@ -198,6 +197,7 @@ def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=
                "decision is on Outside-use effects. Capex and dividends are decisions, shown on Results. Month-end "
                "cash is on Monthly path and Monthly path by month."])
     ws.append([ls.MONTHLY_BASIS])
+    ws.append([ls.SENSITIVITY_NOTE])
     res = wb.create_sheet("Results")
     res.append(["Decision", "Capex" + USD, "Dividends" + USD, "Revolver assumed usable", "Mean ending cash" + USD,
                 "Std dev" + USD, "10th percentile" + USD, "Median" + USD, "90th percentile" + USD,
@@ -234,7 +234,7 @@ def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=
                            float(path["month_share_below_zero"][k])])
     if outside:
         eff = wb.create_sheet("Outside-use effects")
-        eff.append(["Decision", "Scenario", "Added use" + USD, "Mean ending cash" + USD, "10th percentile" + USD,
+        eff.append(["Decision", "Scenario", "Sensitivity amount" + USD, "Mean ending cash" + USD, "10th percentile" + USD,
                     SHARE, "Average shortfall in trials below zero" + USD])
         for decision, effects in outside:
             for e in effects:
@@ -242,10 +242,10 @@ def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=
                             e["share_below_zero"], e["mean_shortfall"]])
     if uses is not None:
         notes = wb.create_sheet("Uses not modelled")
-        notes.append(["Cash use", "Treatment", "Amount used to measure effect" + USD, "Amount basis", "Reason",
+        notes.append(["Cash use", "Treatment", "Sensitivity amount used" + USD, "Amount basis", "Reason",
                       "Source"])
         for u in uses:
-            notes.append([u.name, "Outside the base model; effect measured", u.amount, u.amount_basis,
+            notes.append([u.name, "Outside the base model; sensitivity measured", u.amount, u.amount_basis,
                           u.why_outside, u.source])
         for name, status, proof in ls.EXCLUDED:
             notes.append([name, f"Excluded: {status[0].lower()}{status[1:]}", None, "", proof, ""])
@@ -336,7 +336,7 @@ def render(st, snapshot) -> None:
         st.markdown(f"**How correlation changes the spread** · {shown.name}")
         correlation_table(st, comparison, shown.revolver)
         outside = [(d, ls.outside_use_effects(edited, uses, d, trials, seed)) for d in decisions]
-        st.markdown(f"**Cash uses outside the model** · {shown.name}")
+        st.markdown(f"**Sensitivity: cash uses outside the model** · {shown.name}")
         outside_uses(st, next(e for d, e in outside if d.name == pick), uses, shown)
         check = ls.simulate(edited, decisions[0], trials * 5, seed + 1)
         drift = abs(check["share_below_zero"] - results[0][0]["share_below_zero"])

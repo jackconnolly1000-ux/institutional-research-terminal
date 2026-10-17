@@ -52,12 +52,14 @@ COMMERCIAL_PAPER_MONTH = 0
 MONTHLY_BASIS = ("Assumed timing: OCF, prepayments, capex, dividends and any added use are spread evenly, one twelfth "
                  "per month; the filings give no timing within the year. Commercial paper outstanding at August 31 "
                  "is assumed repaid in September 2026 (its maturity dates are not disclosed). Where the revolver is "
-                 "assumed usable, a draw fills a month-end gap and is repaid as cash recovers.")
+                 "assumed usable, a draw fills a month-end gap and is repaid as cash recovers. Evenly spread monthly "
+                 "flows do not establish liquidity on actual payment dates.")
 TIMING_LIMIT = ("Cash is tested at each month end, September 2026 to August 2027, as well as on August 31, 2027. Dated "
                 "note and term-loan principal falls in the month the principal calendar dates it; the other flows are "
                 "spread evenly by month, an assumption. The model does not test cash on each payment date within a "
                 "month (a maturity on April 1 is netted against all of April's assumed cash flow), and it does not "
-                "model OCF seasonality or the timing of capex and dividends within the year.")
+                "model OCF seasonality or the timing of capex and dividends within the year. Evenly spread flows do not establish "
+                "liquidity on actual payment dates.")
 TRIANGLE_BASIS = ("Assumed distribution. The corners are anchored to checked historical figures; history does not "
                   "establish that future values stay inside them or that the middle value is most likely.")
 TEN_K = "10-K fiscal 2026, accession 0001193125-26-277521"
@@ -213,25 +215,39 @@ def oracle_uses_outside_model(folder: Path | None = None) -> list[OutsideUse] | 
     # Net proceeds by year from the 10-K cash-flow statement (p. 68; pilot_evidence_oracle.md); fiscal 2024 was nil.
     capex_financing = 1_422_000_000 + 3_345_000_000 + capex_financing_quarter
     return [
-        OutsideUse("Finance-lease principal", finance,
-                   "$0.620B of finance-lease payments due Sep 2026–May 2027 (undiscounted). It includes interest that "
-                   "is already in OCF, so it overstates principal for those nine months; Jun–Aug 2027 is Unavailable.",
+        OutsideUse("Finance-lease payments (principal proxy)", finance,
+                   "Sensitivity amount, not established principal: $0.620B is the undiscounted finance-lease payments "
+                   "due Sep 2026–May 2027. Those payments include interest, which is already inside OCF, so subtracting "
+                   "them overstates principal and counts that interest twice. Jun–Aug 2027 payments are Unavailable and "
+                   "not included.",
                    "Oracle classifies the principal component as a financing cash flow, so it is not inside OCF or "
                    "capex. The principal amount for the window is not disclosed.",
                    f"{TEN_Q}, Note 6 p. 12; {TEN_K}, Note 1"),
-        OutsideUse("Short-term financing related to capex", capex_financing,
-                   "Cumulative net proceeds: $1.422B (fiscal 2025) + $3.345B (fiscal 2026) − $0.830B (Jun–Aug 2026) = "
-                   "$3.937B. An indicator only: the balance, terms and due dates are not disclosed.",
+        OutsideUse("Short-term capex financing (cumulative proceeds proxy)", capex_financing,
+                   "Sensitivity amount, not an outstanding balance or a payment due: cumulative net proceeds of $1.422B "
+                   "(fiscal 2025) + $3.345B (fiscal 2026) − $0.830B (Jun–Aug 2026) = $3.937B. The balance, terms and "
+                   "due dates are not disclosed, so the amount actually due in the window could be lower, higher or "
+                   "nil if it is rolled.",
                    "A separate financing line, so its repayment is not in cash capex or OCF. Whether it would be "
                    "repaid or rolled within the window is not stated.",
                    f"{TEN_K} p. 68; {TEN_Q} p. 5"),
         OutsideUse("Purchase and other obligations", purchase,
-                   "$5.449B due Sep 2026–May 2027. Jun–Aug 2027 is part of fiscal 2028's $6.176B and is Unavailable.",
+                   "Sensitivity amount: $5.449B disclosed as due Sep 2026–May 2027. Jun–Aug 2027 falls inside fiscal "
+                   "2028's $6.176B and is Unavailable, so the window is missing up to a quarter. Infrastructure "
+                   "purchases may already be in the capex decision, so subtracting them may count them twice.",
                    "Primarily cloud-infrastructure components (likely capex when paid) and data-center power (likely "
                    "inside OCF). The filing does not split them, so overlap with the capex decision and OCF is "
                    "possible but not established.",
                    f"{TEN_Q}, Note 6 p. 13"),
     ]
+
+
+ALL_THREE = "All three together (may overlap)"
+SENSITIVITY_NOTE = ("These are sensitivity amounts, not established balances or payments due in the window. Each is "
+                    "subtracted once over the twelve months (spread evenly by month in the month-end path); none is in "
+                    "the base result. They may overlap each other and the modelled lines (purchase obligations with "
+                    "capex, finance-lease interest with OCF), so the combined row can count the same cash twice, and "
+                    "June–August 2027 lease and purchase payments are missing.")
 
 
 # Omissions with no amount that can be measured; stated, not simulated.
@@ -241,7 +257,7 @@ UNQUANTIFIED = [
     ("Lessor-borrowing guarantee (up to $3.3B)", "Disclosed at May 31, 2026 for a borrowing maturing September 2026; "
      "its status at August 31 is not stated. Contingent, not modelled."),
     ("Other financing activities, net", "$0.242B outflow in Jun–Aug 2026 with no stated composition; it may include "
-     "the finance-lease principal above. Not modelled."),
+     "finance-lease principal. Not modelled."),
     ("June–August 2027 lease and purchase payments", "Fall in fiscal 2028 buckets that are not split by month. "
      "Unavailable."),
     ("Share repurchases and acquisitions", "None in Jun–Aug 2026; not modelled. They would be decisions."),
@@ -252,7 +268,7 @@ def outside_use_effects(inputs: Inputs, uses: list[OutsideUse], decision: Decisi
                         trials: int = DEFAULT_TRIALS, seed: int = DEFAULT_SEED) -> list[dict]:
     """The base result, then each outside use subtracted alone, then all together. Same seed throughout, so the
     differences come from the added use, not new random numbers."""
-    rows = [("Base model", 0.0)] + [(u.name, u.amount) for u in uses] + [("All three together", sum(u.amount for u in uses))]
+    rows = [("Base model", 0.0)] + [(u.name, u.amount) for u in uses] + [(ALL_THREE, sum(u.amount for u in uses))]
     return [{"scenario": name, "added_uses": amount,
              **simulate(replace(inputs, added_uses=amount), decision, trials, seed)} for name, amount in rows]
 

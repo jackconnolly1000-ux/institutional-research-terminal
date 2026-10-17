@@ -44,7 +44,7 @@ ending cash = starting cash + OCF excluding prepayments + prepayments
 - **Assumptions:** triangles for OCF excluding prepayments, prepayments and commercial paper, plus an OCF–prepayment correlation (default 0). Their corners are anchored to checked history, which does not establish future bounds or a most-likely value.
 - **Decisions:** capex at the TTM rate ($75.66B) or the fiscal 2026 level ($55.663B); dividends ($6.26B); the revolver assumed unusable or usable up to $10B (a hypothetical, since drawable capacity is Unavailable).
 - **Excluded because a filing shows the overlap:** operating lease payments, finance-lease interest, interest and taxes (all inside OCF).
-- **Measured separately because overlap isn't established:** finance-lease principal, short-term financing related to capex, and purchase and other obligations. Each is subtracted at a stated amount and its effect is shown; none is in the base result.
+- **Measured separately because overlap isn't established:** finance-lease payments (a principal proxy that includes interest), short-term capex financing (cumulative proceeds, not a balance), and purchase and other obligations, each at a sensitivity amount. Each is subtracted at a stated amount and its effect is shown; none is in the base result.
 - **Outputs:** mean, standard deviation, percentiles, the share of trials with ending cash below zero, the average shortfall in those trials, and a histogram. For the month-end path: the share of trials below zero at any month end, the lowest month-end cash (mean and 10th percentile) and the month most often lowest. Seeded, 10,000 trials by default.
 
 ## Changes from the original plan
