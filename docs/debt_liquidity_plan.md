@@ -1,6 +1,6 @@
 # Debt and liquidity: first-release plan
 
-Status (checked against merged `main` at `0f7df28`, Oct 16, 2026): **delivery steps 1–6 and 8–10 are built for the three pilots as frozen, dated reviews; step 7 is partly built.** Release 1 steps 1–3 are merged (PRs #42–#43). Step 4 merged as PR #44 (`f0f246f`); step 5 merged as PR #45 (`5fb46ce`); step 6 merged as PR #46 (`f967a22`); step 7 is on `individual-excel-parity`. See "Release 1 status" at the end for what is built, remaining and deferred.
+Status (October 17, 2026 UTC): **delivery steps 1–10 are built for the three pilots as frozen, dated reviews, with unsupported inputs explicitly Unavailable.** Release 1 steps 1–7 merged as PRs #42–#47 (base `635b962`); step 8 completes on merge of the final reconciliation PR. This is completion of the defined release, not a claim that the evidence or obligations extraction is complete. See `release1_reconciliation.md` and "Release 1 status" below.
 
 ## Goal
 
@@ -30,9 +30,11 @@ The tool is for my own stock research and to show accounting, analysis, product 
 | Historical operating-income interest coverage | `lly_interest.py`, `oracle_interest.py`, `vistra_interest.py` and their views | Built for the three pilots: LLY 31.17x, ORCL 4.52x (reported Interest expense line), VST 3.19x (separately reported interest component), each with its stated denominator limits (`lly_interest_coverage.md`, `oracle_interest_coverage.md`, `vistra_interest_coverage.md`). |
 | Dated borrowing and lease presentation | `borrowing_leases.py`, `samples/borrowing_leases.json` | Release 1 step 3 merged as PR #43 (`0f7df28`): app and individual workbooks share the checked borrowing components and selected lease facts. June LLY/VST amounts stay Unavailable, December facts retain their dates, Oracle uncommenced leases stay a separate commitment. No complete extraction is claimed. |
 | Ratio reconciliation | `ratio_review.py`, `tests/offline/ratio_sheet.mjs` | Release 1 step 4 merged as PR #44: exact periods, units, versions, formulas and nested provenance reconciled. All three individual workbooks include the core ratio table and link their existing interest build. Checked financial values are unchanged. See `ratio_reconciliation.md`. |
+| Two-date history and core charts | `company_history.py`, `core_charts.py`, shared workbook builders | Checked annual and latest balances, overlapping FY/TTM flows, two formula-backed native charts per individual export. Older VST debt and its dependent ratios stay Unavailable. |
+| Individual Excel parity and release audit | `export_guide.py`, `tests/offline/audit_release1.py` | Contents guide, dates, source metadata, ratio/history/chart/conclusion parity, manifest gates and actual-download verification. Source URLs remain copyable text. See `excel_parity.md` and `release1_reconciliation.md`. |
 | Complete lease extraction and obligations review | none | Not built; selected manually checked disclosures do not establish completeness. |
 
-## First-release scope (planned)
+## First-release scope
 
 1. Audit the existing app and data pipeline
 2. Add reliable SEC financial inputs
@@ -57,10 +59,11 @@ Supported filers: USD, U.S. GAAP, nonfinancial operating companies. Banks (for e
 - **Free cash flow (saved reviews):** TTM operating cash flow minus the company's checked reported capital-spending line (`cash_generation.py`). Lilly uses its other-PP&E tag; Vistra's line includes nuclear fuel and LTSA prepayments. Oracle uses cash capital expenditures without adding capex-financing cash flows. Acquisitions, dividends and other cash uses are excluded. The generic `xbrl.py` calculation is separate and does not supply Lilly's saved FCF.
 - **OCF/debt and FCF/debt:** compatible TTM flows divided by period-end baseline gross debt.
 - **Operating-income interest coverage (decided Oct 14, 2026):** TTM operating income / TTM reported interest expense on borrowings, before any offset for interest income. When the filing says the expense is net of capitalized interest, the ratio says so (for example "Operating income / reported interest expense on borrowings (net of capitalized interest)"). It is never labeled "gross interest incurred". Capitalized interest is never added to this denominator; if interest incurred (expensed plus capitalized) is supported later, it is a separately named measure. If the TTM interest inputs can't be established reliably from the filing's tagged data, the TTM ratio is "Unavailable"; an older fiscal-year expense is never substituted into a current TTM ratio.
+- **Company-specific coverage labels:** the target borrowing-interest definition above does not establish Oracle's reported line is borrowing-only. Oracle's 4.52x explicitly uses its reported Interest expense; borrowing-only composition and capitalization basis remain Unavailable. Vistra's 3.19x uses its separate interest component before its capitalized-interest deduction, with swaps/extinguishment effects reconciled separately. Lilly's 31.17x retains annual net-of-capitalization and unstated interim basis. The three historical multiples are not a funding-strength ranking or contract-defined covenant coverage.
 - **Financing filings since the balance sheet (decided Oct 14, 2026):** a sourced notice listing filings made after the balance-sheet date that report financing: 8-K and 8-K/A filings and debt-offering filings (for example 424B2 prospectuses and FWPs) and their exhibits, screened by their contents, not only by 8-K item number. Each entry shows event date, filed date, form and item, accession and link, a factual description, and whether any stated amount is outstanding debt, facility capacity, or another amount. Events are never rolled into the dated balance-sheet debt or cash. When nothing relevant is found, the notice says: "No relevant financing filing identified among [filing types] filed from [date] through [date], checked as of [date]." It never claims that no financing occurred.
 - **Obligations outside baseline debt (decided Oct 14, 2026):** when a pilot filing discloses a major obligation or commitment that is not in baseline gross debt (for example Oracle's future lease commitments for leases not yet commenced), the app shows a short note stating what it is, the amount as disclosed, its reporting date, whether it is recognized on the balance sheet, and its filing, location and accession. It is never added to debt, lease liabilities or any ratio. Which items count as "major" is decided per pilot from the filing and recorded in that pilot's evidence file.
 
-## Source rules (planned)
+## Source rules
 
 - Every reported value keeps its period end, form, filed date, accession number, XBRL tag, units, and any selection or revision rule applied (for example "most recently filed value for this period").
 - A derived value (net debt, gross debt summed from components, every ratio) has no XBRL tag of its own. It lists every input fact it was calculated from, each with that fact's full source metadata, plus the formula used.
@@ -112,7 +115,7 @@ Later phases (not in the first release): debt maturities, financing terms, coven
 - Notices: a failed or incomplete retrieval or review shows "Not checked" with the reason, never an empty result (unit-tested).
 - Obligations note: each note matches the filing's disclosed amount, date and location and states whether the item is on the balance sheet; no such amount changes debt, lease liabilities or any ratio.
 - Interest coverage: the label states the basis, including "net of capitalized interest" when the filing says so; capitalized interest is never added to the denominator; unit tests cover Unavailable when a TTM interest input is missing, and refuse a fiscal-year expense in a TTM ratio.
-- All existing unit tests still pass (386 on merged `main` at `0f7df28`), and the offline and saved-sample app checks still pass.
+- All existing unit tests still pass (407 on step-7 `main` at `635b962`; 412 in final reconciliation), and the offline and saved-sample app checks still pass.
 - Vistra's limits are written in the app's README "Known limits".
 - No grades, default probabilities or recommendations appear anywhere.
 - Copy meets `C:\Users\jackc\Stock Project\docs\Quality_Standard.md`.
@@ -132,7 +135,7 @@ Later phases (not in the first release): debt maturities, financing terms, coven
 `lly_liquidity.py` and `samples/lly_liquidity.json` supply the app and Lilly workbook with reconciled H1 cash sources/uses, annual due-year carrying balances, dated unused facilities, selected acquisition payments and manufacturing commitments. See `docs/lly_liquidity_review.md`. Updated June principal, drawable facilities and future payment coverage remain Unavailable. Other reviews and catalysts are preserved.
 
 
-## Release 1 status (Oct 16, 2026)
+## Release 1 status (October 17, 2026 UTC)
 
 Release 1 order (agreed Oct 16, 2026). One step per pull request; each keeps the checked financial models, numbers, source gates and workbook bytes unchanged unless the step says otherwise:
 
@@ -155,9 +158,11 @@ Release 1 order (agreed Oct 16, 2026). One step per pull request; each keeps the
 
 - Release 1 step 3 merged as PR #43 (`0f7df28`): borrowing components, lease liabilities on their own dates and uncommenced leases are separate. See `borrowing_lease_presentation.md`.
 
-**Remaining:**
+**Completed release presentation and reconciliation:**
 - Step 4 merged as PR #44. Oracle and Vistra's primary exports now include current ratio, net debt and flow/debt calculations that were missing from their workbooks. All three workbooks and the app preserve their checked inputs and distinct interest-coverage bases. See `ratio_reconciliation.md`.
-- Step 5 merged as PR #45 (`company_history.md`); fiscal-year and later TTM flows overlap, and unsupported older Vistra debt remains Unavailable. Step 6 merged as PR #46 with checked cash-generation and two-date balance charts (`core_charts.md`), with two formula-backed native charts in each individual workbook. Step 7 adds contents/reading guides and scoped history explanations to the primary exports (`excel_parity.md`). Step 8 remains next.
+- Step 5 merged as PR #45 (`company_history.md`); fiscal-year and later TTM flows overlap, and unsupported older Vistra debt remains Unavailable. Step 6 merged as PR #46 with checked cash-generation and two-date balance charts (`core_charts.md`), with two formula-backed native charts in each individual workbook. Step 7 merged as PR #47 with contents/reading guides and scoped history explanations to the primary exports (`excel_parity.md`). Step 8 completes with the final reconciliation PR (`release1_reconciliation.md`).
+
+**Evidence gaps retained (not silently closed by release completion):**
 - Leases: Oracle's August 31, 2026 operating (34.621B) and finance (9.185B) lease liabilities are shown separately from borrowing, and its 288B of leases not yet commenced is shown as a commitment. Lilly's and Vistra's June 30, 2026 10-Q reviews establish no lease liability amounts, so June 30 amounts are Unavailable; the latest reported amounts are at Dec 31, 2025 (Lilly: 1,362M operating, no finance leases described; Vistra: 105M operating and 222M finance). No review has a complete lease or obligations extraction, and lease interest is not added to any coverage ratio.
 - Funding: future funding coverage is Unavailable for all three. The decisive unknowns are the remaining principal calendar (Lilly has only the May 2026 issuance schedule; Oracle only its May 31 schedule), drawable credit and draw conditions (Lilly's post-August facility renewal, Oracle's current revolver availability, Vistra's borrowing base), covenant headroom, the timing and overlap of acquisition, manufacturing, capital-call and uncommenced-lease payments, Vistra's Parent-accessible cash, and all-in financing cost. Each is stated in its review; none is estimated.
 - Outside Release 1: supported-filer detection for banks, non-USD and non-U.S. GAAP filers (decision 4), the live pipeline computing these metrics beyond the three pilots, and refreshing a review when a newer filing arrives (today each review is rebuilt and checked by hand).

@@ -199,6 +199,18 @@ class AppPages(unittest.TestCase):
         self.assertIn("Combined workbook Unavailable", "\n".join(c.value for c in app.caption))
         self.assertFalse(app.get("download_button"))
 
+    def test_missing_history_evidence_shows_a_stated_gap(self):
+        import company_history
+        with mock.patch.object(company_history, "SAMPLE", ROOT / "samples" / "missing-history.json"):
+            app = self.run_clean()
+        self.assertIn("LLY review unavailable", page_text(app))
+        self.assertFalse(app.get("download_button"))
+        self.assertIn(RESEARCH, [b.label for b in app.button])
+        # Once the evidence is restored, the same session can open another checked review.
+        app.segmented_control[0].set_value("ORCL")
+        self.run_clean()
+        self.assertIn("Oracle Corporation", page_text(app))
+
     def test_malformed_saved_review_is_not_rendered(self):
         with tempfile.TemporaryDirectory() as folder:
             broken = Path(folder) / "liquidity_pilots.json"
