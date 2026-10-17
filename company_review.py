@@ -707,6 +707,17 @@ def render_app() -> None:
         format_func=lambda t: f"{SELECTOR_NAMES.get(t, t)} ({t})")
     snapshot = snapshots[ticker]
     st.caption("Saved filing reviews · source dates shown in each review · no live or paid request")
+    import simulation_view
+    if simulation_view.available(snapshot):
+        # A separate view, not a section of the review: the scenario's figures are assumptions, so they never sit
+        # in the same flow as checked filing facts. The choice survives switching companies and pages.
+        if st.session_state.get("review_view") not in simulation_view.VIEWS:
+            st.session_state.review_view = simulation_view.VIEWS[0]
+        view = st.segmented_control("View", simulation_view.VIEWS, required=True, key="review_view",
+                                    persist_state="session")
+        if view == simulation_view.VIEWS[1]:
+            simulation_view.render(st, snapshot)
+            return
     try:
         page = render(snapshot)
         tail = evidence_html(snapshot) + financing_html(snapshot)
@@ -719,9 +730,9 @@ def render_app() -> None:
         return
     render_download(st, snapshot, saved["snapshots"])
     st.markdown(page, unsafe_allow_html=True)
-    # The illustrative scenario sits after the checked review and before its evidence trail, so facts come first
-    import simulation_view
-    simulation_view.render(st, snapshot)
+    if simulation_view.available(snapshot):
+        st.caption(f"An illustrative stress scenario for these obligations is under View → {simulation_view.VIEWS[1]}, "
+                   "above. It uses stated assumptions and does not change this review.")
     st.markdown(tail, unsafe_allow_html=True)
     with st.expander("Optional combined export"):
         import export_guide

@@ -64,6 +64,14 @@ assert all(value in text for value in ('Acquisition and manufacturing spending c
     'Coverage bases differ:', 'Future funding coverage: Unavailable'))
 assert set(("Download LLY review and evidence", "Download ORCL review and evidence",
             "Download VST review and evidence", "Download all three company reviews (optional)")) <= set(buttons)
+# Oracle's stress scenario is its own view, never mixed into the checked review
+app.segmented_control[0].set_value("ORCL").run(timeout=30)
+next(c for c in app.segmented_control if c.key == "review_view").set_value("Stress scenario (illustrative)").run(timeout=90)
+assert not app.exception and not app.error
+scenario = "\n".join(m.value for m in app.markdown)
+assert "Oracle, September 2026 to August 2027" in scenario and "Funding conclusion for ORCL" not in scenario
+assert "Download this scenario (Excel)" in [element.proto.label for element in app.get("download_button")]
+app.segmented_control[0].set_value("VST").run(timeout=30)
 next(b for b in app.button if b.label.startswith("General filing research")).click().run(timeout=30)
 next(b for b in app.button if b.label.startswith("View archived example")).click().run(timeout=30)
 assert not app.exception and not app.error

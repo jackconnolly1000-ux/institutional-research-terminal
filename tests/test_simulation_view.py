@@ -34,29 +34,63 @@ class ScenarioPanel(unittest.TestCase):
         self.app.segmented_control[0].set_value(ticker).run()
         self.assertFalse(self.app.exception, [e.value for e in self.app.exception])
 
-    def labels(self):
-        return [e.proto.label for e in self.app.expander]
+    def view(self):
+        return next((c for c in self.app.segmented_control if c.key == "review_view"), None)
 
-    def test_only_oracle_has_the_scenario(self):
+    def scenario(self):
         self.pick("ORCL")
-        self.assertIn("Stress scenario (illustrative) · Sep 2026–Aug 2027", self.labels())
-        text = "\n".join(m.value for m in self.app.markdown)
+        self.view().set_value(sv.VIEWS[1]).run()
+        self.assertFalse(self.app.exception, [e.value for e in self.app.exception])
+
+    def text(self):
+        return "\n".join([m.value for m in self.app.markdown] + [c.value for c in self.app.caption])
+
+    def test_only_oracle_has_the_scenario_view(self):
+        self.pick("ORCL")
+        self.assertEqual(self.view().options, list(sv.VIEWS))
+        self.assertEqual(self.view().value, "Checked review")           # the checked review opens first
+        self.assertEqual(len(self.app.dataframe), 0)                       # no scenario figures in the review
+        self.assertIn("View → Stress scenario (illustrative)", self.text())
+        for ticker in ("LLY", "VST"):
+            self.pick(ticker)
+            self.assertIsNone(self.view())
+            self.assertEqual(len(self.app.dataframe), 0)
+
+    def test_scenario_view_is_separate_and_framed(self):
+        self.scenario()
+        text = self.text()
         self.assertIn(ls.LABEL, text)
+        self.assertIn("not from checked filing facts", text)
+        self.assertIn("irt-card tone-caution", text)                       # the caution banner
+        self.assertNotIn("Funding conclusion for ORCL", text)              # the checked review is not mixed in
+        self.assertNotIn("Download ORCL review and evidence",
+                         [b.proto.label for b in self.app.get("download_button")])
         self.assertEqual(len(self.app.dataframe), 4)   # results, month ends, correlation, uses outside the model
         self.assertEqual(len(self.app.dataframe[0].value), 4)
         self.assertEqual(list(self.app.dataframe[2].value["Correlation setting"]), list(ls.COMPARE_CORRELATIONS))
-        for ticker in ("LLY", "VST"):
-            self.pick(ticker)
-            self.assertFalse(any(label.startswith("Stress scenario") for label in self.labels()))
+
+    def test_scenario_edits_survive_a_visit_to_the_review(self):
+        self.scenario()
+        self.app.slider(key="sim_rho").set_value(0.5).run()
+        self.view().set_value(sv.VIEWS[0]).run()
+        self.assertIn("Funding conclusion for ORCL", self.text())
+        self.view().set_value(sv.VIEWS[1]).run()
+        self.assertEqual(self.app.slider(key="sim_rho").value, 0.5)
+
+    def test_view_choice_survives_switching_company(self):
+        self.scenario()
+        self.pick("LLY")
+        self.pick("ORCL")
+        self.assertEqual(self.view().value, sv.VIEWS[1])
 
     def test_an_invalid_range_runs_nothing(self):
-        self.pick("ORCL")
+        self.scenario()
         next(n for n in self.app.number_input if n.key == "sim_ocf_low").set_value(60.0).run()
         self.assertTrue(any("low ≤ most likely ≤ high" in w.value for w in self.app.warning))
         self.assertEqual(len(self.app.dataframe), 0)
 
     def test_the_download_records_inputs_seed_and_results(self):
-        self.pick("ORCL")
+        self.scenario()
         button = next(b for b in self.app.get("download_button") if b.proto.label == "Download this scenario (Excel)")
         wb = load_workbook(BytesIO(SERVED[button.proto.url.rsplit("/", 1)[-1].split(".")[0]]))
         self.assertEqual(wb.sheetnames, ["Scenario", "Results", "Correlation", "Monthly path", "Monthly path by month",
@@ -70,7 +104,7 @@ class ScenarioPanel(unittest.TestCase):
         self.assertAlmostEqual(wb["Results"]["J2"].value, expected["share_below_zero"])
 
     def test_the_correlation_setting_reaches_every_result_and_the_download(self):
-        self.pick("ORCL")
+        self.scenario()
         self.app.slider(key="sim_rho").set_value(0.5).run()
         self.assertFalse(self.app.exception)
         button = next(b for b in self.app.get("download_button") if b.proto.label == "Download this scenario (Excel)")
@@ -83,7 +117,7 @@ class ScenarioPanel(unittest.TestCase):
         self.assertAlmostEqual(wb["Results"]["F2"].value, expected["sd"], delta=1)
 
     def test_panel_separates_facts_from_assumptions_and_states_its_limits(self):
-        self.pick("ORCL")
+        self.scenario()
         text = "\n".join([m.value for m in self.app.markdown] + [c.value for c in self.app.caption])
         self.assertIn("**Filing facts:**", text)
         self.assertIn("**Assumptions:**", text)
@@ -97,7 +131,7 @@ class ScenarioPanel(unittest.TestCase):
         self.assertIn("financing cash flow", text)                     # why finance-lease principal is outside OCF
 
     def test_download_records_every_use_left_out_and_its_effect(self):
-        self.pick("ORCL")
+        self.scenario()
         button = next(b for b in self.app.get("download_button") if b.proto.label == "Download this scenario (Excel)")
         wb = load_workbook(BytesIO(SERVED[button.proto.url.rsplit("/", 1)[-1].split(".")[0]]))
         effects = list(wb["Outside-use effects"].iter_rows(min_row=2, values_only=True))
@@ -113,7 +147,7 @@ class ScenarioPanel(unittest.TestCase):
 
 
     def test_month_end_table_sits_beside_the_end_of_window_result(self):
-        self.pick("ORCL")
+        self.scenario()
         table = self.app.dataframe[1].value
         self.assertEqual(list(table["Cash at"]), ["Aug 31, 2027", "Lowest month end"])
         end = ls.simulate(ls.oracle_inputs(), ls.oracle_decisions()[0], 10_000, 2026)
@@ -128,7 +162,7 @@ class ScenarioPanel(unittest.TestCase):
         self.assertNotIn("probability", " ".join(table.columns).lower())
 
     def test_download_records_the_month_end_path(self):
-        self.pick("ORCL")
+        self.scenario()
         button = next(b for b in self.app.get("download_button") if b.proto.label == "Download this scenario (Excel)")
         wb = load_workbook(BytesIO(SERVED[button.proto.url.rsplit("/", 1)[-1].split(".")[0]]))
         summary = list(wb["Monthly path"].iter_rows(min_row=2, values_only=True))

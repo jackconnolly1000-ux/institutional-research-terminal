@@ -136,6 +136,12 @@ p.irt-subtitle {{ color: var(--text-muted); margin: 0; font-size: 0.85rem; }}
 .irt-card blockquote {{ margin: 6px 0 0 0; padding: 6px 10px; border-left: 2px solid var(--border);
   color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; }}
 
+/* The illustrative stress scenario is its own view, framed so it can't be read as checked filing facts: a dashed
+   caution edge (the same meaning as a caution notice: not a checked answer) around a surface panel. */
+.st-key-scenario_view {{ background: var(--surface); border: 1px dashed {T.CAUTION_SOLID};
+  border-left: 4px solid {T.CAUTION_SOLID}; border-radius: 8px; padding: 16px 18px; }}
+@media (max-width: 640px) {{ .st-key-scenario_view {{ padding: 12px 10px; }} }}
+
 /* Section headers replace the emoji subheaders */
 .irt-h {{ display: flex; align-items: center; gap: 8px; margin: 22px 0 10px 0; padding-bottom: 6px;
   border-bottom: 1px solid var(--border); color: var(--text-strong); font-size: 1.2rem; font-weight: 650; }}
