@@ -86,10 +86,18 @@ def build(review: dict, annual: dict) -> dict:
             "context_id": f["context_id"], "accession": annual["accession"],
             "source_url": annual["source_url"], "as_of": annual["as_of"]}
             for f in annual["buckets"]]
+    import oracle_principal
+    # The checked instrument calendar dates note and term-loan principal; commercial paper and interest stay open.
+    debt_gap = ({"label": "Commercial paper and interest at August 31", "value": None,
+                 "detail": "Senior-note and term-loan principal is dated by instrument in the August 31 principal "
+                     "calendar. Commercial paper's August balance and maturity dates, and interest payment amounts, "
+                     "are Unavailable. Quarter repayments are not assigned to instruments."}
+                if oracle_principal.load() is not None else
+                {"label": "Remaining borrowing principal and interest at August 31", "value": None,
+                 "detail": "Current borrowing is carrying value, not a dated principal schedule. "
+                     "The May principal schedule is historical. Quarter repayments cannot be assigned to its buckets."})
     result["gaps"] = [
-        {"label": "Remaining borrowing principal and interest at August 31", "value": None,
-         "detail": "Current borrowing is carrying value, not a dated principal schedule. "
-             "The May principal schedule is historical. Quarter repayments cannot be assigned to its buckets."},
+        debt_gap,
         {"label": "Operating leases not yet commenced", "value": facts["not_commenced"]["value"],
          "detail": "Expected commencement in FY2027–2029 and 15–19 year terms do not establish payment dates. "
              "Annual amounts and overlap with other commitments are Unavailable."},

@@ -46,10 +46,39 @@ def render_flow(snapshot, money):
 
 
 def render_balances(snapshot, money):
+    """One panel per balance, both dates in each, on one shared scale so cash and borrowing compare honestly.
+
+    All values are balances (never negative here), so bars start at zero on the left; the old diverging
+    layout left half the width empty. Identity color (theme.SERIES_CASH / SERIES_BORROWING) plus each panel's
+    title means color never carries the meaning alone."""
+    from datetime import date
     from ui import esc
     model = build(snapshot)
-    rows = [(f"{name} · {date}", value) for date, values in model["points"] for name, value in zip(model["series"], values)]
-    out = f'<section class="lr-obligations lr-balancechart"><h3>{esc(model["title"])}</h3><p class="lr-meta">USD billions · balance-sheet dates shown with each bar</p>'
-    out += _bars(rows, money) + f'<p class="lr-meta">{esc(model["note"])}</p>'
+    day = lambda iso: (lambda d: f"{d:%b} {d.day}, {d:%Y}")(date.fromisoformat(iso))
+    dates = [d for d, _ in model["points"]]
+    known = [v for _, values in model["points"] for v in values if v is not None]
+    maximum = max(known, default=1) or 1
+    kinds = {"Cash and equivalents": "cash", "Baseline borrowing": "borrowing"}
+    out = (f'<section class="lr-obligations lr-balancechart"><h3>{esc(model["title"])}</h3>'
+           f'<p class="lr-meta">Balances at {esc(day(dates[0]))} (latest annual) and {esc(day(dates[1]))} (latest '
+           'quarter) · ' + ('USD billions' if all(v >= 1e9 for v in known) else 'USD, in B or M') + (' · one scale for both panels' if len(model["series"]) == 2 else '')
+           + '</p><div class="lr-bal-grid">')
+    for k, name in enumerate(model["series"]):
+        values = [v[k] for _, v in model["points"]]
+        out += (f'<div class="lr-bal-panel" role="figure" aria-label="{esc(name)} at both dates">'
+                f'<h4><span class="lr-swatch lr-{kinds[name]}" aria-hidden="true"></span>{esc(name)}</h4>')
+        for when, value in zip(dates, values):
+            width = 0 if value is None else max(value / maximum * 100, 0.5)
+            shown = "Unavailable" if value is None else money(value)
+            out += (f'<div class="lr-bal-row"><span class="lr-bal-date">{esc(day(when))}</span>'
+                    f'<div class="lr-bal-track" title="{esc(name)}, {esc(day(when))}: {esc(shown)}">'
+                    + (f'<span class="lr-bal-bar lr-{kinds[name]}" style="width:{width:.4f}%"></span>' if value is not None else '')
+                    + f'</div><strong class="lr-bal-value">{esc(shown)}</strong></div>')
+        if None not in values:
+            change = values[1] - values[0]
+            sign = "+" if change > 0 else "−" if change < 0 else ""
+            out += f'<p class="lr-meta">Change since {esc(day(dates[0]))}: {sign}{esc(money(abs(change)) if change else "$0")}</p>'
+        out += '</div>'
+    out += f'</div><p class="lr-meta">{esc(model["note"])}</p>'
     out += '<p class="lr-meta">' + ' · '.join(f'<a href="{esc(url)}">{"Annual" if i == 0 else "Latest"} source filing</a>' for i, url in enumerate(model["sources"])) + '</p></section>'
     return out

@@ -22,6 +22,7 @@ import analysis
 import budget
 import filing_review
 import reviewed_financing
+import core_charts
 import company_review
 import funding_conclusions
 import oracle_financing
@@ -34,6 +35,7 @@ import lly_financing
 import lly_interest
 import lly_interest_view
 import lly_liquidity_view
+import oracle_principal
 import oracle_repayment
 import oracle_revolver
 import vistra_liquidity
@@ -54,6 +56,7 @@ reload(oracle_liquidity)
 reload(oracle_interest)
 reload(oracle_interest_view)
 reload(oracle_revolver)
+reload(oracle_principal)
 reload(oracle_repayment)
 reload(oracle_liquidity_view)
 reload(reviewed_financing)
@@ -66,6 +69,7 @@ reload(lly_financing)
 reload(lly_interest)
 reload(lly_interest_view)
 reload(lly_liquidity_view)
+reload(core_charts)   # imported lazily by company_review, so a reload of that module alone keeps old chart HTML
 reload(company_review)
 reload(funding_conclusions)
 

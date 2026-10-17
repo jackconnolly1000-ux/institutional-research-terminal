@@ -18,14 +18,18 @@ CHECKED = {
     "oracle_financing.json": "d913c737cfa41886784dd008c92f5c30d5cbb59969f238ed2d6eae8d7ef113ad",
     "oracle_revolver.json": "764353f4555debbf5af99cd28f0af24550a9f10aee9937703ff59bdbe9541db7",
     "oracle_interest.json": "0aa090b90a9f7207b693697be60f215bb6c4e5177fa3423a3d5e6e56d3ac6cec",
+    "oracle_principal.json": "c57fcb28a01c22e88854250d8244a376ff539d0af81e233fed0fa67251ae4c45",
     "vistra_liquidity.json": "8f4bdb5f276cb38b2929c998565168869f02b0ce2d6b84e7c285e9002ea0affd",
     "vistra_interest.json": "6a18cf366130ac1aeaf1edccb748b96a1abc3361864651a13b99504d2defa2d4",
 }
 FILES = {
     "LLY": ["liquidity_pilots.json", "lly_liquidity.json", "lly_financing.json", "lly_interest.json"],
-    "ORCL": ["liquidity_pilots.json", "oracle_liquidity.json", "oracle_financing.json", "oracle_revolver.json", "oracle_interest.json"],
+    "ORCL": ["liquidity_pilots.json", "oracle_liquidity.json", "oracle_financing.json", "oracle_revolver.json", "oracle_interest.json",
+             "oracle_principal.json"],
     "VST": ["liquidity_pilots.json", "vistra_liquidity.json", "vistra_interest.json"],
 }
+# Oracle was re-reviewed on Oct 17 against its August 31 principal calendar; Lilly and Vistra are unchanged.
+REVIEWED = {"LLY": "2026-10-16", "ORCL": "2026-10-17", "VST": "2026-10-16"}
 COMPARISON = ("Coverage bases differ: Lilly derives operating income and its interim capitalization basis is unstated. "
               "Oracle uses reported operating income and a reported interest line with unresolved composition/capitalization. "
               "Vistra uses reported operating income and a separate interest component before the capitalized-interest deduction. "
@@ -42,6 +46,7 @@ LK = source("10-K filed Feb 12, 2026", "0000059478-26-000013", "lly-20251231.htm
 LE = source("Earnings exhibit filed Aug 5, 2026", "0000059478-26-000077", "q226lillysalesandearningsp.htm", 59478, "Other announcements")
 OQ = source("10-Q filed Sep 11, 2026", "0001193125-26-389274", "orcl-20260831.htm", 1341439, "pp. 1–2, 5–7, 12–14, 32–35")
 OK = source("10-K filed Jun 22, 2026", "0001193125-26-277521", "orcl-20260531.htm", 1341439, "pp. 50, 65, 83–85, 88")
+OP = dict(OK, location="Note 6 debt table and term-loan terms, pp. 83–86")
 OA = source("Credit agreement filed Mar 11, 2026", "0001193125-26-101045", "orcl-ex10_17.htm", 1341439, "§§2.01, 2.21, 4.02, 6.02(c)")
 VQ = source("10-Q filed Aug 10, 2026", "0001692819-26-000019", "vistra-20260630.htm", 1692819, "pp. 1–5, 15, 20–28, 39, 67–70")
 VK = source("10-K filed Feb 27, 2026", "0001692819-26-000006", "vistra-20251231.htm", 1692819, "pp. 79, 113–121, 159–160")
@@ -63,12 +68,12 @@ CONCLUSIONS = {
         "coverage_formula": "='Debt and liquidity'!B50",
     },
     "ORCL": {
-        "conclusion": "Equity proceeds and specified customer prepayments contributed to funding a quarter in which capex exceeded operating cash flow. The dated cash balance does not establish coverage of future debt and infrastructure payments.",
+        "conclusion": "Equity proceeds and specified customer prepayments contributed to funding a quarter in which capex exceeded operating cash flow. At August 31, $7.317B of note and term-loan principal was due over the next twelve months, alongside dated lease and purchase payments. Coverage remains Unavailable: drawable credit, commercial paper and future cash generation are not established, and the dated cash balance is not reserved for these payments.",
         "rows": [
-            ("Near-term obligations", "At August 31, 2026, current borrowing was $7.625B, not a principal payment calendar. September 2026–May 2027 disclosed payments are $3.219B operating leases, $620M finance leases and $5.449B purchase/other obligations. They remain separate because overlap is unresolved.", [OQ]),
+            ("Near-term obligations", "September 2026–August 2027 principal is $7.317B: $2.250B of notes due April 1, 2027, $563M of term-loan installments and the $4.504B term-loan remainder due August 16, 2027, which Oracle may extend. Commercial paper is undated and Unavailable; the $7.625B of current borrowing is carrying value. September 2026–May 2027 lease and purchase payments are $3.219B operating, $620M finance and $5.449B purchase/other, kept separate because overlap is unresolved.", [OQ, OP]),
             ("Resources and access", "$36.369B cash at August 31 excludes $2.565B restricted cash. The $10B revolver was undrawn at May 31. August/later drawings and drawable capacity are Unavailable. Draw conditions apply. The fully used $20B gross ATM equity program provides no remaining capacity.", [OQ, OK, OA]),
             ("Competing cash uses", "Jun–Aug 2026 OCF $23.103B included $11.363B specified customer prepayments. Cash capex was $28.499B and net ATM proceeds $19.909B. OCF less specified prepayments and capex was negative $16.759B. This historical exclusion is not recurring OCF or a forecast.", [OQ]),
-            ("Decisive unknowns", "Future funding coverage: Unavailable. Needed: remaining debt principal dates, current drawable credit, future cash generation and commitment overlap. The $288B leases not yet commenced have no annual payment schedule. Historical equity/prepayment inflows are already in cash and cannot be added again.", [OQ, OK, OA]),
+            ("Decisive unknowns", "Future funding coverage: Unavailable. Needed: current drawable credit, commercial paper's balance and dates, future cash generation and commitment overlap. Note and term-loan principal dates are established. The $288B leases not yet commenced have no annual payment schedule. Historical equity/prepayment inflows are already in cash and cannot be added again.", [OQ, OK, OA]),
         ],
         "coverage_basis": "TTM Sep 2025–Aug 2026: reported operating income $23.057B / reported interest $5.104B. Borrowing-only composition and capitalization basis are Unavailable. Separately disclosed $357M finance-lease interest is not added or subtracted without a reconciliation.",
         "coverage_sources": [dict(OQ, location="Operations p. 2; lease Note 6 p. 12; MD&A p. 32"),
@@ -109,7 +114,7 @@ def load(ticker, folder=None):
         interest = json.loads((folder / f"{stem}_interest.json").read_text())
         out = deepcopy(CONCLUSIONS[ticker])
         out.update(ticker=ticker, company=snapshot["company_name"], period_end=snapshot["metrics"]["cash"]["period_end"],
-                   reviewed="2026-10-16", status="Checked", coverage=interest["calculation"]["value"],
+                   reviewed=REVIEWED[ticker], status="Checked", coverage=interest["calculation"]["value"],
                    comparison=COMPARISON, snapshot=snapshot, evidence_files=FILES[ticker])
         return out
     except (OSError, ValueError, KeyError, TypeError, StopIteration):

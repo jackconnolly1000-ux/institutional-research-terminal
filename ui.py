@@ -58,6 +58,7 @@ def inject_css() -> None:
   --bg: {T.BG}; --surface: {T.SURFACE}; --surface-hover: {T.SURFACE_HOVER}; --border: {T.BORDER};
   --border-strong: {T.BORDER_STRONG}; --link: {T.INFO_TEXT};
   --text: {T.TEXT}; --text-strong: {T.TEXT_STRONG}; --text-muted: {T.TEXT_MUTED}; --accent: {T.ACCENT};
+  --series-cash: {T.SERIES_CASH}; --series-borrowing: {T.SERIES_BORROWING};
   --font: {T.FONT_STACK};
 }}
 {tone_css}

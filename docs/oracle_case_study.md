@@ -118,11 +118,18 @@ The filings don't support:
 - treating the May 31 principal schedule as the August 31 schedule;
 - reading 4.52x as covenant compliance or repayment capacity.
 
+## Update: dated principal at August 31, 2026
+
+Added after this case study, in [`oracle_principal_calendar.md`](oracle_principal_calendar.md). The 10-K tags every borrowing series with its principal and exact maturity date. Carried to August 31 under stated rules, it dates $125.567B of senior-note and term-loan principal. $7.317B of that falls due from September 2026 through August 2027: $2.250B of notes on April 1, 2027, $563M of term-loan installments, and the term loan's $4.504B remainder on August 16, 2027 (extendable at Oracle's option).
+- **Commercial paper** remains Unavailable: about $287M–$387M is implied by rounded figures, with no dates.
+- **The $7.625B of current borrowing** is carrying value. It is consistent with $7.317B of principal plus commercial paper, less unamortized costs.
+- **The app's funding conclusion was re-reviewed on October 17** against the calendar (`funding_conclusions.py`). It now states the $7.317B due over the next twelve months and keeps coverage Unavailable until drawable credit, commercial paper and future cash generation are established. The case study's own supported conclusion below is kept as written on October 17, before the calendar.
+
 ## Decisive unknowns and the evidence that would resolve them
 
 | Unknown | Why it decides the answer | Evidence that would resolve it |
 |---|---|---|
-| Remaining debt principal by date after Aug 31, 2026 | Current borrowing ($7.625B) is the largest single near-term item, but carrying value has no dates. | A post-August maturity table, or each note's stated maturity (10-K Note 6 and the note indentures and prospectuses), reconciled to the Q1 repayments and the commercial-paper presentation. |
+| Remaining debt principal by date after Aug 31, 2026 | Current borrowing ($7.625B) is the largest single near-term item, but carrying value has no dates. | **Partly resolved (see the update below):** note and term-loan principal is now dated by instrument. Commercial paper's August balance and dates remain Unavailable. |
 | Revolver drawn and drawable amount at Aug 31 and later | Decides whether the $10B is usable. | A later 10-Q or 10-K stating revolver borrowings and covenant compliance, or an 8-K amending, drawing on or terminating the facility. |
 | Covenant headroom | A draw requires covenant compliance. | A disclosed contract-defined ratio (EBITDA and cash interest as §1.01 defines them), or a compliance statement for a stated date. |
 | Payment timing for the $288B of uncommenced leases | Determines when these become cash payments. | Commencement disclosures and lease maturity tables in later filings, as each lease starts. |
