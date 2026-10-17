@@ -4,6 +4,24 @@ from datetime import date
 from ui import esc
 
 
+def ladder(review, money):
+    """The checked calendar, including its combined later bucket, on one zero-based scale."""
+    buckets = review["calendar"]
+    if any(b["principal"] is None for b in buckets):
+        raise ValueError("Unavailable maturity is not a chart zero")
+    maximum = max(b["principal"] for b in buckets)
+    output = ('<div class="op-ladder" role="img" aria-label="Oracle principal maturity ladder at August 31, 2026">'
+              '<h4>Principal maturity ladder · USD billions</h4>')
+    for b in buckets:
+        label = b["label"] if b["end"] else "FY2032 onward (combined)"
+        output += (f'<div class="op-ladder-row"><span>{esc(label)}</span><div class="op-ladder-track">'
+                   f'<span class="op-ladder-bar" style="width:{b["principal"]/maximum*100:.5f}%" '
+                   f'data-principal="{b["principal"]}"></span></div><strong>{esc(money(b["principal"],3))}</strong></div>')
+    return output + ('<p class="lr-meta">Zero-based bars. FY2027 covers September 2026–May 2027; subsequent fiscal years '
+                     'end May 31. The last bar combines FY2032 onward. Excludes commercial paper (Unavailable), '
+                     'interest and leases. The term-loan date may be extended; this is not funding coverage.</p></div>')
+
+
 def render(snapshot, money):
     """Oracle's August 31 principal by instrument and date; commercial paper stays Unavailable.
 
@@ -28,6 +46,7 @@ def render(snapshot, money):
                f'from September 2026 through August 2027: {esc(money(2_250_000_000, 3))} of notes on April 1, 2027, and the '
                f'term loan’s {esc(money(installments, 3))} of installments and {esc(money(tl["final"]["amount"], 3))} remainder on '
                'August 16, 2027. Commercial paper is not included: its August balance and maturity dates are not reported.</p>')
+    output += ladder(review, money)
     output += '<div class="lr-grid"><div><h4>Next twelve months</h4><div class="ol-table-wrap"><table class="ol-table">'
     output += '<thead><tr><th>Due</th><th>Instrument</th><th>Principal</th></tr></thead><tbody>'
     for row in near["rows"]:

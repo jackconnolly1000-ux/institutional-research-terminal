@@ -92,6 +92,13 @@ CSS = """<style>
 .lr-maturity-row {display:grid;grid-template-columns:85px minmax(20px,1fr) 90px;gap:12px;align-items:center;margin:15px 0;font-size:.82rem;}
 .lr-maturity-track {height:14px;background:var(--surface-raised);}
 .lr-maturity-bar {display:block;height:14px;background:var(--text-muted);}
+.op-ladder {margin:20px 0;}
+.op-ladder h4 {font-size:.95rem;margin:0 0 12px;color:var(--text-strong);}
+.op-ladder-row {display:grid;grid-template-columns:190px minmax(30px,1fr) 90px;gap:12px;align-items:center;font-size:.84rem;margin:12px 0;}
+.op-ladder-track {height:16px;border-left:1px solid var(--text-muted);}
+.op-ladder-bar {display:block;height:14px;background:var(--series-borrowing);border-radius:0 3px 3px 0;}
+.op-ladder-row strong {text-align:right;white-space:nowrap;}
+@media(max-width:600px){.op-ladder-row{grid-template-columns:130px minmax(24px,1fr) 74px;gap:6px;font-size:.76rem;}}
 .lr-event {display:grid;grid-template-columns:145px minmax(0,1fr);gap:20px;border-top:1px solid var(--border);padding:14px 0;}
 .lr-event p {margin:0 0 7px;}
 .lr-review a {color:var(--link);}
@@ -171,12 +178,11 @@ def maturity_html(snapshot):
     output += ('<p>The saved August 31 10-Q does not disclose an updated debt maturity schedule. '
                'Fiscal 2027 below includes June–August, which had already elapsed by that balance-sheet date.</p>')
     output += '<div class="lr-grid"><div>'
-    maximum = max(f["value"] for f in review["buckets"][:5]) or 1
+    # The current August calendar owns the chart. Retain annual facts here as a historical table.
+    output += '<table class="ol-table"><thead><tr><th>Historical fiscal year</th><th>Principal</th></tr></thead><tbody>'
     for fact in review["buckets"][:5]:
-        output += (f'<div class="lr-maturity-row"><span>{esc(fact["label"].replace("Fiscal", "FY"))}</span>'
-                   f'<div class="lr-maturity-track" aria-hidden="true"><span class="lr-maturity-bar" '
-                   f'style="width:{fact["value"] / maximum * 100:.4f}%"></span></div>'
-                   f'<strong class="lr-bar-value">{esc(money(fact["value"], 3))}</strong></div>')
+        output += f'<tr><td>{esc(fact["label"].replace("Fiscal", "FY"))}</td><td>{esc(money(fact["value"],3))}</td></tr>'
+    output += '</tbody></table>'
     output += (f'<p><strong>{esc(money(review["buckets"][5]["value"], 3))} thereafter</strong>'
                ' · fiscal 2032 onward, combined. This is not a single-year payment.</p></div><div>')
     share = f'{review["first_five_share"]:.1%}' if review["first_five_share"] is not None else "Unavailable"

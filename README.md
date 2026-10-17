@@ -204,3 +204,7 @@ ranking. Oracle's illustrative scenario has a separate saved-run export with Dat
 See [export organization](docs/export_organization.md) for layout, reproduction and verification limits.
 The scenario layout is authored in `tests/offline/organize_exports.mjs` and hydrated by
 `scenario_export.py`; `samples/scenario_template.xlsx` and its manifest are required at deployment.
+
+Oracle's checked review includes an August 31 principal maturity ladder. Its separate illustrative
+scenario view shows monthly simulated percentile bounds and median cash with a zero reference.
+The individual and scenario exports contain matching native charts. See [Oracle charts](docs/oracle_charts.md).

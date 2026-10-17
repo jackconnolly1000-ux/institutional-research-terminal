@@ -136,7 +136,7 @@ class AppPages(unittest.TestCase):
             self.assertEqual(content, (SAMPLES / f"{stem}.xlsx").read_bytes())
             manifest = json.loads((SAMPLES / f"{stem}.manifest.json").read_text())
             self.assertEqual(hashlib.sha256(content).hexdigest(), manifest["workbook_sha256"])
-        combined = next(b for b in app.get("download_button") if "all three" in b.proto.label)
+        combined = next(b for b in app.get("download_button") if "three-company metric summary" in b.proto.label)
         manifest = json.loads((SAMPLES / "liquidity_pilots.manifest.json").read_text())
         self.assertEqual(hashlib.sha256(download_bytes(combined)).hexdigest(), manifest["workbook_sha256"])
 
