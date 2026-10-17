@@ -1,6 +1,6 @@
 # Release 2 plan: liquidity stress simulation
 
-**Status: planned, not built (October 17, 2026).** Release 2 was chosen by Jack on October 17 (option A of four, recorded below). Nothing in this plan changes the checked reviews, their figures or their funding conclusions.
+**Status: step 1 built (October 17, 2026): `liquidity_simulation.py` and `tests/test_liquidity_simulation.py`. Steps 2–4 are planned.** Release 2 was chosen by Jack on October 17 (option A of four, recorded below). Nothing in this plan changes the checked reviews, their figures or their funding conclusions.
 
 ## The question
 
@@ -90,3 +90,42 @@ All results come from seeded trials (10,000 by default).
 1. Horizon: twelve months (proposed) or Oracle's fiscal year to May 31, 2027?
 2. OCF range basis: proposed from the checked periods above. Or should it be a user-entered triangle only, with the checked values as defaults?
 3. Include correlation between OCF and prepayments (covered in class) in step 2, or defer it?
+
+## Step 1 as built (October 17, 2026)
+
+`liquidity_simulation.py` is pure Python with no Streamlit, seeded through numpy's `default_rng`. Its inputs are read from the saved checked JSON, and it refuses to run if any of it doesn't load. Every result carries the scenario label.
+
+**Correction to the model above:** dated lease and purchase payments are *not* subtracted.
+- Operating lease payments are already inside operating cash flow.
+- Finance-lease interest is too, and the principal split isn't disclosed.
+- Purchase obligations overlap capex.
+
+Subtracting them again would count the same cash twice. The cash uses outside OCF and capex are what's modelled: dated debt principal ($7.317B), commercial paper ($287M–$387M, triangular), and dividends, which are a decision (Q1 FY2027's $1.565B times four, $6.26B).
+
+**Defaults for the open questions (all editable in step 2):**
+1. **Horizon:** twelve months, Sep 1, 2026–Aug 31, 2027.
+2. **OCF excluding prepayments, triangular:**
+   - low $31.977B (fiscal 2026 OCF);
+   - most likely $35.577B (TTM OCF less the specified prepayments);
+   - high $46.960B (Jun–Aug 2026 excluding prepayments, times four; an optimistic bound).
+   - Prepayments are triangular from $0 to $11.363B, with a mode of $0.
+3. **Correlation:** not modelled in step 1. It could be added in step 2 as covered in class.
+
+**Decisions compared:** capex at the TTM rate ($75.66B) or the fiscal 2026 level ($55.663B), each with the revolver assumed unusable or usable up to $10B (a hypothetical).
+
+**Default results (10,000 trials, seed 2026; illustrative):**
+
+| Decision | Mean ending cash | 10th percentile | Probability of shortfall |
+|---|---:|---:|---:|
+| TTM capex | −$11.2B | −$16.6B | 99% |
+| TTM capex, revolver usable | −$2.4B | −$6.6B | 63% |
+| FY2026 capex | $8.8B | $3.4B | under 1% |
+| FY2026 capex, revolver usable | $8.8B | $3.4B | under 1% |
+
+Read: at the TTM capex rate, the stated range of operating cash flow and the checked cash don't cover the dated cash uses without outside funding, even with the full revolver. That is consistent with Oracle raising $19.9B of equity in Jun–Aug 2026. At the fiscal 2026 capex level they do in almost every trial. This describes the assumptions, not what will happen.
+
+**Validation (all pass):**
+- **Logic:** fixed inputs equal the hand calculation.
+- **Boundary:** the revolver covers a gap up to $10B and no more; zero spending never falls short; every trial lies between the worst and best corners; a reversed triangle is rejected.
+- **Distribution:** 200,000 draws stay within the range, with the mean within 1% and the histogram peak at the mode.
+- **Stability:** 10,000 and 50,000 trials agree, and the same seed reproduces exactly.
