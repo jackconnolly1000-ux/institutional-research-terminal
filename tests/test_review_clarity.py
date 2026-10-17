@@ -73,4 +73,39 @@ class ReviewClarity(unittest.TestCase):
             self.assertIsNone(cr.saved_workbook(self.snapshots,folder,ticker='LLY'))
 
 
+class FinancialOrder(unittest.TestCase):
+    """The review reads in financial order: conclusion, what is owed, cash generation, funding and repayment,
+    interest coverage, change over time, then what stays unresolved."""
+
+    GROUPS = ['What it owes', 'Cash generation and liquidity', 'Funding and repayment', 'Interest coverage',
+              'Change over time']
+
+    def setUp(self):
+        self.snapshots = json.loads((fc.FOLDER/'liquidity_pilots.json').read_text())['snapshots']
+
+    def positions(self, text, needles):
+        found = [text.find(n) for n in needles]
+        self.assertNotIn(-1, found, [n for n, f in zip(needles, found) if f < 0])
+        return found
+
+    def test_every_review_follows_the_same_order(self):
+        for snapshot in self.snapshots:
+            text = html.unescape(cr.render(snapshot))
+            interest = 'How did operating earnings' if snapshot['ticker'] == 'LLY' else 'operating earnings cover'
+            order = ['Funding conclusion for ' + snapshot['ticker'], self.GROUPS[0],
+                     'What makes up the borrowing?', 'Which leases sit outside borrowing?',
+                     'What sits outside baseline borrowing?', self.GROUPS[1], 'What remained after capital spending?',
+                     'Current assets of', self.GROUPS[2], self.GROUPS[3], interest, self.GROUPS[4],
+                     'What changed since the fiscal year end?', 'change?</h3>', 'What remains unresolved?']
+            found = self.positions(text, order)
+            self.assertEqual(found, sorted(found), snapshot['ticker'])
+
+    def test_oracle_dated_schedules_sit_together_before_coverage(self):
+        text = html.unescape(cr.render(next(s for s in self.snapshots if s['ticker'] == 'ORCL')))
+        found = self.positions(text, ['Funding and repayment', 'Which borrowing principal is due after August 31?',
+                                      'When was borrowing scheduled to be repaid?', 'What financing was reported afterward?',
+                                      'Interest coverage'])
+        self.assertEqual(found, sorted(found))
+
+
 if __name__=='__main__':unittest.main()
