@@ -19,5 +19,6 @@ review = op.build(annual, quarter)
 if review["status"] != "Checked":
     raise SystemExit("Calendar checks did not all agree: " + review.get("detail", json.dumps(review["checks"])[:2000]))
 review["source_sha256"] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (annual, quarter)}
-op.SAMPLE.write_text(json.dumps(review, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+# LF explicitly: git stores LF (.gitattributes), and the workbook manifest fingerprints these exact bytes
+op.SAMPLE.write_bytes((json.dumps(review, indent=1, ensure_ascii=False) + "\n").encode("utf-8"))
 print(op.SAMPLE.name, len(review["instruments"]), "instruments,", len(review["checks"]), "checks agree")

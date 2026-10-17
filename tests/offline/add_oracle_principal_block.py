@@ -303,7 +303,7 @@ def main():
     manifest = json.loads(MANIFEST.read_text())
     manifest["principal_sha256"] = op.fingerprint()
     manifest["workbook_sha256"] = hashlib.sha256(new).hexdigest()
-    MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
+    MANIFEST.write_bytes((json.dumps(manifest, indent=2) + "\n").encode("utf-8"))   # LF, as git stores it
     print("Payment dates rows 35 to", last, "added;", WORKBOOK.name, manifest["workbook_sha256"][:12])
 
 
