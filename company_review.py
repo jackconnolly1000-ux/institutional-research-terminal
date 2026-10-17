@@ -87,7 +87,7 @@ CSS = """<style>
 .lr-obligation {display:grid;grid-template-columns:minmax(160px,1fr) minmax(0,2fr);gap:24px;border-bottom:1px solid var(--border);padding:14px 0;}
 .lr-obligation p {margin:0 0 5px;}
 .lr-obligation strong {color:var(--text-strong);}
-.lr-limits {padding:15px 0 4px;}
+.lr-limits {padding:15px 0 4px;margin-top:36px;border-top:2px solid var(--border-strong);}
 .lr-maturity {border-top:1px solid var(--border);padding:22px 0;}
 .lr-maturity-row {display:grid;grid-template-columns:85px minmax(20px,1fr) 90px;gap:12px;align-items:center;margin:15px 0;font-size:.82rem;}
 .lr-maturity-track {height:14px;background:var(--surface-raised);}
@@ -101,6 +101,9 @@ CSS = """<style>
 .lr-history th:first-child,.lr-history td:first-child {text-align:left;}
 .lr-review + .irt-evidence {max-width:1180px;margin:12px auto;}
 .lr-funding {padding:22px 0;border-bottom:1px solid var(--border);}
+.lr-review .lr-group {font-size:.95rem;font-weight:600;line-height:1.3;letter-spacing:.02em;color:var(--text);margin:36px 0 0;padding:14px 0 0;border-top:2px solid var(--border-strong);}
+.lr-group + section {border-top:0;}
+.lr-block {padding:12px 0 22px;}
 .lr-bal-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px;margin:16px 0 6px;}
 .lr-bal-panel h4 {display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:600;margin:0 0 6px;color:var(--text-strong);}
 .lr-swatch {display:inline-block;width:10px;height:10px;border-radius:2px;flex:none;margin-right:6px;}
@@ -253,16 +256,11 @@ def render(snapshot):
         output += f'<div><div class="lr-stat-label">{mark}{esc(label)}</div><div class="lr-stat-value">{esc(value)}</div><div class="lr-stat-detail">{esc(detail)}</div></div>'
     from funding_conclusions import render as funding_html
     output += '</div>' + funding_html(snapshot)
-    output += '<div class="lr-grid"><section class="lr-section"><h3>What remained after capital spending?</h3>'
-    output += f'<div class="lr-meta">TTM ended {esc(end)} · USD billions · 10-K and 10-Q cash-flow statements</div>'
-    import core_charts
-    output += core_charts.render_flow(snapshot, money)
-    output += f'<p class="lr-meta">{esc(m["free_cash_flow"]["notes"][0])}</p>'
-    output += '<div class="lr-ratios">'
-    for key, label in (("ocf_to_debt", "TTM operating cash flow / debt"), ("fcf_to_debt", "TTM free cash flow / debt")):
-        output += f'<div><span class="lr-stat-label">{esc(label)}</span><strong>{esc(pct(m[key]))}</strong></div>'
-    output += '</div><p class="lr-meta">Historical flows relative to period-end borrowing; these percentages are not repayment forecasts. FCF excludes acquisitions, dividends and other cash uses.</p></section>'
-    output += '<section class="lr-section">'
+    # Financial order: what the company owes, the cash it generates, how cash was funded, when debt falls due and what
+    # could pay it, how earnings covered interest, how balances changed, then what stays unresolved. Each group but the
+    # last gets a label; "What remains unresolved?" carries its own rule.
+    group = lambda label: f'<div class="lr-group" role="heading" aria-level="2">{esc(label)}</div>'
+    output += group("What it owes") + '<section class="lr-section lr-block">'
     import borrowing_leases
     try:
         borrowing_model = borrowing_leases.build(snapshot)
@@ -270,32 +268,9 @@ def render(snapshot):
     except (OSError, ValueError, KeyError, TypeError):
         borrowing_model = None
         output += '<h3>Borrowing and lease presentation unavailable</h3><p>The checked evidence is missing or does not match this review.</p>'
-    assets = m["current_ratio"]["inputs"]["current_assets"]
-    liabilities = m["current_ratio"]["inputs"]["current_liabilities"]
-    if assets["value"] is not None and liabilities["value"] is not None:
-        gap = assets["value"] - liabilities["value"]
-        direction = "exceeded" if gap >= 0 else "were below"
-        output += (f'<p>Current assets of {esc(money(assets["value"]))} {direction} current liabilities of '
-                   f'{esc(money(liabilities["value"]))} by {esc(money(abs(gap)))}.</p>')
-    output += '<p class="lr-meta">Current assets include items other than cash. This comparison does not establish whether specific payments can be met; a maturity schedule and financing terms are still needed.</p></section></div>'
+    output += '</section>'
     if borrowing_model is not None:
         output += borrowing_leases.render_leases(borrowing_model, money)
-    from oracle_liquidity_view import render as oracle_liquidity_html
-    output += oracle_liquidity_html(snapshot, money)
-    from vistra_liquidity_view import render as vistra_liquidity_html
-    output += vistra_liquidity_html(snapshot, money)
-    from lly_liquidity_view import render as lilly_liquidity_html
-    output += lilly_liquidity_html(snapshot, money)
-    from lly_interest_view import render as lilly_interest_html
-    output += lilly_interest_html(snapshot, money)
-    from oracle_interest_view import render as oracle_interest_html
-    output += oracle_interest_html(snapshot, money)
-    from vistra_interest_view import render as vistra_interest_html
-    output += vistra_interest_html(snapshot, money)
-    import company_history
-    output += company_history.render(snapshot, money)
-    output += core_charts.render_balances(snapshot, money)
-    output += maturity_html(snapshot)
     output += '<section class="lr-obligations"><h3>What sits outside baseline borrowing?</h3><p class="lr-meta">Selected disclosures, each shown separately. Commitments are not all payable now and are not added to debt or to each other.</p>'
     for item in NOTES[snapshot["ticker"]]:
         # The legacy workbook still consumes NOTES; the app shows these in its dedicated lease section.
@@ -305,7 +280,45 @@ def render(snapshot):
         output += (f'<article class="lr-obligation"><div><p><strong>{esc(item["name"])}</strong></p>'
                    f'<p>{esc(item["amount"])}</p><div class="lr-meta">As of {esc(item["date"])} · {esc(item["kind"])}</div></div>'
                    f'<div><p>{esc(item["detail"])}</p><a class="lr-meta" href="{esc(source)}" target="_blank" rel="noopener noreferrer">{esc(item["location"])}</a></div></article>')
-    output += '</section><section class="lr-limits"><h3>What remains unresolved?</h3>'
+    output += '</section>'
+    output += group("Cash generation and liquidity")
+    output += '<section class="lr-section lr-block"><h3>What remained after capital spending?</h3>'
+    output += f'<div class="lr-meta">TTM ended {esc(end)} · USD billions · 10-K and 10-Q cash-flow statements</div>'
+    import core_charts
+    output += core_charts.render_flow(snapshot, money)
+    output += f'<p class="lr-meta">{esc(m["free_cash_flow"]["notes"][0])}</p>'
+    output += '<div class="lr-ratios">'
+    for key, label in (("ocf_to_debt", "TTM operating cash flow / debt"), ("fcf_to_debt", "TTM free cash flow / debt")):
+        output += f'<div><span class="lr-stat-label">{esc(label)}</span><strong>{esc(pct(m[key]))}</strong></div>'
+    output += '</div><p class="lr-meta">Historical flows relative to period-end borrowing; these percentages are not repayment forecasts. FCF excludes acquisitions, dividends and other cash uses.</p>'
+    assets = m["current_ratio"]["inputs"]["current_assets"]
+    liabilities = m["current_ratio"]["inputs"]["current_liabilities"]
+    if assets["value"] is not None and liabilities["value"] is not None:
+        gap = assets["value"] - liabilities["value"]
+        direction = "exceeded" if gap >= 0 else "were below"
+        output += (f'<p>Current assets of {esc(money(assets["value"]))} {direction} current liabilities of '
+                   f'{esc(money(liabilities["value"]))} by {esc(money(abs(gap)))}.</p>')
+    output += '<p class="lr-meta">Current assets include items other than cash. This comparison does not establish whether specific payments can be met; a maturity schedule and financing terms are still needed.</p></section>'
+    output += group("Funding and repayment")
+    from oracle_liquidity_view import render as oracle_liquidity_html
+    output += oracle_liquidity_html(snapshot, money)
+    from vistra_liquidity_view import render as vistra_liquidity_html
+    output += vistra_liquidity_html(snapshot, money)
+    from lly_liquidity_view import render as lilly_liquidity_html
+    output += lilly_liquidity_html(snapshot, money)
+    output += maturity_html(snapshot)   # Oracle's historical May 31 schedule and later financing, after its current calendar
+    output += group("Interest coverage")
+    from lly_interest_view import render as lilly_interest_html
+    output += lilly_interest_html(snapshot, money)
+    from oracle_interest_view import render as oracle_interest_html
+    output += oracle_interest_html(snapshot, money)
+    from vistra_interest_view import render as vistra_interest_html
+    output += vistra_interest_html(snapshot, money)
+    output += group("Change over time")
+    import company_history
+    output += company_history.render(snapshot, money)
+    output += core_charts.render_balances(snapshot, money)
+    output += '<section class="lr-limits"><h3>What remains unresolved?</h3>'
     remaining = {"VST": "Historical interest-component coverage is shown above. Receivables/Nuveen allocation, Other composition and an all-in financing-cost denominator remain Unavailable.",
                  "ORCL": "Historical reported-line interest coverage is shown above; borrowing-only coverage, capitalization basis and covenant headroom remain Unavailable.",
                  "LLY": "Historical interest coverage uses derived operating income; its capitalization and other limits are stated above."}[snapshot["ticker"]]
