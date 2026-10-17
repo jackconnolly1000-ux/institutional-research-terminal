@@ -214,6 +214,9 @@ def workbook_bytes(review):
     try:
         content=WORKBOOK.read_bytes()
         m=json.loads(WORKBOOK.with_suffix('.manifest.json').read_text())
+        import export_guide
+        if m.get("guide_sha256") != export_guide.fingerprint():
+            return None
         import core_charts
         if m.get("charts_sha256") != core_charts.fingerprint():
             return None

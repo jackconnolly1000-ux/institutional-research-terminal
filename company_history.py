@@ -43,11 +43,29 @@ def build(snapshot):
               fcf, aocf / debt if aocf is not None and debt and debt > 0 else None,
               fcf / debt if fcf is not None and debt and debt > 0 else None,
               op / expense if op is not None and expense is not None and expense > 0 else None]
-    rows = [{**r, "annual_value": value, "annual_detail": prior["debt_detail"] if value is None and
+    rows = [{**r, "annual_value": value, "annual_detail": "Older borrowing presentation was not checked; older net debt and flow/debt ratios are also Unavailable." if value is None and
              r["key"] in {"gross_debt", "net_debt", "ocf_to_debt", "fcf_to_debt"} else
              "Checked annual interest or cash-flow input is missing." if value is None else ""}
             for r, value in zip(current["rows"], values)]
-    return {**current, "rows": rows, "annual_start": prior["annual_start"], "annual_end": prior["annual_end"],
+    annual_basis = {
+        "LLY": "Annual interest is reported net of capitalized interest; the later TTM includes interim expense whose capitalization basis is unstated. Amounts remain as reported.",
+        "ORCL": "Annual and later TTM use reported interest expense before interest-income offset. Full composition and capitalization basis remain Unavailable.",
+        "VST": "Annual and later TTM use the separate interest component before the capitalized-interest deduction; swaps and extinguishment effects are not added to the denominator.",
+    }[snapshot["ticker"]]
+    for r in rows:
+        if r["key"] in {"ocf_to_debt", "fcf_to_debt"}:
+            r["history_basis"] = "Twelve-month flow / borrowing at each period end. Annual column uses FY; latest column uses TTM. Not repayment coverage."
+        elif r["key"] == "interest_coverage":
+            r["history_basis"] = annual_basis
+        else:
+            r["history_basis"] = r["basis"]
+        if r["key"] == "gross_debt":
+            r["history_basis"] = "Carrying borrowing; leases and commitments excluded."
+            if m["gross_debt"].get("caveats"):
+                r["history_basis"] += " Latest column only: " + " ".join(m["gross_debt"]["caveats"])
+        elif r["key"] == "operating_cash_flow":
+            r["history_basis"] = "Annual column: reported fiscal-year OCF. Latest column only: " + r["basis"]
+    return {**current, "rows": rows, "annual_interest_basis": annual_basis, "annual_start": prior["annual_start"], "annual_end": prior["annual_end"],
             "annual_facts": facts, "annual_flows": [ocf, capex],
             "annual_interest_inputs": {k: v for k, v in interest["inputs"].items() if k.startswith("fy_")} if interest else {},
             "annual_operating_income": op, "annual_interest": expense,
@@ -67,6 +85,7 @@ def render(snapshot, money):
         out += f'<tr><td>{esc(row["label"])}</td><td>{esc(show(row["annual_value"]))}</td><td>{esc(show(row["value"]))}</td></tr>'
     out += '</tbody></table></div>'
     out += f'<p class="lr-meta">Fiscal year {esc(model["annual_start"])} to {esc(model["annual_end"])}. Later TTM {esc(model["period_start"])} to {esc(model["period_end"])}. Borrowing excludes leases; net debt excludes restricted cash and investments. Capital-spending and interest bases retain the company-specific limits above.</p>'
+    out += f'<p class="lr-meta">Interest basis across the two windows: {esc(model["annual_interest_basis"])}</p>'
     for detail in dict.fromkeys(r["annual_detail"] for r in model["rows"] if r["annual_detail"]):
         out += f'<p class="lr-meta">{esc(detail)}</p>'
     out += f'<p class="lr-meta"><a href="{esc(model["annual_source"])}">Annual source filing</a> · <a href="{esc(model["current_source"])}">Latest source filing</a></p></section>'

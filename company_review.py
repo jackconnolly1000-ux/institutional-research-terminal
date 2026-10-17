@@ -572,6 +572,9 @@ def saved_workbook(snapshots, folder=None, ticker=None):
         if snapshots != saved["snapshots"]:
             return None
         if ticker == "LLY":
+            import export_guide
+            if manifest.get("guide_sha256") != export_guide.fingerprint():
+                return None
             import core_charts
             if manifest.get("charts_sha256") != core_charts.fingerprint():
                 return None
@@ -608,6 +611,8 @@ XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 def render_download(st, snapshot, snapshots) -> None:
     """Each company's checked workbook, served only while its manifest still matches the saved sources."""
     ticker = snapshot["ticker"]
+    import export_guide
+    st.caption(export_guide.CAPTION)
     if ticker == "LLY":
         content = saved_workbook(snapshots, ticker="LLY")
         if content:
@@ -673,6 +678,8 @@ def render_app() -> None:
     render_download(st, snapshot, saved["snapshots"])
     st.markdown(page, unsafe_allow_html=True)
     with st.expander("Optional combined export"):
+        import export_guide
+        st.caption(export_guide.COMBINED_CAPTION)
         content = saved_workbook(saved["snapshots"])
         if content:
             st.download_button("Download all three company reviews (optional)", content,

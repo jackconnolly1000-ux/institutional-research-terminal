@@ -1,3 +1,4 @@
+import {finishExportGuide} from './export_guide.mjs';
 import {addCoreChartSheet,finishCoreChartSheet} from './core_chart_sheet.mjs';
 import {addBorrowingLeaseSheet,finishBorrowingLeaseSheet} from './borrowing_lease_sheet.mjs';
 import {addRatioSheet,finishRatioSheet} from './ratio_sheet.mjs';
@@ -468,6 +469,7 @@ Object.assign(fundingManifest,await finishBorrowingLeaseSheet(wb,root,'ORCL',bor
 Object.assign(fundingManifest,await finishRatioSheet(wb,root,'ORCL',ratios));
 Object.assign(fundingManifest,await finishHistorySheet(wb,root,'ORCL',history));
 Object.assign(fundingManifest,await finishCoreChartSheet(wb,root,'ORCL',coreCharts));
+Object.assign(fundingManifest,await finishExportGuide(wb,root,'ORCL'));
 const output=path.join(root,'samples/oracle_liquidity.xlsx');
 await (await SpreadsheetFile.exportXlsx(wb)).save(output);
 await fs.rm(output+'.inspect.ndjson',{force:true});

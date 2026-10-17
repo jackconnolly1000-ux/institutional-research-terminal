@@ -11,7 +11,7 @@
     "samples/vistra_interest.json": "6a18cf366130ac1aeaf1edccb748b96a1abc3361864651a13b99504d2defa2d4"
   },
   "history_sha256": {
-    "code": "4bcf1c3865935b121da475b0e978209c3f6ffb8fe40aa6ceffe4314f7b79dcc7",
+    "code": "c27eadd417aef800f1ba344f0f2fb2edcc692759e95f4d29cb0ef2ea3dacd933",
     "facts": "69082f1c56993e848a3e358f280224f536303b9199f4ec0f57fd944a00b9184c",
     "ratios": {
       "ratio_review.py": "efe06493218912afce97c5d49a5a3093f8cfbf530b1cbbd1cb784851350a5f9d",
@@ -26,7 +26,7 @@
   "charts_sha256": {
     "code": "b7887cd0aefc214ec068c121d6098328eec735ff8eb34bac9d1b53625e097024",
     "history": {
-      "code": "4bcf1c3865935b121da475b0e978209c3f6ffb8fe40aa6ceffe4314f7b79dcc7",
+      "code": "c27eadd417aef800f1ba344f0f2fb2edcc692759e95f4d29cb0ef2ea3dacd933",
       "facts": "69082f1c56993e848a3e358f280224f536303b9199f4ec0f57fd944a00b9184c",
       "ratios": {
         "ratio_review.py": "efe06493218912afce97c5d49a5a3093f8cfbf530b1cbbd1cb784851350a5f9d",
@@ -39,9 +39,13 @@
       }
     }
   },
+  "guide_sha256": {
+    "code": "296dbcdd659b6ea77f23b109328a9d7474d4e52347f3f4a034b4c282010cc1b9",
+    "layout": "17c308c4c9d7f5cb260261223b3a1dea064197c14b78eceeb5ad3cf5c3c954b9"
+  },
   "review_sha256": "ecc763f0701f9d97568adf4396792427d309812d1c8b3ca480fc3aa1da6c9200",
   "financing_sha256": "d913c737cfa41886784dd008c92f5c30d5cbb59969f238ed2d6eae8d7ef113ad",
   "revolver_sha256": "764353f4555debbf5af99cd28f0af24550a9f10aee9937703ff59bdbe9541db7",
   "interest_sha256": "0aa090b90a9f7207b693697be60f215bb6c4e5177fa3423a3d5e6e56d3ac6cec",
-  "workbook_sha256": "1d0036a4a538fc2f1f9b501a2d5a9f16f6565cf532d4664b26aafe50a26b99a0"
+  "workbook_sha256": "00f747826aea96123e727f24c643b99dd0254f3b8351fed12d6c91047b6bafdb"
 }
