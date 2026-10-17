@@ -51,6 +51,7 @@ Stock Project/
 │   ├── docs/pilot_evidence_lly.md   Eli Lilly pilot evidence: filing values with sources, checks and open gaps
 │   ├── docs/pilot_evidence_oracle.md  Oracle pilot evidence: filing values with sources, checks and open gaps
 │   ├── docs/pilot_evidence_vistra.md  Vistra pilot evidence: filing values with sources, checks and open gaps
+│   ├── docs/oracle_case_study.md   Oracle case study: what the checked filings establish about funding near-term obligations, with a five-minute app and Excel walkthrough
 │   ├── requirements.txt
 │   ├── README.md    public description: what it does, what it doesn't, known limits
 │   ├── CLAUDE.md    these instructions, for Claude Code
