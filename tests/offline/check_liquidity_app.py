@@ -63,7 +63,7 @@ assert all(value in text for value in ('Acquisition and manufacturing spending c
     'June reported liquidity cannot be treated as current cash available to Parent',
     'Coverage bases differ:', 'Future funding coverage: Unavailable'))
 assert set(("Download LLY review and evidence", "Download ORCL review and evidence",
-            "Download VST review and evidence", "Download all three company reviews (optional)")) <= set(buttons)
+            "Download VST review and evidence", "Download three-company metric summary (optional)")) <= set(buttons)
 # Oracle's stress scenario is its own view, never mixed into the checked review
 app.segmented_control[0].set_value("ORCL").run(timeout=30)
 next(c for c in app.segmented_control if c.key == "review_view").set_value("Stress scenario (illustrative)").run(timeout=90)

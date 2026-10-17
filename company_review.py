@@ -752,7 +752,7 @@ def render_app() -> None:
         st.caption(export_guide.COMBINED_CAPTION)
         content = saved_workbook(saved["snapshots"])
         if content:
-            st.download_button("Download all three company reviews (optional)", content,
+            st.download_button("Download three-company metric summary (optional)", content,
                 file_name="Liquidity_Pilot_2026-10-14.xlsx", mime=XLSX)
         else:
             st.caption("Combined workbook Unavailable: its saved sources must match the workbook.")
