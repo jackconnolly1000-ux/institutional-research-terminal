@@ -1,6 +1,6 @@
 # Release 2 plan: liquidity stress simulation
 
-**Status: step 1 built (October 17, 2026): `liquidity_simulation.py` and `tests/test_liquidity_simulation.py`. Steps 2–4 are planned.** Release 2 was chosen by Jack on October 17 (option A of four, recorded below). Nothing in this plan changes the checked reviews, their figures or their funding conclusions.
+**Status: built (October 17, 2026).** Step 1: `liquidity_simulation.py`. Step 2: the Oracle app panel (`simulation_view.py`). Step 3: a scenario Excel download. Step 4: [`liquidity_simulation.md`](liquidity_simulation.md). Correlation between OCF and prepayments remains a possible addition. Release 2 was chosen by Jack on October 17 (option A of four, recorded below). Nothing in this plan changes the checked reviews, their figures or their funding conclusions.
 
 ## The question
 
@@ -129,3 +129,7 @@ Read: at the TTM capex rate, the stated range of operating cash flow and the che
 - **Boundary:** the revolver covers a gap up to $10B and no more; zero spending never falls short; every trial lies between the worst and best corners; a reversed triangle is rejected.
 - **Distribution:** 200,000 draws stay within the range, with the mean within 1% and the histogram peak at the mode.
 - **Stability:** 10,000 and 50,000 trials agree, and the same seed reproduces exactly.
+
+## Step 3 changed during build
+
+The scenario is recorded as its own workbook (**Download this scenario (Excel)** in the app panel), not added to Oracle's checked evidence workbook. Assumptions are not filing facts. Adding a sheet would also change the shared guide fingerprint for all three company workbooks.

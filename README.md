@@ -50,6 +50,7 @@ The original tool, reached from the link under the page subtitle. For up to five
 
 ## Known limits
 
+- Oracle's review has an illustrative stress scenario (`liquidity_simulation.py`, `simulation_view.py`). It's a seeded Monte Carlo of twelve-month ending cash under triangular operating cash flow, comparing capex decisions and a hypothetical revolver. It is labelled as a scenario from stated assumptions, never a forecast or funding conclusion, and it leaves out lease and purchase payments that are inside OCF or overlap capex. The OCF range rests on three checked periods. Method and results: `docs/liquidity_simulation.md`.
 - Oracle's August 31, 2026 principal calendar (`oracle_principal.py`, checked Oct 17) dates $125.567B of
   senior-note and term-loan principal from the 10-K's tagged instruments: $7.317B falls due Sep 2026–Aug 2027.
   Commercial paper's August balance and dates are Unavailable; term-loan installments are calculated from

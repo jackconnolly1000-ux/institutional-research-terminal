@@ -175,3 +175,7 @@ Observed on October 17, 2026 on the deployed app at desktop width and in the sav
 - It covers one company at one balance-sheet date, with the financing screen ending October 15, 2026. It doesn't claim a fresh SEC search.
 - It doesn't download from the live site. The walkthrough's workbook is the repository file the app serves, checked against its SHA-256 manifest.
 - It isn't investment advice and doesn't rank or rate Oracle.
+
+## Update: illustrative stress scenario
+
+Release 2 adds an Oracle-only stress scenario ([`liquidity_simulation.md`](liquidity_simulation.md)). With the default assumptions, capex at the TTM rate leaves ending cash below zero in 99% of trials (63% if the full revolver were usable); at the fiscal 2026 capex level, under 1%. This is a scenario from stated assumptions. It doesn't change the supported conclusion above or make funding coverage anything other than Unavailable.
