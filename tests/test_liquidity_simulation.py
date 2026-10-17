@@ -45,6 +45,47 @@ class Inputs(unittest.TestCase):
             self.assertIn("not a forecast", r["label"])
 
 
+class Exclusions(unittest.TestCase):
+    """Audit (Oct 17): a cash use is left out only when a filing shows it is inside a modelled line; the rest are
+    measured separately and never folded into the base result."""
+
+    def test_every_exclusion_cites_its_overlap(self):
+        for name, status, proof in ls.EXCLUDED:
+            self.assertIn(status, ("Inside OCF", "Not in starting cash"), name)
+            self.assertTrue(("10-K" in proof or "10-Q" in proof or "ASC" in proof), name)
+        self.assertNotIn("Finance-lease principal", [e[0] for e in ls.EXCLUDED])
+
+    def test_uses_outside_the_model_trace_to_the_evidence(self):
+        uses = {u.name: u for u in ls.oracle_uses_outside_model()}
+        self.assertEqual(uses["Finance-lease principal"].amount, 620 * M)          # 10-Q Note 6, Sep–May
+        self.assertIn("financing cash flow", uses["Finance-lease principal"].why_outside)
+        self.assertEqual(uses["Short-term financing related to capex"].amount, (1_422 + 3_345 - 830) * M)
+        self.assertEqual(uses["Purchase and other obligations"].amount, 5_449 * M)  # 10-Q Note 6, Sep–May
+        self.assertIn("not established", uses["Purchase and other obligations"].why_outside)
+
+    def test_an_added_use_lowers_every_trial_by_exactly_its_amount(self):
+        i, d = ls.oracle_inputs(), ls.oracle_decisions()[0]
+        base = ls.simulate(i, d, 5_000)["ending_cash"]
+        added = ls.simulate(replace(i, added_uses=2 * B), d, 5_000)["ending_cash"]
+        self.assertTrue(np.allclose(base - added, 2 * B))
+
+    def test_effects_start_from_the_unchanged_base(self):
+        i, d, uses = ls.oracle_inputs(), ls.oracle_decisions()[2], ls.oracle_uses_outside_model()
+        rows = ls.outside_use_effects(i, uses, d, 5_000)
+        self.assertEqual(rows[0]["scenario"], "Base model")
+        self.assertEqual(rows[0]["share_below_zero"], ls.simulate(i, d, 5_000)["share_below_zero"])
+        self.assertAlmostEqual(rows[-1]["added_uses"], sum(u.amount for u in uses))
+        shares = [r["share_below_zero"] for r in rows]
+        self.assertEqual(shares[-1], max(shares))                    # more uses never improve ending cash
+
+    def test_results_are_shares_of_trials_and_state_the_timing_limit(self):
+        r = ls.simulate(ls.oracle_inputs(), ls.oracle_decisions()[0], 100)
+        self.assertFalse([k for k in r if "probability" in k])
+        self.assertIn("each payment date", ls.TIMING_LIMIT)
+        for t in (ls.oracle_inputs().ocf_ex_prepayments, ls.oracle_inputs().prepayments):
+            self.assertTrue(t.basis.startswith("Assumed"))
+
+
 class Logic(unittest.TestCase):
     """Check 1: with every input fixed, the simulation equals a hand calculation."""
 
@@ -56,7 +97,7 @@ class Logic(unittest.TestCase):
         r = ls.simulate(i, d, trials=100)
         self.assertAlmostEqual(r["mean"], hand, delta=1)
         self.assertEqual(r["sd"], 0)
-        self.assertEqual(r["probability_shortfall"], 0.0 if hand >= 0 else 1.0)
+        self.assertEqual(r["share_below_zero"], 0.0 if hand >= 0 else 1.0)
 
 
 class Boundary(unittest.TestCase):
@@ -74,7 +115,7 @@ class Boundary(unittest.TestCase):
 
     def test_zero_capex_and_dividends_never_falls_short(self):
         d = ls.Decision("no spending", capex=0, dividends=0, revolver=False)
-        self.assertEqual(ls.simulate(self.i, d, 5_000)["probability_shortfall"], 0.0)
+        self.assertEqual(ls.simulate(self.i, d, 5_000)["share_below_zero"], 0.0)
 
     def test_worst_and_best_corners_bound_every_trial(self):
         d = ls.oracle_decisions()[0]
@@ -148,7 +189,7 @@ class Stability(unittest.TestCase):
         i, d = ls.oracle_inputs(), ls.oracle_decisions()[1]
         small, large = ls.simulate(i, d, 10_000, seed=1), ls.simulate(i, d, 50_000, seed=2)
         self.assertAlmostEqual(small["mean"], large["mean"], delta=0.15 * B)
-        self.assertAlmostEqual(small["probability_shortfall"], large["probability_shortfall"], delta=0.02)
+        self.assertAlmostEqual(small["share_below_zero"], large["share_below_zero"], delta=0.02)
         again = ls.simulate(i, d, 10_000, seed=1)
         self.assertTrue(np.array_equal(small["ending_cash"], again["ending_cash"]))
         tied = replace(i, correlation=0.5)

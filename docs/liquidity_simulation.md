@@ -1,12 +1,12 @@
 # Oracle liquidity stress scenario: method, results and how to explain it
 
-Built October 17, 2026 (Release 2, [`release2_plan.md`](release2_plan.md)). Code: `liquidity_simulation.py` (model) and `simulation_view.py` (app panel and Excel record). Tests: `tests/test_liquidity_simulation.py`, `tests/test_simulation_view.py`.
+Built October 17, 2026 (Release 2, [`release2_plan.md`](release2_plan.md)); audited the same day (see "Audit, October 17" below). Code: `liquidity_simulation.py` (model) and `simulation_view.py` (app panel and Excel record). Tests: `tests/test_liquidity_simulation.py`, `tests/test_simulation_view.py`.
 
-> **Illustrative scenario from stated assumptions, not a forecast or funding conclusion.** The checked Oracle review still says future funding coverage is Unavailable. This scenario shows how the answer depends on assumptions the filings can't settle.
+> **Illustrative scenario from stated assumptions, not a forecast or funding conclusion.** The checked Oracle review still says future funding coverage is Unavailable. This scenario shows how the answer depends on assumptions the filings can't settle. Every percentage below is a **share of simulated trials under those assumptions**. None is a probability of default or of a funding gap.
 
 ## Where it is
 
-On the Oracle review, the expander **"Stress scenario (illustrative) · Sep 2026–Aug 2027"** sits after the checked review and before its evidence trail. It appears only for Oracle: Lilly and Vistra don't have a dated principal calendar, so their obligations side would have to be invented.
+On the Oracle review, the expander **"Stress scenario (illustrative) · Sep 2026–Aug 2027"** sits after the checked review and before its evidence trail. It appears only for Oracle. Oracle's August 31 principal calendar ([`oracle_principal_calendar.md`](oracle_principal_calendar.md)) dates its note and term-loan principal; Lilly and Vistra don't have a dated principal calendar, so their obligations side would have to be invented.
 
 ## The model (uncertain inputs → business logic → outputs)
 
@@ -20,28 +20,57 @@ ending cash = starting cash + OCF excluding prepayments + prepayments
 
 | Kind | Input | Default | Source / basis |
 |---|---|---|---|
-| Fixed (checked) | Starting cash | $36.369B | 10-Q balance sheet, Aug 31, 2026; excludes $2.565B restricted cash |
-| Fixed (checked) | Dated debt principal | $7.317B | [Principal calendar](oracle_principal_calendar.md): notes and term loan due Sep 2026–Aug 2027 |
-| Uncertain (triangular) | OCF excluding prepayments | $31.977B / $35.577B / $46.960B | Low: fiscal 2026 OCF. Most likely: TTM OCF less the specified prepayments. High: Jun–Aug 2026 excluding prepayments, times four (optimistic). |
-| Uncertain (triangular) | Specified customer prepayments | $0 / $0 / $11.363B | None (as in Q1 FY2026) up to one more quarter like Jun–Aug 2026 |
-| Uncertain (triangular) | Commercial paper due | $287M / $337M / $387M | The August balance is Unavailable; this is the range implied by rounded 10-Q figures |
+| Filing fact | Starting cash | $36.369B | 10-Q balance sheet, Aug 31, 2026; excludes $2.565B restricted cash |
+| Filing fact | Dated note and term-loan principal | $7.317B | [Principal calendar](oracle_principal_calendar.md): due Sep 2026–Aug 2027 |
+| Assumption (triangular) | OCF excluding prepayments | $31.977B / $35.577B / $46.960B | Corners set at fiscal 2026 OCF, TTM OCF less the specified prepayments, and Jun–Aug 2026 excluding prepayments times four. These are checked historical figures. They don't establish that future OCF stays inside them, or that the TTM figure is most likely. |
+| Assumption (triangular) | Specified customer prepayments | $0 / $0 / $11.363B | From none (as in Q1 FY2026) to one more quarter like Jun–Aug 2026; most likely none. Recurrence isn't established. |
+| Derived range, assumed shape | Commercial paper due | $287M / $337M / $387M | The August balance is Unavailable. The low and high are implied by rounded 10-Q figures; the midpoint as most likely, and repayment within the year, are assumptions. |
 | Decision | Capex | A: $75.66B (TTM) · B: $55.663B (fiscal 2026) | Management chooses this; it isn't an uncertainty |
-| Decision | Dividends | $6.26B | Jun–Aug 2026 dividends of $1.565B, times four |
-| Decision (hypothetical) | Revolver usable | No / yes, up to $10B | The commitment is checked; the drawable amount is Unavailable |
+| Decision | Dividends | $6.26B | Jun–Aug 2026 dividends of $1.565B (common and preferred), times four |
+| Decision (hypothetical) | Revolver usable | No / yes, up to $10B | The commitment is a filing fact; the drawable amount is Unavailable |
 | Assumption | Correlation, OCF excluding prepayments vs prepayments | 0 (independent) | No filing establishes it; editable from −0.9 to +0.9 |
 
 Every default is editable in the app. Trials default to 10,000 with seed 2026, and the same inputs and seed reproduce the results exactly.
 
-**Deliberately not subtracted:**
-- **Lease payments:** operating lease payments and finance-lease interest are already inside OCF, and the finance-lease principal split isn't disclosed.
-- **Purchase obligations:** they overlap capex.
-- **Interest:** it's inside OCF.
+**What "ending cash" tests, and what it doesn't.** Cash is measured once, on August 31, 2027. The model doesn't test cash on each payment date. A maturity early in the window could exceed cash on hand even when ending cash is positive, and the timing of OCF, capex and dividends within the year isn't modelled.
 
-Subtracting these too would count the same cash twice. Also excluded: new borrowing or equity, and the $288B of leases not yet commenced, which have no payment dates.
+## Cash uses the model leaves out
 
-## Default results (10,000 trials, seed 2026)
+A use is left out of the base model for one of two reasons. Either a filing shows it's already inside a modelled line, or it is measured separately with its effect disclosed. An overlap is never assumed.
 
-| Decision | Mean ending cash | 10th percentile | Shortfall probability | Mean shortfall when short |
+**Left out because a filing shows the overlap:**
+
+| Use | Where it already is | Proof |
+|---|---|---|
+| Operating lease payments | Inside OCF | Oracle's policy: operating lease cash flows are operating cash flows (10-K fiscal 2026, Note 1) |
+| Finance-lease interest | Inside OCF | Oracle's policy: the interest component is an operating cash flow (same note) |
+| Interest on borrowing, income taxes | Inside OCF | US GAAP classifies cash interest and taxes as operating (ASC 230). Historical OCF reflects historical interest, not interest on debt raised since. |
+| Restricted cash ($2.565B) | Not in starting cash | A balance choice, not a cash use |
+
+**Measured separately (overlap not established).** Each is subtracted at the stated amount, with the same seed, so its effect is visible. None is in the base results.
+
+| Use | Amount used | Why it's outside the base model | What the amount over- or understates |
+|---|---:|---|---|
+| Finance-lease principal | $0.620B | Oracle classifies the principal component as a **financing** cash flow (10-K Note 1), so it's in neither OCF nor capex | It's Sep 2026–May 2027 finance-lease payments (10-Q Note 6), which include interest already in OCF, so it overstates principal for those nine months. Jun–Aug 2027 is Unavailable. |
+| Short-term financing related to capex | $3.937B | A separate financing line, so repaying it isn't in cash capex or OCF | Cumulative net proceeds: $1.422B (FY2025) + $3.345B (FY2026) − $0.830B (Jun–Aug 2026). It's an indicator only, since the balance, terms and due dates aren't disclosed ([`pilot_evidence_oracle.md`](pilot_evidence_oracle.md)). Whether it would be repaid or rolled isn't stated. |
+| Purchase and other obligations | $5.449B | Primarily cloud-infrastructure components (likely capex when paid) and data-center power (likely in OCF). The filing doesn't split them, so overlap with the capex decision and OCF is possible but not established. | Sep 2026–May 2027 only (10-Q Note 6). Jun–Aug 2027 sits inside fiscal 2028's $6.176B and is Unavailable. |
+
+**Effect at the defaults (10,000 trials, seed 2026), as the share of trials below zero:**
+
+| Decision | Base | + finance-lease principal | + capex financing | + purchase obligations | All three |
+|---|---:|---:|---:|---:|---:|
+| A: TTM capex | 99.5% | 99.7% | 100.0% | 100.0% | 100.0% |
+| A, revolver usable | 62.6% | 67.7% | 88.1% | 93.6% | 99.5% |
+| B: FY2026 capex | 0.2% | 0.7% | 13.0% | 23.4% | 62.6% |
+| B, revolver usable | 0.0% | 0.0% | 0.0% | 0.0% | 0.2% |
+
+With all three subtracted, decision B's mean ending cash falls from $8.76B to −$1.24B. The base result for decision B depends heavily on these unresolved uses.
+
+**Left out with no measurable amount:** the $288B of leases not yet commenced (their payments would enter OCF after commencement and aren't in the historical OCF the triangle is anchored to; annual amounts are Unavailable); the lessor-borrowing guarantee of up to $3.3B (status at August 31 not stated); "other financing activities, net" ($0.242B in Jun–Aug 2026, composition not stated, may include finance-lease principal); June–August 2027 lease and purchase payments; and share repurchases or acquisitions (none in the quarter; they would be decisions). Also excluded: new borrowing or equity.
+
+## Default results, base model (10,000 trials, seed 2026)
+
+| Decision | Mean ending cash | 10th percentile | Share of trials below zero | Average shortfall in those trials |
 |---|---:|---:|---:|---:|
 | A: TTM capex | −$11.23B | −$16.63B | 99.5% | $11.30B |
 | A, revolver usable | −$2.40B | −$6.63B | 62.6% | $3.84B |
@@ -49,9 +78,9 @@ Subtracting these too would count the same cash twice. Also excluded: new borrow
 | B, revolver usable | $8.76B | $3.37B | 0.0% | $0 |
 
 **Reading it:**
-- At the TTM capex rate, checked cash plus the stated range of operating cash flow doesn't cover the dated uses without outside funding. Even the whole revolver closes the gap in only about a third of trials, because the mean gap ($11.2B) is larger than the $10B commitment. That's consistent with Oracle raising $19.9B of equity in Jun–Aug 2026.
-- At the fiscal 2026 capex level, the uses are covered in almost every trial.
-- The decision that matters most is capex, not the uncertainty in operating cash flow.
+- At the TTM capex rate, checked cash plus the assumed range of operating cash flow doesn't cover the uses the model subtracts in almost every trial. Even the whole revolver lifts ending cash above zero in only about a third of trials, because the mean gap ($11.2B) is larger than the $10B commitment. That's consistent with Oracle raising $19.9B of equity in Jun–Aug 2026.
+- At the fiscal 2026 capex level, ending cash stays above zero in almost every trial of the **base** model. That reading isn't robust: with the three measured outside uses, 62.6% of trials end below zero.
+- Capex is the decision that moves the result most, and the unresolved uses matter about as much as the OCF range does.
 
 These results describe the assumptions, not what will happen. They moved slightly on October 17 (decision A from 99.4% to 99.5%) when OCF and prepayments began to be drawn through the correlation step below. The random stream changed; the model didn't.
 
@@ -73,7 +102,7 @@ The class covers the principle, not these mechanics; the copula is this app's im
 
 **Comparison (decision A, 10,000 trials, seed 2026):**
 
-| Setting | Realized | Mean ending cash | Std dev | 10th percentile | Shortfall probability |
+| Setting | Realized | Mean ending cash | Std dev | 10th percentile | Share of trials below zero |
 |---:|---:|---:|---:|---:|---:|
 | −0.5 | −0.48 | −$11.23B | $3.05B | −$15.21B | 100.0% |
 | 0 | −0.01 | −$11.23B | $4.17B | −$16.63B | 99.5% |
@@ -83,9 +112,7 @@ The mean doesn't move and the spread does, as the class rule predicts; a test ch
 
 All three settings reuse the same seed, so the same underlying normal scores appear in each. The differences come from the correlation, not from new random numbers.
 
-In the app, the slider sets the correlation for every result, and a table under the histogram compares −0.5, 0 and +0.5 for the decision shown. The download adds a Correlation sheet with that table, and the slider value is a row on the Scenario sheet.
-
-## Validation (the four checks from class)
+## Validation (the four checks from class, plus the audit)
 
 | Check | Test | Result |
 |---|---|---|
@@ -93,27 +120,50 @@ In the app, the slider sets the correlation for every result, and a table under 
 | Boundary | The revolver covers a gap up to $10B and no more; zero spending never falls short; every trial lies between the worst and best corners; a reversed triangle is rejected | Pass |
 | Distribution | 200,000 draws stay within the range, the mean is within 1% of (low + mode + high) / 3, and the histogram peaks at the mode | Pass |
 | Stability | 10,000 and 50,000 trials agree; the same seed reproduces exactly, with or without correlation. The app also shows a live stability check (5× the trials, new seed). | Pass |
-| Correlation | The inverse CDF hits each triangle's corners and mode; correlated draws keep each triangle (range and mean) and reach the target within 0.05; without the revolver, −0.5, 0 and +0.5 give the same mean and a rising standard deviation; a correlation of ±1 or beyond is rejected | Pass |
+| Correlation | The inverse CDF hits each triangle's corners and mode; correlated draws keep each triangle and reach the target within 0.05; without the revolver, −0.5, 0 and +0.5 give the same mean and a rising standard deviation; ±1 or beyond is rejected | Pass |
+| Exclusions | Every exclusion cites the filing or standard that shows the overlap; finance-lease principal is not among them; each outside use traces to the checked evidence; an added use lowers every trial by exactly its amount; the effects table starts from the unchanged base | Pass |
+| Wording | No result is named a probability; the timing limit and the assumption basis are stated in the panel and the workbook | Pass |
 
 ## The Excel record
 
-**"Download this scenario (Excel)"** saves whatever is on screen. The Scenario sheet holds the label, horizon, seed and trials, plus each input with its low, most likely, high and source. The Results sheet has one row per decision: mean, standard deviation, percentiles, shortfall probability and mean shortfall. The Correlation sheet compares −0.5, 0 and +0.5 for the decision shown. It's Arial 10, with numbers stored as numbers.
+**"Download this scenario (Excel)"** saves whatever is on screen. It's Arial 10, with numbers stored as numbers.
+
+| Sheet | Contents |
+|---|---|
+| Scenario | Label, horizon, seed and trials. Each input with its **kind** (filing fact, assumption, derived range, hypothetical), low, most likely, high and basis. The timing limit and the share-of-trials note. |
+| Results | One row per decision: mean, standard deviation, percentiles, share of trials below zero and the average shortfall in those trials |
+| Correlation | −0.5, 0 and +0.5 for the decision shown |
+| Outside-use effects | Every decision × (base, each outside use, all three) |
+| Uses not modelled | Each left-out use, its treatment (measured, excluded with proof, or not quantified), amount, basis, reason and source |
 
 It is deliberately separate from Oracle's checked evidence workbook: assumptions are not filing facts, and the checked workbook's fingerprints stay unchanged.
 
+## Audit, October 17, 2026
+
+Findings, all fixed in the same pull request:
+1. **Finance-lease principal was wrongly excluded as double counting.** Oracle's 10-K policy puts the principal component in financing cash flows, so it's outside OCF. It's now measured as an outside use.
+2. **Purchase obligations were excluded as "overlapping capex" without proof.** The filing doesn't split them, so overlap isn't established. They're now measured as an outside use.
+3. **Short-term capex financing was not considered.** It's a separate financing line with an undisclosed balance. It's now measured, using cumulative net proceeds as an indicator.
+4. **Results were labelled "shortfall probability".** They're now "share of trials below zero", with a note that they aren't probabilities of default.
+5. **Historical anchors were described as if they set the range.** The basis text now says they're assumptions anchored to history.
+6. **The end-of-window limit wasn't stated.** It now appears in the panel, the workbook and this document.
+7. **Stale principal wording elsewhere.** Two Oracle review texts and the combined workbook's About sheet still said August 31 principal was not established. They now point to the principal calendar; the combined workbook was patched in one cell (`tests/offline/patch_combined_principal_note.py`) and its manifest rebound.
+
 ## Five-minute interview walkthrough
 
-1. **The problem (30 s).** The checked review can date $7.3B of debt principal due in twelve months, but it can't say whether Oracle can fund it. Drawable credit and future cash flow aren't in the filings, so the app reports coverage as Unavailable.
+1. **The problem (30 s).** The checked review can date $7.3B of note and term-loan principal due in twelve months, but it can't say whether Oracle can fund it. Drawable credit and future cash flow aren't in the filings, so the app reports coverage as Unavailable.
 2. **Why simulation (30 s).** When an answer depends on an uncertain input, show the whole distribution instead of guessing one number. That's the Module 2 idea: uncertain inputs, business logic, then outputs.
-3. **The model (90 s).** Walk through the formula. Explain which inputs are checked facts, which are uncertain (triangular, with the evidence for each corner) and which are decisions (capex, dividends, the revolver). Then explain why leases and purchase obligations are left out: double counting.
-4. **The result (60 s).** Capex at the TTM pace leaves a gap in 99% of trials, and even the full revolver closes it in only about a third. That ties to the real $19.9B equity raise.
-5. **Why trust it (60 s).** The four validation checks run as automated tests, the runs are seeded, and every number is labelled illustrative. It never changes the checked conclusion.
+3. **The model (90 s).** Walk through the formula. Say which inputs are filing facts (cash, dated principal), which are assumptions (the triangles, anchored to history but not established by it) and which are decisions (capex, dividends, the revolver). Then explain the exclusions: operating leases and interest are already in OCF per Oracle's own policy, while finance-lease principal, capex financing and purchase obligations aren't shown to overlap, so their effect is measured.
+4. **The result (60 s).** At the TTM capex pace, 99% of trials end below zero, and even the full revolver lifts only about a third above it. At the fiscal 2026 level the base model looks comfortable, but adding the unresolved uses moves 63% of trials below zero. The honest conclusion is that the answer depends on items the filings don't settle.
+5. **Why trust it (60 s).** The checks run as automated tests, the runs are seeded, every percentage is a share of simulated trials, and it never changes the checked conclusion.
 
-**Likely interview question:** *"Why triangular distributions?"* There are only a few checked periods, so min / most likely / max is the honest summary of the evidence. A fitted normal distribution would claim more than the data supports.
+**Likely interview question:** *"Why triangular distributions?"* There are only a few checked periods. A low, most likely and high anchored to those periods is a transparent way to state an assumption, and anyone can see and change it. It doesn't claim the history sets the bounds. A fitted normal distribution would imply more precision than three observations support.
 
 ## Limits
 
-- The OCF range rests on three checked periods. The high end annualizes a single quarter.
+- The OCF triangle is an assumption anchored to three checked periods. The high corner annualizes a single quarter. History doesn't set future bounds.
+- Only end-of-window cash is tested, not cash on each payment date.
+- Three outside uses are measured at stated amounts, not modelled as uncertain; several more have no measurable amount (see above).
 - The OCF–prepayment correlation is an assumption with no filing evidence. Its default of 0 is a neutral choice, not a finding. Commercial paper is drawn independently.
 - Capex and dividends are held at the decision values, with no timing within the year.
 - The commercial paper range is implied, not reported.

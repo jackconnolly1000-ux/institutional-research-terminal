@@ -1,135 +1,88 @@
 # Release 2 plan: liquidity stress simulation
 
-**Status: built (October 17, 2026).** Step 1: `liquidity_simulation.py`. Step 2: the Oracle app panel (`simulation_view.py`). Step 3: a scenario Excel download. Step 4: [`liquidity_simulation.md`](liquidity_simulation.md). Correlation between OCF and prepayments was added the same day (default 0; see [`liquidity_simulation.md`](liquidity_simulation.md)). Release 2 was chosen by Jack on October 17 (option A of four, recorded below). Nothing in this plan changes the checked reviews, their figures or their funding conclusions.
+**Status: built and audited (October 17, 2026).**
+- Step 1: `liquidity_simulation.py`.
+- Step 2: the Oracle app panel (`simulation_view.py`).
+- Step 3: a scenario Excel download.
+- Step 4: [`liquidity_simulation.md`](liquidity_simulation.md), the method document, which is the reference for the model as built.
+- OCF–prepayment correlation was added the same day.
+- An audit the same day corrected the treatment of excluded cash uses and the wording of results (see "Changes from the original plan").
+
+Release 2 was chosen by Jack on October 17 (option A of four, recorded below). Nothing in this plan changes the checked reviews, their figures or their funding conclusions.
 
 ## The question
 
-> If Oracle's operating cash flow over the next twelve months varied within a stated range, how often would its checked August 31 cash plus that cash flow fall short of the obligations the filings actually date, and by how much?
+> If Oracle's operating cash flow over the next twelve months fell anywhere in an assumed range, in what share of simulated trials would its checked August 31 cash, plus that cash flow, end the window below the cash uses the model subtracts, and by how much?
 
-The answer is an **illustrative scenario**, not a forecast, a rating or a funding conclusion. The reviews' "future funding coverage: Unavailable" stays as it is. This sits beside it and shows how sensitive the answer is to one uncertainty, using stated assumptions.
+The answer is an **illustrative scenario**, not a forecast, a rating, a probability of default or a funding conclusion. The reviews' "future funding coverage: Unavailable" stays as it is. This sits beside it and shows how sensitive the answer is to stated assumptions.
 
 ## Why this release (decision record)
 
 | Option | Verdict |
 |---|---|
-| **A. Liquidity stress simulation** | **Chosen.** It applies VSB 2008 Module 2 simulation, which is covered (with more on Oct 19 and 21), to the product's own question and the checked data. It's one feature Jack can explain end to end: the model, the inputs, the validation and the limits. Credit analysis is a recruiter-relevant skill. |
+| **A. Liquidity stress simulation** | **Chosen.** It applies VSB 2008 Module 2 simulation to the product's own question and the checked data. It's one feature Jack can explain end to end: the model, the inputs, the validation and the limits. Credit analysis is a recruiter-relevant skill. |
 | B. A fourth company | Later. Mostly repetition of the pilot method, with days of hand-checking. |
 | C. Refresh with newer filings | Later, when the next 10-Qs arrive (Oracle's is likely mid-December). Driven by the filing calendar. |
 | D. Stock-price Monte Carlo, LP allocation, CAPM in general research | Not now. It's disconnected from the Debt & Liquidity product, a max-return LP is close to investment-advice territory, and CAPM regression is Upcoming (Nov 11–13). |
 
 ## Scope: Oracle first
 
-Oracle is the only review with a **dated** principal calendar ([`oracle_principal_calendar.md`](oracle_principal_calendar.md)). Lilly's per-note calendar isn't supported by its filings ([`lly_principal_calendar_check.md`](lly_principal_calendar_check.md)), and Vistra's borrowing base and Parent-accessible cash are Unavailable. Simulating them would mean inventing the obligations side, so they wait until their evidence exists.
+Oracle is the only review with a **dated** principal calendar ([`oracle_principal_calendar.md`](oracle_principal_calendar.md)): $7.317B of note and term-loan principal falls due September 2026–August 2027, with commercial paper Unavailable. Lilly's per-note calendar isn't supported by its filings ([`lly_principal_calendar_check.md`](lly_principal_calendar_check.md)), and Vistra's borrowing base and Parent-accessible cash are Unavailable. Simulating them would mean inventing the obligations side, so they wait until their evidence exists.
 
-## Model (course structure: uncertain inputs → business logic → outputs)
+## Model as built
 
-**Decision owner:** a credit analyst reviewing Oracle's next twelve months (September 1, 2026–August 31, 2027).
+The method document has the full input table, exclusions, results and validation. In brief:
 
-**Fixed inputs, from checked evidence** (each keeps its source and date):
+```
+ending cash = starting cash + OCF excluding prepayments + prepayments
+              − capex − dividends − dated note and term-loan principal − commercial paper due
+              (+ revolver draw up to $10B, only where the decision assumes it is usable)
+```
 
-| Input | Value | Source |
+- **Horizon:** September 1, 2026–August 31, 2027. Only the ending balance is tested, not cash on each payment date.
+- **Filing facts:** starting cash ($36.369B, excluding restricted cash) and dated note and term-loan principal ($7.317B).
+- **Assumptions:** triangles for OCF excluding prepayments, prepayments and commercial paper, plus an OCF–prepayment correlation (default 0). Their corners are anchored to checked history, which does not establish future bounds or a most-likely value.
+- **Decisions:** capex at the TTM rate ($75.66B) or the fiscal 2026 level ($55.663B); dividends ($6.26B); the revolver assumed unusable or usable up to $10B (a hypothetical, since drawable capacity is Unavailable).
+- **Excluded because a filing shows the overlap:** operating lease payments, finance-lease interest, interest and taxes (all inside OCF).
+- **Measured separately because overlap isn't established:** finance-lease principal, short-term financing related to capex, and purchase and other obligations. Each is subtracted at a stated amount and its effect is shown; none is in the base result.
+- **Outputs:** mean, standard deviation, percentiles, the share of trials with ending cash below zero, the average shortfall in those trials, and a histogram. Seeded, 10,000 trials by default.
+
+## Changes from the original plan
+
+The plan written before the build differed in several places. Where they differ, the built model governs.
+
+| Original plan | As built | Why |
 |---|---|---|
-| Starting cash (excludes $2.565B restricted cash) | $36.369B at Aug 31, 2026 | 10-Q balance sheet |
-| Dated note and term-loan principal, Sep 2026–Aug 2027 | $7.317B | `oracle_principal.json` |
-| Dated lease and purchase payments, Sep 2026–May 2027 | $3.219B operating, $0.620B finance, $5.449B purchase/other | 10-Q Note 6 |
+| Subtract dated lease and purchase payments ($3.219B operating, $0.620B finance, $5.449B purchase, Sep 2026–May 2027) | Operating leases and finance-lease interest excluded (inside OCF, per Oracle's policy). Finance-lease principal and purchase obligations measured as outside uses. | Operating-lease cash and finance-lease interest are operating cash flows, so subtracting them again would double count. **Correction (audit):** the first build also excluded finance-lease principal and purchase obligations as overlaps. Principal is a financing cash flow, and the purchase-obligation overlap isn't established, so both are now measured. |
+| Interest and dividends not modelled | Interest is inside OCF; dividends are a decision ($6.26B) | Dividends are a cash use outside OCF |
+| Commercial paper due $0 to $1.468B (the May 31 balance) | $287M–$387M, triangular | The range implied by rounded August 31 10-Q figures replaced the older May balance |
+| Capex: TTM versus a lower rate the user sets | TTM versus the fiscal 2026 level, both editable | A checked level as the default |
+| "Probability of shortfall" | "Share of trials below zero" | A simulated share under assumptions isn't a probability of default or of a funding gap |
+| Triangles "from the checked periods" | Assumptions anchored to the checked periods | History doesn't establish future bounds or a most-likely value |
+| Step 3: a scenario sheet added by script to Oracle's checked workbook | A separate scenario workbook from the app panel | Assumptions are not filing facts, and adding a sheet would change the shared fingerprint of all three company workbooks |
+| Short-term capex financing not considered | Measured as an outside use (balance undisclosed; cumulative net proceeds as an indicator) | It's a financing cash use outside OCF and capex |
 
-The lease and purchase payments cover only nine of the twelve months. Their June–August 2027 amounts are Unavailable and will be stated as a gap, not filled.
+## Validation
 
-**Uncertain inputs** (one draw per trial, triangular distributions, as in class):
-
-| Input | Range basis | Why it's uncertain |
-|---|---|---|
-| Operating cash flow, excluding specified prepayments | Minimum, most likely and maximum from the checked periods (TTM $46.94B; the quarter's $11.74B excluding prepayments). The basis is shown in the app and editable. | Recurrence isn't established. |
-| Specified customer prepayments | $0 to the last quarter's run rate | Recurrence isn't established; Q1 FY2026 had none. |
-| Commercial paper due | $0 to $1.468B (the May 31 balance) | The August balance and dates are Unavailable. |
-
-**Decisions compared** (the course requires at least two):
-1. Capital spending at the checked TTM rate versus a lower rate the user sets. Capex is a management decision, not an uncertainty.
-2. The revolver either assumed unavailable, or available up to its $10B commitment. That is a **hypothetical**, because drawable capacity is Unavailable.
-
-**Not modelled:** interest and dividends (stated as excluded), new borrowing or equity, the $288B of uncommenced leases (no payment dates), and unpaid capex timing.
-
-**Outputs per scenario:**
-- probability that ending cash falls below zero;
-- mean, standard deviation and 10th percentile of ending cash;
-- the size of the shortfall when one occurs;
-- a histogram.
-
-All results come from seeded trials (10,000 by default).
-
-## Validation (the four checks from class, as tests)
-
-1. **Logic:** fixed inputs (minimum = most likely = maximum) reproduce a hand calculation exactly.
-2. **Boundary:** the minimum and maximum draws, zero capex and the revolver toggle behave as expected.
-3. **Distribution:** sampled inputs match their stated minimum, mode and maximum, and their theoretical mean.
-4. **Stability:** 10,000 versus 50,000 trials agree within a stated tolerance; the same seed gives identical output.
+The four checks from class (logic, boundary, distribution, stability) run as unit tests, along with correlation, exclusion and wording tests. Results and the test list are in the method document.
 
 ## Guardrails
 
 - Every result is labelled "Illustrative scenario from stated assumptions, not a forecast or funding conclusion."
-- The assumption basis is shown before any result, and the math model is shown before running, as in class.
+- Percentages are shares of simulated trials, never probabilities of default or funding.
+- The assumption basis and the math model are shown before any result, as in class.
 - No grade, rating, default probability or recommendation.
 - The simulation never changes the funding conclusion, the checked figures or the source gates. Its inputs are read from the saved checked JSON, and it refuses to run if those don't load.
-- Unavailable items appear as toggles or stated exclusions, never as zeros presented as facts.
+- A cash use is left out only when a filing shows it overlaps a modelled line; otherwise its effect is measured and shown. Unavailable items appear as stated exclusions, never as zeros presented as facts.
 
-## Delivery steps (one PR each)
+## Timing (as it happened)
 
-1. **Model and tests.** `liquidity_simulation.py`: pure Python, no Streamlit, seeded, with the four validation checks as unit tests.
-2. **App section.** An Oracle-only expander, "Stress scenario (illustrative)", with editable assumptions, the two decisions side by side, outputs and a histogram. Checked at desktop and 390 px.
-3. **Excel record.** A scenario sheet with its inputs, seed, trial count and summary outputs, labelled illustrative. It's added by script, like the other post-build blocks.
-4. **Docs and case study.** A method doc, the case-study update and an interview walkthrough.
+The plan proposed starting after the October 19 and 21 simulation classes. The model, panel, workbook and correlation were built on October 17, before those classes. The correlation mechanics (a Gaussian copula) are this app's own choice; the course notes cover only the principle. **After the classes:** check the model against what is taught and record any differences.
 
-## Timing
+## Open questions (resolved)
 
-- **Plan now; start building after the Oct 19 and 21 simulation classes,** so the release only uses methods Jack has covered.
-- Group Project 2 is due Oct 26 and Exam 2 is on Nov 2. Steps 1–2 fit after Oct 21, and steps 3–4 after the exam.
-- Revisit the input ranges when Oracle's next 10-Q arrives (likely mid-December).
+1. **Horizon:** twelve months, September 1, 2026–August 31, 2027.
+2. **OCF range basis:** editable triangle, defaults anchored to checked periods.
+3. **Correlation:** added, default 0, with a −0.5 / 0 / +0.5 comparison.
 
-## Open questions for Jack
-
-1. Horizon: twelve months (proposed) or Oracle's fiscal year to May 31, 2027?
-2. OCF range basis: proposed from the checked periods above. Or should it be a user-entered triangle only, with the checked values as defaults?
-3. Include correlation between OCF and prepayments (covered in class) in step 2, or defer it?
-
-## Step 1 as built (October 17, 2026)
-
-`liquidity_simulation.py` is pure Python with no Streamlit, seeded through numpy's `default_rng`. Its inputs are read from the saved checked JSON, and it refuses to run if any of it doesn't load. Every result carries the scenario label.
-
-**Correction to the model above:** dated lease and purchase payments are *not* subtracted.
-- Operating lease payments are already inside operating cash flow.
-- Finance-lease interest is too, and the principal split isn't disclosed.
-- Purchase obligations overlap capex.
-
-Subtracting them again would count the same cash twice. The cash uses outside OCF and capex are what's modelled: dated debt principal ($7.317B), commercial paper ($287M–$387M, triangular), and dividends, which are a decision (Q1 FY2027's $1.565B times four, $6.26B).
-
-**Defaults for the open questions (all editable in step 2):**
-1. **Horizon:** twelve months, Sep 1, 2026–Aug 31, 2027.
-2. **OCF excluding prepayments, triangular:**
-   - low $31.977B (fiscal 2026 OCF);
-   - most likely $35.577B (TTM OCF less the specified prepayments);
-   - high $46.960B (Jun–Aug 2026 excluding prepayments, times four; an optimistic bound).
-   - Prepayments are triangular from $0 to $11.363B, with a mode of $0.
-3. **Correlation:** not modelled in step 1. Added October 17 as an editable setting, default 0 (independent), with a −0.5 / 0 / +0.5 comparison.
-
-**Decisions compared:** capex at the TTM rate ($75.66B) or the fiscal 2026 level ($55.663B), each with the revolver assumed unusable or usable up to $10B (a hypothetical).
-
-**Default results (10,000 trials, seed 2026; illustrative):**
-
-| Decision | Mean ending cash | 10th percentile | Probability of shortfall |
-|---|---:|---:|---:|
-| TTM capex | −$11.2B | −$16.6B | 99% |
-| TTM capex, revolver usable | −$2.4B | −$6.6B | 63% |
-| FY2026 capex | $8.8B | $3.4B | under 1% |
-| FY2026 capex, revolver usable | $8.8B | $3.4B | under 1% |
-
-Read: at the TTM capex rate, the stated range of operating cash flow and the checked cash don't cover the dated cash uses without outside funding, even with the full revolver. That is consistent with Oracle raising $19.9B of equity in Jun–Aug 2026. At the fiscal 2026 capex level they do in almost every trial. This describes the assumptions, not what will happen.
-
-**Validation (all pass):**
-- **Logic:** fixed inputs equal the hand calculation.
-- **Boundary:** the revolver covers a gap up to $10B and no more; zero spending never falls short; every trial lies between the worst and best corners; a reversed triangle is rejected.
-- **Distribution:** 200,000 draws stay within the range, with the mean within 1% and the histogram peak at the mode.
-- **Stability:** 10,000 and 50,000 trials agree, and the same seed reproduces exactly.
-
-## Step 3 changed during build
-
-The scenario is recorded as its own workbook (**Download this scenario (Excel)** in the app panel), not added to Oracle's checked evidence workbook. Assumptions are not filing facts. Adding a sheet would also change the shared guide fingerprint for all three company workbooks.
+Still open: whether Oracle's next 10-Q (likely mid-December) discloses the commercial-paper and capex-financing balances, the finance-lease principal split, or the purchase-obligation split. Any of these would let an outside use move into the base model.

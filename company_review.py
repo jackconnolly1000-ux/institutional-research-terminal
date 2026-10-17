@@ -48,7 +48,7 @@ NOTES = {
 
 LIMITS = {
     "LLY": "June lease liabilities, updated principal maturities, drawable credit and detailed payment dates remain Unavailable. The selected acquisitions and manufacturing review is not a complete review of contingencies, tax, collaboration or investment obligations.",
-    "ORCL": "Commercial paper is not separately disclosed in this 10-Q. The capex-financing balance and the later status of the 10-K's $3.3B lessor guarantee remain unresolved. The May 31 maturity schedule does not establish remaining August 31 payments or current revolver availability.",
+    "ORCL": "Commercial paper is not separately disclosed in this 10-Q. The capex-financing balance and the later status of the 10-K's $3.3B lessor guarantee remain unresolved. August 31 note and term-loan principal is dated in the principal calendar; interest payment dates and current revolver availability are Unavailable.",
     "VST": "June 30 lease liabilities are Unavailable. Derivatives, litigation and the remaining retirement-obligation detail need further review. Credit-support overlaps are unresolved; the selected notes above are not a complete obligations list.",
 }
 
@@ -561,7 +561,7 @@ def workbook(snapshots: list[dict]) -> bytes:
                                 item["location"], PILOTS[snapshot["ticker"]]["accession"], snapshot["source_url"], item["detail"]])
         add_oracle_sheets(wb, snapshot)
     if "Oracle maturities" in wb.sheetnames:
-        about.append(["Oracle maturity review", "Historical principal schedule at May 31, 2026. Annual buckets exclude interest and leases. August schedule and revolver availability are Unavailable. Inputs and subsequent document checks are in Oracle debt inputs and Oracle financing; no events are rolled into the balance sheet."])
+        about.append(["Oracle maturity review", "Historical principal schedule at May 31, 2026. Annual buckets exclude interest and leases. August 31 note and term-loan principal is dated in the individual Oracle workbook (Payment dates); commercial paper and current revolver availability are Unavailable. Inputs and subsequent document checks are in Oracle debt inputs and Oracle financing; no events are rolled into the balance sheet."])
     for sheet in wb:
         sheet.sheet_view.showGridLines = False
         sheet.freeze_panes = "A2"

@@ -156,8 +156,9 @@ def render(snapshot, money):
             '" target="_blank" rel="noopener noreferrer">10-Q Note 7, pp. 13–14</a>.</p>')
     out += ('<p><strong>Repayment assessment:</strong> the quarter relied on identified customer prepayments '
             'and equity funding while capital spending exceeded OCF. A future repayment surplus or shortfall '
-            'is Unavailable: remaining debt principal at August 31, current drawable credit and future '
-            'operating cash generation have not been established. The two later saved 8-Ks checked below '
+            'is Unavailable. Note and term-loan principal at August 31 is dated in the principal calendar above, '
+            'but commercial paper, current drawable credit and future operating cash generation have not been '
+            'established. The two later saved 8-Ks checked below '
             'do not establish additional corporate borrowing.</p>')
     out += repayment_html(snapshot, money) + '</section>'
     # Streamlit's Markdown math parser otherwise consumes prose between currency signs.

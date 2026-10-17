@@ -1,8 +1,9 @@
 """Release 2, steps 2–3: the Oracle stress scenario in the app, with editable assumptions and an Excel record.
 
 The model is liquidity_simulation.py. This view shows the math model and the assumption basis before any result
-(as in class), runs the four decisions side by side, shows a stability check, and offers the scenario as its own
-workbook. It is kept out of the checked evidence workbooks on purpose: assumptions are not filing facts.
+(as in class), runs the four decisions side by side, measures the cash uses the model leaves out, shows a stability
+check, and offers the scenario as its own workbook. It is kept out of the checked evidence workbooks on purpose:
+assumptions are not filing facts. Results are shares of simulated trials, never probabilities of default.
 """
 from __future__ import annotations
 
@@ -15,6 +16,8 @@ import liquidity_simulation as ls
 
 B = 1_000_000_000
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+SHARE = "Share of trials below zero"
+USD = " (USD, displayed in millions)"   # stored in dollars, shown in $ millions
 
 
 def _billions(st, label, value, key, help=None):
@@ -23,15 +26,17 @@ def _billions(st, label, value, key, help=None):
 
 def assumptions(st, inputs, decisions):
     """Editable inputs, defaulting to the checked basis. Returns (inputs, decisions, trials, seed) or None."""
-    st.markdown("**Assumptions** · USD billions · defaults come from the checked filings")
+    st.markdown("**Assumptions** · USD billions · defaults are anchored to checked historical figures, which do not "
+                "establish future values")
     c1, c2, c3 = st.columns(3)
     t = inputs.ocf_ex_prepayments
-    low = _billions(c1, "OCF excl. prepayments, low", t.low, "sim_ocf_low")
-    mode = _billions(c2, "Most likely", t.mode, "sim_ocf_mode")
-    high = _billions(c3, "High", t.high, "sim_ocf_high")
+    low = _billions(c1, "OCF excl. prepayments, assumed low", t.low, "sim_ocf_low")
+    mode = _billions(c2, "Assumed most likely", t.mode, "sim_ocf_mode")
+    high = _billions(c3, "Assumed high", t.high, "sim_ocf_high")
     st.caption(t.basis)
     c4, c5 = st.columns(2)
-    prepay = _billions(c4, "Prepayments, high (low and most likely are $0)", inputs.prepayments.high, "sim_prepay")
+    prepay = _billions(c4, "Prepayments, assumed high (low and most likely are $0)", inputs.prepayments.high,
+                       "sim_prepay", help=inputs.prepayments.basis)
     dividends = _billions(c5, "Dividends over the year (a decision)", decisions[0].dividends, "sim_div",
                           help="Default: Jun–Aug 2026 dividends of $1.565B, times four.")
     c6, c7 = st.columns(2)
@@ -59,11 +64,13 @@ def results_table(st, results):
     import pandas as pd
     rows = [{"Decision": r["decision"], "Capex ($B)": round(d.capex / B, 2),
              "Mean ending cash ($B)": round(r["mean"] / B, 2), "10th percentile ($B)": round(r["p10"] / B, 2),
-             "Shortfall probability": r["probability_shortfall"] * 100,
-             "Mean shortfall when short ($B)": round(r["mean_shortfall"] / B, 2)}
+             SHARE: r["share_below_zero"] * 100,
+             "Average shortfall in those trials ($B)": round(r["mean_shortfall"] / B, 2)}
             for r, d in results]
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
-                 column_config={"Shortfall probability": st.column_config.NumberColumn(format="%.1f%%")})
+                 column_config={SHARE: st.column_config.NumberColumn(format="%.1f%%")})
+    st.caption("Shares are of simulated trials under the assumptions above. They are not probabilities of default "
+               "or of a funding gap.")
 
 
 def correlation_table(st, comparison, revolver):
@@ -71,18 +78,40 @@ def correlation_table(st, comparison, revolver):
     import pandas as pd
     rows = [{"Correlation setting": r["correlation"], "Realized correlation": r["realized_correlation"],
              "Mean ending cash ($B)": round(r["mean"] / B, 2), "Std dev ($B)": round(r["sd"] / B, 2),
-             "10th percentile ($B)": round(r["p10"] / B, 2), "Shortfall probability": r["probability_shortfall"] * 100}
+             "10th percentile ($B)": round(r["p10"] / B, 2), SHARE: r["share_below_zero"] * 100}
             for r in comparison]
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
                  column_config={"Correlation setting": st.column_config.NumberColumn(format="%.1f"),
                                 "Realized correlation": st.column_config.NumberColumn(format="%+.2f"),
-                                "Shortfall probability": st.column_config.NumberColumn(format="%.1f%%")})
+                                SHARE: st.column_config.NumberColumn(format="%.1f%%")})
     note = ("Without the revolver, ending cash is a sum of the inputs, so the mean stays put and only the spread "
             "changes.")
     if revolver:
         note = ("With the revolver, a draw fills only shortfalls and stops at \\$10B, so a wider spread can also move "
                 "the mean.")
     st.caption(f"Same decision, seed and trials at each setting. {note}")
+
+
+def outside_uses(st, effects, uses, decision):
+    """The base result beside each use the model leaves out, then the uses excluded because they are inside OCF."""
+    import pandas as pd
+    rows = [{"Scenario": e["scenario"], "Added use ($B)": round(e["added_uses"] / B, 3),
+             "Mean ending cash ($B)": round(e["mean"] / B, 2), SHARE: e["share_below_zero"] * 100}
+            for e in effects]
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                 column_config={SHARE: st.column_config.NumberColumn(format="%.1f%%")})
+    measured = "\n".join(f"- **{u.name}** (${u.amount / B:.3f}B). {u.why_outside} {u.amount_basis}" for u in uses)
+    excluded = "\n".join(f"- **{name}:** {status}. {proof}" for name, status, proof in ls.EXCLUDED)
+    unmeasured = "\n".join(f"- **{name}:** {note}" for name, note in ls.UNQUANTIFIED)
+    st.markdown(_dollars(f"{decision.name}, same seed and trials. Each amount is subtracted once over the window; "
+                         "none is in the base result above.\n\n" + measured))
+    st.markdown(_dollars("**Left out because a filing shows they are inside a modelled line**\n\n" + excluded))
+    st.markdown(_dollars("**Left out with no measurable amount**\n\n" + unmeasured))
+
+
+def _dollars(text):
+    """Streamlit's Markdown treats text between dollar signs as math."""
+    return text.replace("$", "\\$")
 
 
 def histogram(st, result):
@@ -102,9 +131,14 @@ def histogram(st, result):
     st.plotly_chart(fig, width="stretch", theme=None, config=CHART_CONFIG)
 
 
-def workbook(inputs, results, trials, seed, comparison=None) -> bytes:
-    """The scenario on screen as its own record: inputs with sources, seed, trials, results and, when given, the
-    correlation comparison for the decision shown. Arial 10."""
+SHARE_NOTE = ("Shares of trials below zero describe the simulated trials under the stated assumptions. They are not "
+              "probabilities of default or of a funding gap.")
+
+
+def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=None) -> bytes:
+    """The scenario on screen as its own record: inputs (each marked filing fact, derived, assumption or hypothetical)
+    with sources, seed, trials, results, the correlation comparison for the decision shown, and the effect of each
+    use the model leaves out, for every decision. Arial 10."""
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font
     wb = Workbook()
@@ -116,41 +150,67 @@ def workbook(inputs, results, trials, seed, comparison=None) -> bytes:
     ws.append([f"Horizon {ls.HORIZON[0]} to {ls.HORIZON[1]}. Created {stamp}. Seed {seed}, {trials:,} trials; "
                "rerunning with the same inputs and seed reproduces these results."])
     ws.append([])
-    ws.append(["Input", "Low (USD)", "Most likely (USD)", "High (USD)", "Basis / source"])
+    ws.append(["Input", "Kind", "Low" + USD, "Most likely" + USD, "High" + USD, "Basis / source"])
     t, p, c = inputs.ocf_ex_prepayments, inputs.prepayments, inputs.commercial_paper_due
-    rows = [("Starting cash", inputs.starting_cash, inputs.starting_cash, inputs.starting_cash, inputs.sources["starting_cash"]),
-            ("Dated debt principal due", inputs.principal_due, inputs.principal_due, inputs.principal_due, inputs.sources["principal_due"]),
-            ("OCF excluding prepayments", t.low, t.mode, t.high, t.basis),
-            ("Specified customer prepayments", p.low, p.mode, p.high, p.basis),
-            ("Commercial paper due", c.low, c.mode, c.high, c.basis),
-            ("Revolver commitment (hypothetical)", inputs.revolver_commitment, inputs.revolver_commitment,
-             inputs.revolver_commitment, inputs.sources["revolver_commitment"]),
-            ("OCF–prepayment correlation (ratio, not USD)", inputs.correlation, inputs.correlation,
-             inputs.correlation, ls.CORRELATION_BASIS)]
+
+    def fixed(value):
+        return value, value, value
+
+    rows = [("Starting cash", "Filing fact", *fixed(inputs.starting_cash), inputs.sources["starting_cash"]),
+            ("Dated note and term-loan principal due", "Filing fact", *fixed(inputs.principal_due),
+             inputs.sources["principal_due"]),
+            ("OCF excluding prepayments", "Assumption", t.low, t.mode, t.high, t.basis),
+            ("Specified customer prepayments", "Assumption", p.low, p.mode, p.high, p.basis),
+            ("Commercial paper due", "Derived range; assumed shape", c.low, c.mode, c.high, c.basis),
+            ("Revolver commitment", "Filing fact; usable amount hypothetical", *fixed(inputs.revolver_commitment),
+             inputs.sources["revolver_commitment"]),
+            ("OCF–prepayment correlation (ratio, not USD)", "Assumption", *fixed(inputs.correlation),
+             ls.CORRELATION_BASIS)]
     for row in rows:
         ws.append(list(row))
     rho_row = ws.max_row
     ws.append([])
-    ws.append(["Not modelled: operating and finance lease payments (inside OCF; principal split not disclosed), "
-               "purchase obligations (overlap capex), interest (inside OCF), new borrowing or equity, and the $288B "
-               "of leases not yet commenced (no payment dates)."])
+    ws.append([ls.TIMING_LIMIT])
+    ws.append([SHARE_NOTE])
+    ws.append(["Cash uses the model leaves out, and why, are on the Uses not modelled sheet; their effect on each "
+               "decision is on Outside-use effects. Capex and dividends are decisions, shown on Results."])
     res = wb.create_sheet("Results")
-    res.append(["Decision", "Capex (USD)", "Dividends (USD)", "Revolver assumed usable", "Mean ending cash (USD)",
-                "Std dev (USD)", "10th percentile (USD)", "Median (USD)", "90th percentile (USD)",
-                "Shortfall probability", "Mean shortfall when short (USD)"])
+    res.append(["Decision", "Capex" + USD, "Dividends" + USD, "Revolver assumed usable", "Mean ending cash" + USD,
+                "Std dev" + USD, "10th percentile" + USD, "Median" + USD, "90th percentile" + USD,
+                SHARE, "Average shortfall in trials below zero" + USD])
     for r, d in results:
         res.append([r["decision"], d.capex, d.dividends, "Yes" if d.revolver else "No", r["mean"], r["sd"], r["p10"],
-                    r["p50"], r["p90"], r["probability_shortfall"], r["mean_shortfall"]])
+                    r["p50"], r["p90"], r["share_below_zero"], r["mean_shortfall"]])
     if comparison:
         cor = wb.create_sheet("Correlation")
-        cor.append(["Decision", "Correlation setting", "Realized correlation", "Mean ending cash (USD)",
-                    "Std dev (USD)", "10th percentile (USD)", "Shortfall probability"])
+        cor.append(["Decision", "Correlation setting", "Realized correlation", "Mean ending cash" + USD,
+                    "Std dev" + USD, "10th percentile" + USD, SHARE])
         for r in comparison:
             cor.append([r["decision"], r["correlation"], r["realized_correlation"], r["mean"], r["sd"], r["p10"],
-                        r["probability_shortfall"]])
+                        r["share_below_zero"]])
+    if outside:
+        eff = wb.create_sheet("Outside-use effects")
+        eff.append(["Decision", "Scenario", "Added use" + USD, "Mean ending cash" + USD, "10th percentile" + USD,
+                    SHARE, "Average shortfall in trials below zero" + USD])
+        for decision, effects in outside:
+            for e in effects:
+                eff.append([decision.name, e["scenario"], e["added_uses"], e["mean"], e["p10"],
+                            e["share_below_zero"], e["mean_shortfall"]])
+    if uses is not None:
+        notes = wb.create_sheet("Uses not modelled")
+        notes.append(["Cash use", "Treatment", "Amount used to measure effect" + USD, "Amount basis", "Reason",
+                      "Source"])
+        for u in uses:
+            notes.append([u.name, "Outside the base model; effect measured", u.amount, u.amount_basis,
+                          u.why_outside, u.source])
+        for name, status, proof in ls.EXCLUDED:
+            notes.append([name, f"Excluded: {status[0].lower()}{status[1:]}", None, "", proof, ""])
+        for name, note in ls.UNQUANTIFIED:
+            notes.append([name, "Not modelled; no measurable amount", None, "", note, ""])
     money_fmt = '#,##0,,;(#,##0,,);"-"'
     # Non-USD cells by sheet: column numbers (or the correlation row on Scenario) and their format.
-    ratio = {"Results": {10: "0.0%"}, "Correlation": {2: "+0.0;-0.0;0.0", 3: "+0.00;-0.00;0.00", 7: "0.0%"}}
+    ratio = {"Results": {10: "0.0%"}, "Correlation": {2: "+0.0;-0.0;0.0", 3: "+0.00;-0.00;0.00", 7: "0.0%"},
+             "Outside-use effects": {6: "0.0%"}}
     for sheet in wb:
         for row in sheet.iter_rows():
             for cell in row:
@@ -164,31 +224,40 @@ def workbook(inputs, results, trials, seed, comparison=None) -> bytes:
         sheet.freeze_panes = None if sheet.title == "Scenario" else "A2"
         for col in "ABCDEFGHIJK":
             sheet.column_dimensions[col].width = 22
-    wb["Scenario"].column_dimensions["E"].width = 70
     wb["Scenario"].column_dimensions["A"].width = 34
+    wb["Scenario"].column_dimensions["F"].width = 70
+    if uses is not None:
+        for col, width in (("A", 30), ("B", 26), ("D", 50), ("E", 60), ("F", 40)):
+            wb["Uses not modelled"].column_dimensions[col].width = width
     out = BytesIO()
     wb.save(out)
     return out.getvalue()
 
 
 def render(st, snapshot) -> None:
-    """Oracle only: the other reviews have no dated principal calendar, so their obligations side would be invented."""
+    """Oracle only: Lilly and Vistra have no dated principal calendar, so their obligations side would be invented."""
     if snapshot.get("ticker") != "ORCL":
         return
     inputs = ls.oracle_inputs()
-    if inputs is None:
+    uses = ls.oracle_uses_outside_model()
+    if inputs is None or uses is None:
         st.caption("Stress scenario Unavailable: the checked Oracle evidence it reads did not load.")
         return
     with st.expander("Stress scenario (illustrative) · Sep 2026–Aug 2027"):
         st.markdown(f"**{ls.LABEL}**")
-        st.markdown(
-            "**Question:** if operating cash flow varied within the range below, how often would August 31 cash plus that "
-            "cash flow fall short of the cash uses the filings date?\n\n"
-            "**Model, per trial:** ending cash = $36.369B cash + OCF excluding prepayments + prepayments − capex − "
-            "dividends − $7.317B dated debt principal − commercial paper due (+ a revolver draw up to $10B, only where "
-            "the decision assumes it is usable; drawable credit is Unavailable in the filings). OCF, prepayments and "
-            "commercial paper are uncertain (triangular), and OCF and prepayments can be set to move together; "
-            "capex and dividends are decisions.".replace("$", "\\$"))
+        st.markdown(_dollars(
+            "**Question:** if operating cash flow fell anywhere in the assumed range below, in what share of "
+            "simulated trials would August 31 cash plus that cash flow end the twelve months below the cash uses "
+            "the model subtracts?\n\n"
+            f"**Model, per trial:** ending cash = ${inputs.starting_cash / B:.3f}B cash + OCF excluding prepayments "
+            f"+ prepayments − capex − dividends − ${inputs.principal_due / B:.3f}B dated debt principal − commercial "
+            "paper due (+ a revolver draw up to $10B, only where the decision assumes it is usable; drawable credit "
+            "is Unavailable in the filings).\n\n"
+            "**Filing facts:** the starting cash (10-Q balance sheet, August 31, 2026) and the note and term-loan "
+            "principal due in the window (Oracle's August 31 principal calendar). **Assumptions:** the OCF, "
+            "prepayment and commercial-paper triangles and the correlation; their defaults are anchored to checked "
+            "history, which does not set future bounds. **Decisions:** capex, dividends and the revolver."))
+        st.caption(ls.TIMING_LIMIT)
         chosen = assumptions(st, inputs, ls.oracle_decisions())
         if chosen is None:
             return
@@ -202,13 +271,16 @@ def render(st, snapshot) -> None:
         comparison = ls.compare_correlations(edited, shown, trials, seed)
         st.markdown(f"**How correlation changes the spread** · {shown.name}")
         correlation_table(st, comparison, shown.revolver)
+        outside = [(d, ls.outside_use_effects(edited, uses, d, trials, seed)) for d in decisions]
+        st.markdown(f"**Cash uses outside the model** · {shown.name}")
+        outside_uses(st, next(e for d, e in outside if d.name == pick), uses, shown)
         check = ls.simulate(edited, decisions[0], trials * 5, seed + 1)
-        drift = abs(check["probability_shortfall"] - results[0][0]["probability_shortfall"])
+        drift = abs(check["share_below_zero"] - results[0][0]["share_below_zero"])
         st.caption(f"Stability check: rerunning decision A with {trials * 5:,} trials and a new seed changes the "
-                   f"shortfall probability by {drift:.1%}. The logic, boundary, distribution and stability checks "
-                   "from class also run as automated tests.")
-        st.caption("Not modelled: lease payments and interest (already inside OCF), purchase obligations (overlap "
-                   "capex), new borrowing or equity, and the $288B of leases not yet commenced. The funding "
-                   "conclusion above is unchanged: future funding coverage remains Unavailable.".replace("$", "\\$"))
-        st.download_button("Download this scenario (Excel)", workbook(edited, results, trials, seed, comparison),
+                   f"share of trials below zero by {drift:.1%}. The logic, boundary, distribution and stability "
+                   "checks from class also run as automated tests.")
+        st.caption("Also not modelled: new borrowing or equity. The funding conclusion above is unchanged: future "
+                   "funding coverage remains Unavailable.")
+        st.download_button("Download this scenario (Excel)",
+                           workbook(edited, results, trials, seed, comparison, outside, uses),
                            file_name=f"Oracle_Stress_Scenario_seed{seed}.xlsx", mime=XLSX, key="sim_download")
