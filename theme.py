@@ -6,7 +6,8 @@ in Plotly, and .streamlit/config.toml repeats the five base colors (TOML can't i
 Semantic colors are named by MEANING, not by hue. Use them only when the color carries meaning:
     POSITIVE  price up (chart candles)
     NEGATIVE  price down, errors and failures
-    CAUTION   notice cards for incomplete answers and partial results
+    CAUTION   notice cards for incomplete answers and partial results; the frame of the illustrative stress
+              scenario (assumptions, not checked facts)
     INFO      SEC filing markers on the chart, links
     ACCENT    interactive: primary button, selected state
 Everything else (metrics, body text, cards) stays neutral. Margins and P/E get no color:

@@ -21,7 +21,8 @@ USD = " (USD, displayed in millions)"   # stored in dollars, shown in $ millions
 
 
 def _billions(st, label, value, key, help=None):
-    return st.number_input(label, value=round(value / B, 3), step=0.5, format="%.3f", key=key, help=help) * B
+    return st.number_input(label, value=round(value / B, 3), step=0.5, format="%.3f", key=key, help=help,
+                           persist_state="session") * B
 
 
 def assumptions(st, inputs, decisions):
@@ -43,11 +44,11 @@ def assumptions(st, inputs, decisions):
     capex_a = _billions(c6, "Capex, decision A", decisions[0].capex, "sim_capex_a", help="Default: TTM cash capex.")
     capex_b = _billions(c7, "Capex, decision B", decisions[2].capex, "sim_capex_b", help="Default: fiscal 2026 cash capex.")
     rho = st.slider("Correlation, OCF excl. prepayments and prepayments", -0.9, 0.9, inputs.correlation, 0.1,
-                    format="%.1f", key="sim_rho")
+                    format="%.1f", key="sim_rho", persist_state="session")
     st.caption(ls.CORRELATION_BASIS)
     c8, c9 = st.columns(2)
-    trials = c8.selectbox("Trials", [10_000, 50_000], key="sim_trials")
-    seed = int(c9.number_input("Seed", value=ls.DEFAULT_SEED, step=1, key="sim_seed"))
+    trials = c8.selectbox("Trials", [10_000, 50_000], key="sim_trials", persist_state="session")
+    seed = int(c9.number_input("Seed", value=ls.DEFAULT_SEED, step=1, key="sim_seed", persist_state="session"))
     try:
         edited = replace(inputs, ocf_ex_prepayments=ls.Triangular(low, mode, high, t.basis),
                          prepayments=ls.Triangular(0, 0, max(prepay, 0), inputs.prepayments.basis),
@@ -280,17 +281,29 @@ def workbook(inputs, results, trials, seed, comparison=None, outside=None, uses=
     return out.getvalue()
 
 
-def render(st, snapshot) -> None:
+VIEWS = ("Checked review", "Stress scenario (illustrative)")
+
+
+def available(snapshot) -> bool:
     """Oracle only: Lilly and Vistra have no dated principal calendar, so their obligations side would be invented."""
-    if snapshot.get("ticker") != "ORCL":
+    return snapshot.get("ticker") == "ORCL"
+
+
+def render(st, snapshot) -> None:
+    """The scenario as its own view, framed (ui.py, .st-key-scenario_view) so it never reads as checked facts."""
+    from ui import notice
+    if not available(snapshot):
         return
     inputs = ls.oracle_inputs()
     uses = ls.oracle_uses_outside_model()
     if inputs is None or uses is None:
-        st.caption("Stress scenario Unavailable: the checked Oracle evidence it reads did not load.")
+        st.markdown(notice("Stress scenario Unavailable", "The checked Oracle evidence it reads did not load. "
+                           "No assumed figures are substituted.", "caution"), unsafe_allow_html=True)
         return
-    with st.expander("Stress scenario (illustrative) · Sep 2026–Aug 2027"):
-        st.markdown(f"**{ls.LABEL}**")
+    with st.container(key="scenario_view"):
+        st.markdown(notice(ls.LABEL, "Oracle, September 2026 to August 2027. The figures below come from simulated "
+                           "trials, not from checked filing facts. The checked review's funding conclusion is "
+                           "unchanged: future funding coverage remains Unavailable.", "caution"), unsafe_allow_html=True)
         st.markdown(_dollars(
             "**Question:** if operating cash flow fell anywhere in the assumed range below, in what share of "
             "simulated trials would August 31 cash plus that cash flow end the twelve months below the cash uses "
@@ -312,7 +325,8 @@ def render(st, snapshot) -> None:
         results = [(ls.simulate(edited, d, trials, seed), d) for d in decisions]
         st.markdown("**Results by decision**")
         results_table(st, results)
-        pick = st.radio("Show the distribution for", [d.name for d in decisions], horizontal=True, key="sim_pick")
+        pick = st.radio("Show the distribution for", [d.name for d in decisions], horizontal=True, key="sim_pick",
+                        persist_state="session")
         histogram(st, next(r for r, d in results if d.name == pick))
         shown = next(d for d in decisions if d.name == pick)
         monthly = [(d, r, ls.monthly_path(edited, d, trials, seed)) for r, d in results]
@@ -329,8 +343,7 @@ def render(st, snapshot) -> None:
         st.caption(f"Stability check: rerunning decision A with {trials * 5:,} trials and a new seed changes the "
                    f"share of trials below zero by {drift:.1%}. The logic, boundary, distribution and stability "
                    "checks from class also run as automated tests.")
-        st.caption("Also not modelled: new borrowing or equity. The funding conclusion above is unchanged: future "
-                   "funding coverage remains Unavailable.")
+        st.caption("Also not modelled: new borrowing or equity.")
         st.download_button("Download this scenario (Excel)",
                            workbook(edited, results, trials, seed, comparison, outside, uses, monthly),
                            file_name=f"Oracle_Stress_Scenario_seed{seed}.xlsx", mime=XLSX, key="sim_download")

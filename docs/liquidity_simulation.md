@@ -6,7 +6,7 @@ Built October 17, 2026 (Release 2, [`release2_plan.md`](release2_plan.md)); audi
 
 ## Where it is
 
-On the Oracle review, the expander **"Stress scenario (illustrative) · Sep 2026–Aug 2027"** sits after the checked review and before its evidence trail. It appears only for Oracle. Oracle's August 31 principal calendar ([`oracle_principal_calendar.md`](oracle_principal_calendar.md)) dates its note and term-loan principal; Lilly and Vistra don't have a dated principal calendar, so their obligations side would have to be invented.
+On Oracle's page, a **View** switch under the company selector chooses between **Checked review** (the default) and **Stress scenario (illustrative)**. The scenario is its own view, not a section of the review, so assumed figures never sit in the same flow as checked filing facts. It's framed with a dashed caution-colored border and opens with a caution banner saying it isn't a forecast, isn't built from checked facts and doesn't change the funding conclusion. Edits to the assumptions survive switching back to the review, and the view choice survives switching company. The checked review ends with a one-line pointer to the scenario view. (Until October 17 it was a collapsed expander near the bottom of the review, which was easy to miss and looked like the checked sections around it.) It appears only for Oracle. Oracle's August 31 principal calendar ([`oracle_principal_calendar.md`](oracle_principal_calendar.md)) dates its note and term-loan principal; Lilly and Vistra don't have a dated principal calendar, so their obligations side would have to be invented.
 
 ## The model (uncertain inputs → business logic → outputs)
 
