@@ -97,6 +97,32 @@ class FundingConclusions(unittest.TestCase):
             for _,_,sources in r['rows']:
                 for source in sources:self.assertIn(source['accession'],provenance)
 
+    def test_oracle_conclusion_states_the_checked_principal_calendar(self):
+        """The re-reviewed Oracle text quotes the calendar's figures and keeps coverage Unavailable."""
+        import oracle_principal
+        r, cal = fc.load('ORCL'), oracle_principal.load()
+        self.assertEqual(r['reviewed'], '2026-10-17')
+        self.assertIn('oracle_principal.json', r['evidence_files'])
+        near = cal['next_twelve_months']
+        tl = cal['term_loan']
+        installments = sum(s['amount'] for s in tl['installments'] if '2026-08-31' < s['date'] <= near['end'])
+        for amount in (near['principal'], tl['final']['amount']):
+            self.assertIn(f"${amount / 1e9:.3f}B", r['conclusion'] + r['rows'][0][1])
+        self.assertIn(f"${installments / 1e6:,.0f}M of term-loan installments", r['rows'][0][1])
+        self.assertIn('Coverage remains Unavailable', r['conclusion'])
+        self.assertIn('Future funding coverage: Unavailable', r['rows'][3][1])
+        self.assertNotIn('remaining debt principal dates', r['rows'][3][1])
+        self.assertEqual({fc.REVIEWED['LLY'], fc.REVIEWED['VST']}, {'2026-10-16'})
+
+    def test_a_changed_principal_calendar_refuses_the_oracle_conclusion(self):
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+            for name in fc.FILES['ORCL']:
+                shutil.copy(fc.FOLDER / name, folder / name)
+            self.assertIsNotNone(fc.load('ORCL', folder))
+            (folder / 'oracle_principal.json').write_bytes((fc.FOLDER / 'oracle_principal.json').read_bytes() + b' ')
+            self.assertIsNone(fc.load('ORCL', folder))
+
     def test_changed_interpretation_refuses_all_individual_downloads(self):
         with patch.object(fc,'fingerprint',return_value='changed'):
             self.assertIsNone(company_review.saved_workbook(self.snapshots,ticker='LLY'))

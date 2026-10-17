@@ -8,7 +8,7 @@ Live app: https://sec-filing-research-terminal.streamlit.app/ (the `main` branch
 
 ### Debt & Liquidity (the default page)
 
-Pick Eli Lilly (LLY), Oracle (ORCL) or Vistra (VST) and its saved review opens. Each review is frozen at one balance-sheet date (LLY and VST: June 30, 2026; ORCL: August 31, 2026), with balance-sheet facts checked October 14 and the interpretation checked October 16, 2026. Opening a review makes no SEC, Yahoo or Anthropic request and needs no secrets.
+Pick Eli Lilly (LLY), Oracle (ORCL) or Vistra (VST) and its saved review opens. Each review is frozen at one balance-sheet date (LLY and VST: June 30, 2026; ORCL: August 31, 2026), with balance-sheet facts checked October 14 and the interpretation checked October 16, 2026 (Oracle's re-checked October 17 against its principal calendar). Opening a review makes no SEC, Yahoo or Anthropic request and needs no secrets.
 
 - Cash and equivalents (excluding restricted cash), baseline gross debt (borrowing, excluding leases), net debt and current ratio, each traced to the 10-Q fact it came from.
 - Two-date company history compares the prior annual balance sheet with the latest checked date. Fiscal-year and later TTM flows are labeled as overlapping twelve-month windows; unsupported older Vistra borrowing and dependent ratios stay Unavailable. Sources and method: `docs/company_history.md`.

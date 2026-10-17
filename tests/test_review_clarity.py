@@ -24,7 +24,7 @@ class ReviewClarity(unittest.TestCase):
             self.assertTrue(cr.headline(snapshot).startswith('TTM '))
             self.assertIn('Balance-sheet facts checked '+snapshot['checked_as_of'],rendered)
             self.assertNotIn('Saved review, Oct 14',rendered)
-            self.assertIn('Interpretation checked 2026-10-16',rendered)
+            self.assertIn('Interpretation checked '+fc.REVIEWED[snapshot['ticker']],rendered)
             self.assertIn('Funding conclusion for '+snapshot['ticker'],rendered)
 
     def test_oracle_scope_carries_the_verified_index_check(self):

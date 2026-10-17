@@ -75,4 +75,4 @@ FY2028 through Thereafter equal the 10-K's May 31 buckets. Only fiscal 2027 chan
 - Term-loan amounts are calculated, assume no prepayment and move if the termination date is extended.
 - Make-whole redemptions or new issuance after August 31 are outside this review. The saved financing screen through October 15 found no later borrowing (`oracle_revolver_reconciliation.md`).
 - Interest payments are excluded.
-- **Not funding coverage:** cash, OCF, prepayments, equity proceeds and the revolver are not matched to these dates here. The funding conclusion and its "remaining principal dates" unknown are interpretation-gated and haven't been re-reviewed in this change.
+- **Not funding coverage:** cash, OCF, prepayments, equity proceeds and the revolver are not matched to these dates here. The Oracle funding conclusion was re-reviewed on October 17 against this calendar: it now states the $7.317B due over the next twelve months, and coverage stays Unavailable (see `funding_conclusions.md`).

@@ -123,7 +123,7 @@ The filings don't support:
 Added after this case study, in [`oracle_principal_calendar.md`](oracle_principal_calendar.md). The 10-K tags every borrowing series with its principal and exact maturity date. Carried to August 31 under stated rules, it dates $125.567B of senior-note and term-loan principal. $7.317B of that falls due from September 2026 through August 2027: $2.250B of notes on April 1, 2027, $563M of term-loan installments, and the term loan's $4.504B remainder on August 16, 2027 (extendable at Oracle's option).
 - **Commercial paper** remains Unavailable: about $287M–$387M is implied by rounded figures, with no dates.
 - **The $7.625B of current borrowing** is carrying value. It is consistent with $7.317B of principal plus commercial paper, less unamortized costs.
-- **The funding conclusion below is unchanged.** Dating the principal doesn't establish that the dated cash, OCF, prepayments, equity proceeds or the revolver will fund it. The funding conclusion's own wording ("Needed: remaining debt principal dates") hasn't been re-reviewed yet.
+- **The app's funding conclusion was re-reviewed on October 17** against the calendar (`funding_conclusions.py`). It now states the $7.317B due over the next twelve months and keeps coverage Unavailable until drawable credit, commercial paper and future cash generation are established. The case study's own supported conclusion below is kept as written on October 17, before the calendar.
 
 ## Decisive unknowns and the evidence that would resolve them
 

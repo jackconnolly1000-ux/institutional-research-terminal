@@ -1,6 +1,7 @@
 # Dated funding conclusions
 
-Interpretation checked October 16, 2026 against the existing saved evidence. No new filings,
+Interpretation checked October 16, 2026 against the existing saved evidence; Oracle re-checked October 17, 2026
+against its August 31 principal calendar (`oracle_principal.json`, now bound evidence). No new filings,
 forecasts, ratings or available-credit estimates are introduced. The June 30 Lilly/Vistra and
 August 31 Oracle balance sheets remain historical. Later events stay on their own dates.
 
@@ -16,7 +17,7 @@ for the individual funding reviews.
 | Company | Funding implication | Evidence needed to resolve future coverage |
 | --- | --- | --- |
 | Lilly | Acquisition and manufacturing spending compete with repayment resources. H1 cash generation after cash PP&E does not establish a surplus after acquisitions, payouts and future payments. | Remaining principal calendar, post-August facility renewal and draw conditions, acquisition/manufacturing payment timing and overlap. |
-| Oracle | Equity proceeds and specified customer prepayments contributed to a quarter in which cash capex exceeded reported OCF. August cash is not a forecast of future payment resources. | Remaining principal dates, current drawable revolver, future cash generation, timing of uncommenced leases and overlap among commitments. |
+| Oracle | Equity proceeds and specified customer prepayments contributed to a quarter in which cash capex exceeded reported OCF. At August 31, $7.317B of note and term-loan principal was due over the next twelve months; August cash is not reserved for it or a forecast of future payment resources. | Current drawable revolver, commercial paper's balance and dates, future cash generation, timing of uncommenced leases and overlap among commitments. Note and term-loan principal dates are established. |
 | Vistra | Dated late-2026 payments require attention to facility conditions and where cash sits. June reported liquidity is not current Parent-accessible cash. | Current borrowing base and draw conditions, Parent/subsidiary transfer constraints, acquisition/capital-call timing and completed redemption status. |
 
 Each source claim links to the checked filing, location and accession in the app and workbook
