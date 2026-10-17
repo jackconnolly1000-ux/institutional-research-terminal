@@ -52,7 +52,7 @@ The 10-K Note 6, p. 85 reports a **10B** five-year unsecured revolver entered Ma
 
 The reported covenant is **Consolidated EBITDA / Consolidated Net Interest Expense ≥ 3.0x**, using the agreement's definitions. Oracle reports compliance at May 31. The review does not calculate current compliance or headroom and does not substitute operating-income interest coverage for that contractual measure. Underlying credit-agreement exhibits have not been fully reviewed for this feature.
 
-Open issues: current maturity schedule, current revolver availability, commercial-paper composition/presentation, capex financing balance, the $3.3B lessor guarantee's later status, complete covenants and financing terms. Interest coverage is still not built.
+Open issues: commercial paper's August balance and dates (note and term-loan principal is dated in [`oracle_principal_calendar.md`](oracle_principal_calendar.md), Oct 17, 2026), current revolver availability, commercial-paper composition/presentation, capex financing balance, the $3.3B lessor guarantee's later status, complete covenants and financing terms. Interest coverage is still not built.
 
 ## Reproduction and export
 

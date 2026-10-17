@@ -213,6 +213,10 @@ def workbook_bytes(review: dict) -> bytes | None:
         import funding_conclusions as funding
         if metadata.get("funding_sha256") != funding.fingerprint() or funding.load("ORCL") is None:
             return None
+        import oracle_principal
+        # Payment dates carries the August 31 principal calendar; a changed calendar needs a rebuilt block.
+        if metadata.get("principal_sha256") != oracle_principal.fingerprint() or oracle_principal.load() is None:
+            return None
         if (metadata["review_sha256"] != hashlib.sha256(SAMPLE.read_bytes()).hexdigest()
                 or metadata["workbook_sha256"] != hashlib.sha256(content).hexdigest()
                 or metadata["financing_sha256"] != hashlib.sha256(of.SAMPLE.read_bytes()).hexdigest()

@@ -17,7 +17,7 @@ Pick Eli Lilly (LLY), Oracle (ORCL) or Vistra (VST) and its saved review opens. 
 - TTM operating cash flow, capital spending, free cash flow, and OCF/debt and FCF/debt as historical ratios, not repayment forecasts.
 - Two common chart questions: what remained after capital spending, and how borrowing/cash changed across the checked dates. Vistra compares cash only because its older borrowing is unsupported. Workbook charts link to the same calculations and dates; see `docs/core_charts.md`.
 - A dated funding conclusion, historical interest coverage with each company's denominator limits, selected obligations outside borrowing, and what remains unresolved.
-- Company-specific reviews: Oracle's May 31 maturity schedule, cash reconciliation, repayment funding and revolver audit; Vistra's repayment review and checked financing filings after June 30; Lilly's first-half cash review and May debt terms.
+- Company-specific reviews: Oracle's August 31 principal calendar by instrument (commercial paper Unavailable), May 31 maturity schedule, cash reconciliation, repayment funding and revolver audit; Vistra's repayment review and checked financing filings after June 30; Lilly's first-half cash review and May debt terms.
 - One primary Excel workbook per company, with a contents guide, formulas, source facts and an About sheet, plus an optional combined summary. The company files contain the full review, history and charts; the combined file retains its original core metric summary and source rows. URLs in Excel remain full, copyable text. See `docs/excel_parity.md`. Each download is a saved file checked against its manifest's fingerprints; if a source changed, the download says Unavailable instead.
 
 ### General filing research — experimental (secondary page)
@@ -50,6 +50,11 @@ The original tool, reached from the link under the page subtitle. For up to five
 
 ## Known limits
 
+- Oracle's August 31, 2026 principal calendar (`oracle_principal.py`, checked Oct 17) dates $125.567B of
+  senior-note and term-loan principal from the 10-K's tagged instruments: $7.317B falls due Sep 2026–Aug 2027.
+  Commercial paper's August balance and dates are Unavailable; term-loan installments are calculated from
+  its stated terms; the grouped quarter repayment line is checked, not subtracted. It is not funding coverage.
+  Excel: Payment dates, row 35 onward. Method and checks: `docs/oracle_principal_calendar.md`.
 - The October 16 reader audit clarifies TTM versus half-year cash flows, separates balance-sheet
   check dates from later interpretation dates, and reconciles app/Excel filing-review scope.
   Oracle's saved SEC financing-candidate index through October 15 is now bound to its revolver
@@ -88,6 +93,7 @@ The original tool, reached from the link under the page subtitle. For up to five
   are not added again. Conditional revolver funding stops at the original March 2031 expiry.
   Future coverage remains Unavailable: dated funding allocations, future OCF, drawable credit,
   remaining August debt principal/interest dates and several obligation overlaps are unresolved.
+  (Since Oct 17, note and term-loan principal is dated; commercial paper and interest remain open.)
   The old May principal schedule is preserved as historical evidence, without a roll-forward.
   The Oracle workbook manifest checks the quarterly liquidity JSON, annual financing JSON and
   saved revolver audit. The builder invokes the pure Python repayment model using `CODEX_PRIMARY_RUNTIME_PYTHON`;

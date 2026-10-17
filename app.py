@@ -34,6 +34,7 @@ import lly_financing
 import lly_interest
 import lly_interest_view
 import lly_liquidity_view
+import oracle_principal
 import oracle_repayment
 import oracle_revolver
 import vistra_liquidity
@@ -54,6 +55,7 @@ reload(oracle_liquidity)
 reload(oracle_interest)
 reload(oracle_interest_view)
 reload(oracle_revolver)
+reload(oracle_principal)
 reload(oracle_repayment)
 reload(oracle_liquidity_view)
 reload(reviewed_financing)
