@@ -91,6 +91,10 @@ CSS = """<style>
 .lr-event {display:grid;grid-template-columns:145px minmax(0,1fr);gap:20px;border-top:1px solid var(--border);padding:14px 0;}
 .lr-event p {margin:0 0 7px;}
 .lr-review a {color:var(--link);}
+.lr-history-scroll {overflow-x:auto;}
+.lr-history table {width:100%;border-collapse:collapse;font-size:.85rem;}
+.lr-history th,.lr-history td {padding:10px 8px;border-bottom:1px solid var(--border);text-align:right;}
+.lr-history th:first-child,.lr-history td:first-child {text-align:left;}
 .lr-review + .irt-evidence {max-width:1180px;margin:12px auto;}
 .lr-funding {padding:22px 0;border-bottom:1px solid var(--border);}
 .lr-funding-row {display:grid;grid-template-columns:165px minmax(0,1fr);gap:20px;padding:12px 0;border-top:1px solid var(--border);}
@@ -281,6 +285,8 @@ def render(snapshot):
     output += oracle_interest_html(snapshot, money)
     from vistra_interest_view import render as vistra_interest_html
     output += vistra_interest_html(snapshot, money)
+    import company_history
+    output += company_history.render(snapshot, money)
     output += maturity_html(snapshot)
     output += '<section class="lr-obligations"><h3>What sits outside baseline borrowing?</h3><p class="lr-meta">Selected disclosures, each shown separately. Commitments are not all payable now and are not added to debt or to each other.</p>'
     for item in NOTES[snapshot["ticker"]]:
@@ -576,6 +582,9 @@ def saved_workbook(snapshots, folder=None, ticker=None):
         if snapshots != saved["snapshots"]:
             return None
         if ticker == "LLY":
+            import company_history
+            if manifest.get("history_sha256") != company_history.fingerprint():
+                return None
             import ratio_review
             if manifest.get("ratios_sha256") != ratio_review.fingerprint():
                 return None

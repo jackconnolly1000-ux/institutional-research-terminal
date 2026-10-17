@@ -34,6 +34,7 @@ Stock Project/
 │   ├── reviewed_financing.py  ten accession-specific Vistra financing filing checks; unknown filings stay Not checked
 │   ├── cash_generation.py  exact-duration OCF and capital spending for six checked pilot filings; includes the LLY-specific capex tag
 │   ├── borrowing_leases.py  checked borrowing/lease presentation shared by the app and individual workbooks; dated lease facts in samples/borrowing_leases.json
+│   ├── company_history.py  checked two-date company history; annual facts in samples/company_history.json
 │   ├── ratio_review.py  reconcile saved ratio values, input provenance, exact TTM periods and company-specific bases for the app and individual workbooks
 │   ├── company_review.py  the default page: company selector, saved review (cash-flow chart, borrowing breakdown, selected obligations, unresolved questions) and checked workbook downloads
 │   ├── oracle_revolver.py  exact saved-source revolver audit: dated commitment/advances, historical undrawn arithmetic, draw conditions and unresolved availability
@@ -216,7 +217,7 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 
 Steps 1–2 are merged as PR #42 (`7e984f1`); step 3 is merged as PR #43 (`0f7df28`, 386 unit tests). The app and individual workbooks separate borrowing components, dated operating/finance lease liabilities and uncommenced leases. June LLY/VST lease balances remain Unavailable; December balances retain their own dates. See `docs/borrowing_lease_presentation.md`.
 
-Step 4 is implemented on branch `ratio-reconciliation`, pending PR review: current ratio, net debt, OCF/debt, FCF/debt and historical interest coverage reconcile to the checked inputs. Oracle and Vistra now include the core ratio table in their individual workbooks, matching Lilly and the app. `ratio_review.py` checks exact periods, units, filing versions, derived values and input provenance. No financial input, funding conclusion, catalyst or interest denominator changes. See `docs/ratio_reconciliation.md`. Steps 5–8 have not started.
+Step 4 is merged as PR #44 (`f0f246f`): current ratio, net debt, OCF/debt, FCF/debt and historical interest coverage reconcile to the checked inputs. Oracle and Vistra now include the core ratio table in their individual workbooks, matching Lilly and the app. `ratio_review.py` checks exact periods, units, filing versions, derived values and input provenance. No financial input, funding conclusion, catalyst or interest denominator changes. See `docs/ratio_reconciliation.md`. Step 5 adds two-date history on `two-date-history`; annual and later TTM flows are labeled as overlapping twelve-month windows. Older Vistra debt and dependent ratios stay Unavailable. Steps 6–8 remain next. See `docs/company_history.md`.
 
 **Outside the Release 1 order:** refresh automation (known problem 1), new financial metrics, additional companies, the general research problems 3–9, and course features. Steps 3–8 present and reconcile the existing evidence; they don't resolve the Unavailable items in problem 2 unless a step says so.
 
