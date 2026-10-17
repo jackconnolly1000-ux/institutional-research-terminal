@@ -1,4 +1,6 @@
 """A dated Oracle funding explanation; no ratings or inferred repayment forecast."""
+from datetime import date
+
 from ui import esc
 import oracle_liquidity as ol
 import oracle_financing as of
@@ -6,12 +8,19 @@ import oracle_financing as of
 CSS = """
 .ol-bridge {margin:22px 0 12px;}
 .ol-step,.ol-axis {display:grid;grid-template-columns:220px minmax(80px,1fr) 100px;gap:16px;align-items:center;margin:16px 0;font-size:.85rem;}
+/* Rows touch and each track fills its row, so the zero line runs unbroken from the first bar to the last */
+.ol-step {margin:0;min-height:40px;}
 .ol-axis {font-size:.75rem;color:var(--text-muted);margin:0 0 12px;}
 .ol-axis-scale {display:flex;justify-content:space-between;}
-.ol-track {display:grid;grid-template-columns:1fr 1fr;height:20px;}
+.ol-track {display:grid;grid-template-columns:1fr 1fr;align-self:stretch;}
 .ol-side {display:flex;align-items:center;min-width:0;}
-.ol-side:first-child {justify-content:flex-end;border-right:1px solid var(--border-strong);}
-.ol-fill {display:block;height:14px;background:var(--text-muted);min-width:1px;}
+.ol-side:first-child {justify-content:flex-end;border-right:1px solid var(--text-muted);}
+.ol-fill {display:block;height:14px;background:var(--flow-out);min-width:1px;}
+.ol-fill.in {background:var(--flow-in);}
+.ol-side:first-child .ol-fill {border-radius:4px 0 0 4px;}
+.ol-side:last-child .ol-fill {border-radius:0 4px 4px 0;}
+.ol-key {display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px 0 0;vertical-align:-1px;}
+.ol-key.in {background:var(--flow-in);} .ol-key.out {background:var(--flow-out);}
 .ol-step strong {text-align:right;white-space:nowrap;font-weight:600;}
 .ol-balances {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--border);margin:18px 0;}
 .ol-balances > div {padding:14px 16px;}
@@ -32,7 +41,7 @@ CSS = """
 .ol-obligation {display:flex;justify-content:space-between;gap:16px;margin:14px 0 4px;}
 .ol-obligation strong {white-space:nowrap;}
 @media(max-width:760px) {.ol-resource {display:flex;flex-wrap:wrap;gap:8px 12px;} .ol-resource > div {flex:1;min-width:0;} .ol-resource p {flex-basis:100%;width:100%;} .ol-repayments {overflow-wrap:anywhere;}}
-@media(max-width:760px) {.ol-step {display:flex;flex-wrap:wrap;justify-content:space-between;gap:7px 12px;font-size:.82rem;margin:18px 0;} .ol-step > span {flex:1;max-width:calc(100% - 100px);} .ol-step strong {order:1;width:90px;} .ol-step .ol-track {order:2;flex-basis:100%;width:100%;} .ol-axis {display:block;} .ol-axis > span {display:none;} .ol-balances {grid-template-columns:1fr;} .ol-balances > div {display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;} .ol-balances > div + div {border-left:0;border-top:1px solid var(--border);} .ol-balances strong {font-size:1.15rem;white-space:nowrap;} .ol-table th,.ol-table td {padding:9px 5px;font-size:.72rem;}}
+@media(max-width:760px) {.ol-step {display:flex;flex-wrap:wrap;justify-content:space-between;gap:7px 12px;font-size:.82rem;margin:18px 0;} .ol-step > span {flex:1;max-width:calc(100% - 100px);} .ol-step strong {order:1;width:90px;} .ol-step .ol-track {order:2;flex-basis:100%;width:100%;min-height:24px;} .ol-axis {display:block;} .ol-axis > span {display:none;} .ol-balances {grid-template-columns:1fr;} .ol-balances > div {display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;} .ol-balances > div + div {border-left:0;border-top:1px solid var(--border);} .ol-balances strong {font-size:1.15rem;white-space:nowrap;} .ol-table th,.ol-table td {padding:9px 5px;font-size:.72rem;}}
 """
 
 
@@ -68,9 +77,10 @@ def render(snapshot, money):
     maximum = 30_000_000_000
     out += ('<div class="ol-bridge" role="figure" aria-label="Quarter cash contributions: uses left, sources right">'
             '<div class="ol-axis"><span>Quarter cash contribution</span><div class="ol-axis-scale">'
-            '<span>−$30B · cash used</span><span>0</span><span>cash added · +$30B</span></div><span>USD</span></div>')
+            '<span><span class="ol-key out" aria-hidden="true"></span>−$30B · cash used</span><span>0</span>'
+            '<span><span class="ol-key in" aria-hidden="true"></span>cash added · +$30B</span></div><span>USD</span></div>')
     for label, value in steps:
-        bar = f'<span class="ol-fill" style="width:{abs(value)/maximum*100:.4f}%"></span>'
+        bar = f'<span class="ol-fill{" in" if value > 0 else ""}" style="width:{abs(value)/maximum*100:.4f}%"></span>'
         shown = ("+" if value > 0 else "") + money(value, 3)
         out += (f'<div class="ol-step"><span>{esc(label)}</span><div class="ol-track" aria-hidden="true">'
                 f'<div class="ol-side">{bar if value < 0 else ""}</div>'
@@ -204,18 +214,33 @@ def repayment_html(snapshot, money):
                 f'<div class="lr-meta">{esc(dates)}</div></div><strong>{esc(money(resource["value"],3))}</strong>'
                 f'<p class="lr-meta">{esc(resource["detail"])} '
                 f'<a href="{esc(resource["source_url"])}" target="_blank" rel="noopener noreferrer">Source</a></p></div>')
-    out += '<div class="ol-repayments">'
+    # One table of what IS dated, and one statement of why coverage isn't: the same "Unavailable" repeated per
+    # period read as missing data rather than as a single, explained limit of the evidence.
+    import oracle_principal
+    calendar = oracle_principal.load()
+    out += ('<h4>What falls due, by fiscal period</h4>'
+            '<p><strong>Funding coverage: Unavailable for every period.</strong> The filings date these payments '
+            'but not the money available on those dates: drawable revolver credit, commercial paper and future cash '
+            'generation are not established, and August cash is one shared pool, not reserved for any payment.</p>')
+    out += ('<div class="ol-table-wrap"><table class="ol-table"><thead><tr><th>Fiscal period</th><th>Debt principal</th>'
+            '<th>Operating leases</th><th>Finance leases</th><th>Purchase and other</th></tr></thead><tbody>')
     for index, (label, start, end) in enumerate(ol.DUE):
-        rows = review["obligations"][index*3:index*3+3]
-        out += f'<details{" open" if index == 0 else ""}><summary>{esc(label)} · funding coverage Unavailable</summary>'
-        out += f'<p class="lr-meta">{esc(start)} to {esc(end or "final date Unavailable")}. Lease payments include interest.</p>'
-        for row in rows:
-            out += (f'<div class="ol-obligation"><span>{esc(row["label"])}</span>'
-                    f'<strong>{esc(money(row["value"],3))}</strong></div>'
-                    f'<p class="lr-meta">{esc(row["competing_uses"])}</p>')
-        out += (f'<p><strong>Potential funding:</strong> {esc(rows[0]["candidate_resources"])}</p>'
-                f'<p class="lr-meta"><strong>Coverage Unavailable:</strong> {esc(rows[0]["coverage_detail"])}</p></details>')
-    out += '</div><p>' + esc(review["conclusion"]) + '</p>'
+        rows = {r["label"]: r["value"] for r in review["obligations"][index*3:index*3+3]}
+        principal = (money(oracle_principal.principal_between(calendar, start, end), 3) if calendar else "Unavailable")
+        nice = lambda iso: date.fromisoformat(iso).strftime("%b %Y")
+        period = f'{nice(start)}–{nice(end)}' if end else f'From {nice(start)}'
+        out += (f'<tr><td>{esc(label)}<div class="lr-meta">{esc(period)}</div></td><td>{esc(principal)}</td>'
+                + "".join(f'<td>{esc(money(rows[k], 3))}</td>' for k in
+                          ("Operating leases", "Finance leases", "Purchase and other obligations")) + '</tr>')
+    out += '</tbody></table></div>'
+    out += ('<p class="lr-meta">Each column keeps its own basis, so no row or column total is shown. Debt principal '
+            'excludes interest and commercial paper (Unavailable) and comes from the August 31 principal calendar. '
+            'Lease amounts are undiscounted payments including interest; payments already inside OCF are not to be '
+            'deducted twice. Purchase obligations may overlap capex, unpaid capex and leases. Thereafter combines '
+            'several years with no final payment date.</p>'
+            '<p class="lr-meta"><strong>Possible sources, none allocated:</strong> the August cash pool and, '
+            'conditionally, the $10B revolver until its original March 6, 2031 expiry, which falls within FY2031. '
+            'Later periods depend on future cash or new financing, which are Unavailable.</p>')
     out += '<details><summary>Undated obligations and missing debt dates</summary>'
     for gap in review["gaps"]:
         out += f'<p><strong>{esc(gap["label"])}</strong>'

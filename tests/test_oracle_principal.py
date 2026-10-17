@@ -93,6 +93,12 @@ class Calendar(unittest.TestCase):
                          (5_418_875_000, 5_137_375_000, 5_067 * M))
         self.assertEqual(sum(i["amount"] for i in s["installments"]) + s["final"]["amount"], 5_630 * M)
 
+    def test_principal_by_period_matches_the_calendar(self):
+        import oracle_liquidity as ol
+        parts = [op.principal_between(self.r, start, end) for _, start, end in ol.DUE]
+        self.assertEqual(parts, [2_672_250_000, 10_144_750_000, 5_500 * M, 7_250 * M, 9_750 * M, 1_250 * M, 89_000 * M])
+        self.assertEqual(sum(parts), self.r["reconciliation"]["known_principal_excluding_cp"])
+
     def test_fiscal_year_boundaries(self):
         self.assertEqual(op.bucket_of("2026-05-31"), "Fiscal 2026")
         self.assertEqual(op.bucket_of("2026-06-01"), "Fiscal 2027")

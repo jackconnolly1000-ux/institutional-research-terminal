@@ -381,6 +381,16 @@ def _rate(document: Path, member: str, axis: str):
     return None
 
 
+def principal_between(review: dict, start: str, end: str | None) -> int:
+    """Dated note and term-loan principal due from start through end (None = no end), after August 31.
+    Commercial paper is excluded: it has no dates."""
+    notes = sum(r["principal_aug_31"] for r in review["remaining"]
+                if r["member"] not in (TERM_LOAN, COMMERCIAL_PAPER) and start <= r["maturity"] <= (end or "9999-12-31"))
+    steps = review["term_loan"]["installments"] + [review["term_loan"]["final"]]
+    loan = sum(s["amount"] for s in steps if ANCHOR < s["date"] and start <= s["date"] <= (end or "9999-12-31"))
+    return notes + loan
+
+
 def fingerprint() -> str:
     return hashlib.sha256(SAMPLE.read_bytes()).hexdigest()
 
