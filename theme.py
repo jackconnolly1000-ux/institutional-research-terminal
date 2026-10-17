@@ -44,6 +44,13 @@ ACCENT = "#2962ff"        # white text on it: 4.9:1
 SERIES_CASH = "#3987e5"        # cash and cash equivalents
 SERIES_BORROWING = "#d95926"   # baseline borrowing (carrying value, excludes leases)
 
+# Direction in cash-flow charts (bars left and right of zero). Adding cash reuses the cash identity blue;
+# using cash is neutral gray, not red: capex, repayments and dividends aren't losses, red/green is the pair
+# color-blind readers confuse most, and green/red already mean price up/down here. Position and the signed value
+# carry direction too, so color is a reinforcement, never the only cue.
+FLOW_IN = SERIES_CASH          # adds to cash
+FLOW_OUT = TEXT_MUTED          # uses cash (5.5:1 on SURFACE)
+
 # Chart series that carry no meaning get hues outside the semantic set (no green/red/amber/blue)
 SERIES_SMA_FAST = "#a78bfa"   # 50-day moving average
 SERIES_SMA_SLOW = "#b2b5be"   # 200-day moving average (drawn dotted, so it differs by more than color)

@@ -68,12 +68,16 @@ CSS = """<style>
 .lr-grid {display:grid;grid-template-columns:1.15fr 1fr;gap:30px;margin:24px 0;}
 .lr-section {min-width:0;}
 .lr-chart {margin:18px 0;}
-.lr-bar-row {display:grid;grid-template-columns:150px minmax(40px,1fr) 85px;gap:12px;align-items:center;margin:12px 0;font-size:.8rem;}
+/* Rows touch and each track fills its row, so the zero line is continuous */
+.lr-bar-row {display:grid;grid-template-columns:150px minmax(40px,1fr) 85px;gap:12px;align-items:center;margin:0;min-height:38px;font-size:.8rem;}
 .lr-bar-value {text-align:right;color:var(--text-strong);white-space:nowrap;}
-.lr-track {display:grid;grid-template-columns:1fr 1fr;height:19px;}
+.lr-track {display:grid;grid-template-columns:1fr 1fr;align-self:stretch;}
 .lr-half {display:flex;align-items:center;min-width:0;}
-.lr-half:first-child {justify-content:flex-end;border-right:1px solid var(--border-strong);}
-.lr-bar {display:block;height:12px;background:var(--text-muted);min-width:1px;}
+.lr-half:first-child {justify-content:flex-end;border-right:1px solid var(--text-muted);}
+.lr-bar {display:block;height:12px;background:var(--flow-out);min-width:1px;}
+.lr-bar.in {background:var(--flow-in);}
+.lr-half:first-child .lr-bar {border-radius:4px 0 0 4px;}
+.lr-half:last-child .lr-bar {border-radius:0 4px 4px 0;}
 .lr-row {display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid var(--border);padding:10px 0;font-size:.85rem;}
 .lr-row span {max-width:75%;}
 .lr-row strong {white-space:nowrap;font-weight:600;}

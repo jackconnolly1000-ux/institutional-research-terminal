@@ -47,8 +47,9 @@ assert all(value in text for value in ("What funded Oracle’s cash balance?", "
 assert all(value in text for value in ("How does Vistra fund its repayments?", "$650M", "$959M",
                                       "$6.295B", "Pulaski", "Current drawable amounts are Unavailable"))
 assert all(value in text for value in ("Which resources could fund the dated payments?",
-                                      "expires within this bucket", "expires before this bucket",
-                                      "funding coverage Unavailable"))
+                                      "Funding coverage: Unavailable for every period", "What falls due, by fiscal period",
+                                      "within FY2031", "$1.250B", "$89.000B"))
+assert "funding coverage Unavailable</summary>" not in text   # one explained limit, not seven repeated rows
 assert all(value in text for value in ("May 31 undrawn commitment is $10B", "not a $12B commitment",
                                       "not assumed zero", "Later saved filings and audit scope"))
 assert all(value in text for value in ("What funded Lilly’s cash balance?", "$10.764B", "$12.602B", "August 2026", "Indiana manufacturing", "not principal repayment amounts"))

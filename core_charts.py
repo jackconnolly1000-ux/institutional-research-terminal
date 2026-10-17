@@ -29,10 +29,11 @@ def build(snapshot):
 def _bars(rows, money):
     from ui import esc
     maximum = max((abs(v) for _, v in rows if v is not None), default=1) or 1
-    out = '<p class="lr-meta">Uses left of zero · 0 · positive values right of zero</p><div class="lr-chart">'
+    out = ('<p class="lr-meta"><span class="ol-key out" aria-hidden="true"></span>Uses cash, left of zero · '
+           '<span class="ol-key in" aria-hidden="true"></span>adds cash or a positive result, right of zero</p><div class="lr-chart">')
     for name, value in rows:
         width = abs(value) / maximum * 100 if value is not None else 0
-        bar = f'<span class="lr-bar" style="width:{width:.4f}%"></span>' if value else ''
+        bar = f'<span class="lr-bar{" in" if value and value > 0 else ""}" style="width:{width:.4f}%"></span>' if value else ''
         out += (f'<div class="lr-bar-row"><span>{esc(name)}</span><div class="lr-track" aria-hidden="true">'
                 f'<div class="lr-half">{bar if value is not None and value < 0 else ""}</div>'
                 f'<div class="lr-half">{bar if value is not None and value > 0 else ""}</div></div>'

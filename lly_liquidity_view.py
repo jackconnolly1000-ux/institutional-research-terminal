@@ -32,9 +32,10 @@ def render(snapshot, money):
                  ("Dividends and buybacks", -c["payouts"]), ("Net borrowing", c["net_borrowing"]), ("Other cash flows, net", c["other"])]
         out += ('<div class="ol-bridge" role="figure" aria-label="Lilly half-year cash changes, uses left and sources right">'
                 '<div class="ol-axis"><span>January–June 2026</span><div class="ol-axis-scale">'
-                '<span>−$20B · used</span><span>0</span><span>added · +$20B</span></div><span>USD</span></div>')
+                '<span><span class="ol-key out" aria-hidden="true"></span>−$20B · used</span><span>0</span>'
+                '<span><span class="ol-key in" aria-hidden="true"></span>added · +$20B</span></div><span>USD</span></div>')
         for label, value in steps:
-            bar = f'<span class="ol-fill" style="width:{abs(value)/20_000_000_000*100:.4f}%"></span>'
+            bar = f'<span class="ol-fill{" in" if value > 0 else ""}" style="width:{abs(value)/20_000_000_000*100:.4f}%"></span>'
             out += (f'<div class="ol-step"><span>{esc(label)}</span><div class="ol-track" aria-hidden="true">'
                     f'<div class="ol-side">{bar if value < 0 else ""}</div><div class="ol-side">{bar if value > 0 else ""}</div>'
                     f'</div><strong>{"+" if value > 0 else ""}{amount(value)}</strong></div>')
