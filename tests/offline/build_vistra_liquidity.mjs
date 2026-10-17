@@ -1,4 +1,5 @@
 import {addBorrowingLeaseSheet,finishBorrowingLeaseSheet} from './borrowing_lease_sheet.mjs';
+import {addRatioSheet,finishRatioSheet} from './ratio_sheet.mjs';
 import {documentationLinks} from './workbook_style.mjs';
 import {addFundingSheet,finishFundingSheet} from './funding_sheet.mjs';
 // Build with the Codex spreadsheet runtime in a temporary directory; the app serves saved bytes.
@@ -21,6 +22,7 @@ if(r.status!=='Checked'||!r.capacity||!r.debt||!r.annual) throw new Error('Sourc
 const wb=Workbook.create();
 const funding=addFundingSheet(wb,root,'VST');
 const borrowingLeases=addBorrowingLeaseSheet(wb,root,'VST');
+const ratios=addRatioSheet(wb,root,'VST');
 const main=wb.worksheets.add('Cash review'), due=wb.worksheets.add('Payment dates');
 const capacity=wb.worksheets.add('Financing capacity'), data=wb.worksheets.add('Data'), about=wb.worksheets.add('About');
 const USD='#,##0,,;(#,##0,,);"-"', diff='#,##0.00,,;(#,##0.00,,);0.00';
@@ -314,6 +316,7 @@ console.log((await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#N
 documentationLinks(about);
 const fundingManifest=await finishFundingSheet(wb,root,'VST',funding);
 Object.assign(fundingManifest,await finishBorrowingLeaseSheet(wb,root,'VST',borrowingLeases));
+Object.assign(fundingManifest,await finishRatioSheet(wb,root,'VST',ratios));
 const output=path.join(root,'samples/vistra_liquidity.xlsx');await(await SpreadsheetFile.exportXlsx(wb)).save(output);
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
 await fs.writeFile(output.replace('.xlsx','.manifest.json'),JSON.stringify({...fundingManifest,review_sha256:digest(bytes),interest_sha256:digest(interestBytes),workbook_sha256:digest(await fs.readFile(output))},null,2)+'\n');

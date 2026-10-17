@@ -162,7 +162,7 @@ class VistraInterest(unittest.TestCase):
         from openpyxl import load_workbook
         b=vl.workbook_bytes(json.loads(vl.SAMPLE.read_text()));self.assertIsNotNone(b)
         v,f=load_workbook(BytesIO(b),data_only=True),load_workbook(BytesIO(b),data_only=False)
-        self.assertEqual(v.sheetnames,['Funding conclusion','Borrowing and leases','Cash review','Payment dates','Financing capacity','Data','About'])
+        self.assertEqual(v.sheetnames,['Funding conclusion','Borrowing and leases','Debt and liquidity','Cash review','Payment dates','Financing capacity','Data','About'])
         for cell,value in {'B68':3563*M,'B69':1117*M,'B70':-14*M,'B71':45*M,'B72':35*M,'B73':-151*M,'B74':100*M,'B75':1132*M,'B76':1132*M,'B77':0,'B79':3563/1117,'D91':0}.items():
             self.assertAlmostEqual(v['Cash review'][cell].value,value)
             self.assertTrue(f['Cash review'][cell].value.startswith('='))

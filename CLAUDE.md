@@ -34,6 +34,7 @@ Stock Project/
 │   ├── reviewed_financing.py  ten accession-specific Vistra financing filing checks; unknown filings stay Not checked
 │   ├── cash_generation.py  exact-duration OCF and capital spending for six checked pilot filings; includes the LLY-specific capex tag
 │   ├── borrowing_leases.py  checked borrowing/lease presentation shared by the app and individual workbooks; dated lease facts in samples/borrowing_leases.json
+│   ├── ratio_review.py  reconcile saved ratio values, input provenance, exact TTM periods and company-specific bases for the app and individual workbooks
 │   ├── company_review.py  the default page: company selector, saved review (cash-flow chart, borrowing breakdown, selected obligations, unresolved questions) and checked workbook downloads
 │   ├── oracle_revolver.py  exact saved-source revolver audit: dated commitment/advances, historical undrawn arithmetic, draw conditions and unresolved availability
 │   ├── liquidity_pilot.py  frozen LLY/ORCL/VST company reviews, same-filing net debt, flow/debt ratios and formula-based Excel export; samples/liquidity_pilots.json is rebuilt by tests/offline/build_liquidity_pilot.py
@@ -93,7 +94,7 @@ PowerShell's `$env:` settings last for that terminal session, so stop the app an
 
 ## What the app does today
 
-**On `main` and live (checked Oct 16, 2026, merge `7e984f1`, PR #42):** PRs #1–#5 (Oct 11) built the AI filing-research pipeline, spending guard and AAPL + STRL sample. PRs #6–#41 (Oct 11–16) built the debt and liquidity work: SEC XBRL figures, the filing-level inline XBRL reader, checked cash, current ratio, baseline gross debt and cash flows for Eli Lilly, Oracle and Vistra, saved company reviews with dated funding conclusions, interest coverage, Oracle maturities and revolver audit, Vistra financing filings, and one checked Excel workbook per company. 379 unit tests passed on `main` (2 skip on a machine without the cached filings).
+**On `main` and live (checked Oct 16, 2026, merge `0f7df28`, PR #43):** PRs #1–#5 (Oct 11) built the AI filing-research pipeline, spending guard and AAPL + STRL sample. PRs #6–#41 (Oct 11–16) built the debt and liquidity work: SEC XBRL figures, the filing-level inline XBRL reader, checked cash, current ratio, baseline gross debt and cash flows for Eli Lilly, Oracle and Vistra, saved company reviews with dated funding conclusions, interest coverage, Oracle maturities and revolver audit, Vistra financing filings, and one checked Excel workbook per company. PRs #42–#43 made Debt & Liquidity primary and separated dated borrowing/lease presentation. 386 unit tests passed on `main` (some full-document checks skip on a machine without the cached filings).
 
 **Release 1 steps 1–2 (merged as PR #42, Oct 16, 2026):** the roadmap below is reconciled with `main`, and Debt & Liquidity is the default page. 379 unit tests pass, 9 of them new page tests (`tests/test_app_pages.py`).
 
@@ -213,7 +214,9 @@ Rule of thumb: thinking and learning go in chat. Touching files goes in Claude C
 7. Individual Excel parity.
 8. Final source and app reconciliation.
 
-Steps 1–2 are merged as PR #42 (`7e984f1`). Step 3 is implemented on branch `borrowing-lease-presentation`, pending PR review (386 unit tests pass): the app and individual workbooks separate borrowing components, dated operating/finance lease liabilities and uncommenced leases. June LLY/VST lease balances remain Unavailable; December balances retain their own dates. See `docs/borrowing_lease_presentation.md`. Steps 4–8 have not started.
+Steps 1–2 are merged as PR #42 (`7e984f1`); step 3 is merged as PR #43 (`0f7df28`, 386 unit tests). The app and individual workbooks separate borrowing components, dated operating/finance lease liabilities and uncommenced leases. June LLY/VST lease balances remain Unavailable; December balances retain their own dates. See `docs/borrowing_lease_presentation.md`.
+
+Step 4 is implemented on branch `ratio-reconciliation`, pending PR review: current ratio, net debt, OCF/debt, FCF/debt and historical interest coverage reconcile to the checked inputs. Oracle and Vistra now include the core ratio table in their individual workbooks, matching Lilly and the app. `ratio_review.py` checks exact periods, units, filing versions, derived values and input provenance. No financial input, funding conclusion, catalyst or interest denominator changes. See `docs/ratio_reconciliation.md`. Steps 5–8 have not started.
 
 **Outside the Release 1 order:** refresh automation (known problem 1), new financial metrics, additional companies, the general research problems 3–9, and course features. Steps 3–8 present and reconcile the existing evidence; they don't resolve the Unavailable items in problem 2 unless a step says so.
 
