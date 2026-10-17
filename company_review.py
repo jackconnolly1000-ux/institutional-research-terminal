@@ -330,6 +330,29 @@ def evidence_html(snapshot: dict) -> str:
                        f'{ui.esc(fact.get("selection_rule") or fact.get("detail", ""))}{ui.esc(context)}'
                        f'<br><a href="{ui.esc(fact.get("source_url") or snapshot["source_url"])}" target="_blank" rel="noopener noreferrer">Source filing</a></li>')
         output += '</ul>'
+    import company_history
+    import borrowing_leases
+    history = company_history.build(snapshot)
+    lease_model = borrowing_leases.build(snapshot)
+    lease_inputs = []
+    for item in lease_model["leases"]:
+        lease_inputs.extend(item.get("inputs", []))
+        if item.get("reported_total"):
+            lease_inputs.append(item["reported_total"])
+    if lease_model["commitment"]["value"] is not None:
+        lease_inputs.append(lease_model["commitment"])
+    groups = [("Annual history source inputs", history["annual_facts"] + history["annual_flows"]),
+              ("Lease source inputs", lease_inputs)]
+    for heading, inputs in groups:
+        output += f'<h4>{ui.esc(heading)}</h4><ul class="irt-ol" style="overflow-wrap:anywhere">'
+        for fact in inputs:
+            period = ((fact["period_start"] + " to ") if fact.get("period_start") else "As of ") + fact["period_end"]
+            output += (f'<li>{ui.esc(fact.get("label") or fact["tag"])}: {fact["value"]:,.0f} USD · {ui.esc(fact["tag"])}<br>'
+                       f'{ui.esc(period)} · {ui.esc(fact["form"])} filed {ui.esc(fact["filed"])} · {ui.esc(fact["accession"])}<br>'
+                       f'{ui.esc(fact["selection_rule"])} · Context {ui.esc(fact.get("context_id") or "Unavailable")} · '
+                       f'scale {ui.esc(fact.get("scale"))} · decimals {ui.esc(fact.get("decimals"))}<br>'
+                       f'<a href="{ui.esc(fact["source_url"])}" target="_blank" rel="noopener noreferrer">Source filing</a></li>')
+        output += '</ul>'
     debt = metrics["gross_debt"]
     # The reconciled borrowing explanation already includes filing-specific caveats;
     # metric notes were displayed with the calculation above.
@@ -668,7 +691,7 @@ def render_app() -> None:
     st.caption("Saved filing reviews · source dates shown in each review · no live or paid request")
     try:
         page = render(snapshot) + evidence_html(snapshot) + financing_html(snapshot)
-    except (KeyError, TypeError, ValueError):
+    except (OSError, KeyError, TypeError, ValueError):
         # A saved file edited out of shape shows a stated gap, not a stack trace or partial figures.
         import traceback
         traceback.print_exc()

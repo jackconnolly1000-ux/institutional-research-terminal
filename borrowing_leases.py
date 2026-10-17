@@ -43,7 +43,8 @@ def build(snapshot, evidence=None):
                           "source_url": snapshot["source_url"]})
     if any(f["value"] is None for f in borrowing) or sum(f["value"] for f in borrowing) != debt["value"]:
         raise ValueError("Borrowing components do not reconcile to baseline gross debt")
-    facts = checked["facts"]
+    facts = {key: {**fact, "selection_rule": "Exact prefixed tag; exact stated instant; USD; no dimensions; agreeing duplicates."}
+             for key, fact in checked["facts"].items()}
     leases = []
     for name, prefix in (("Operating lease liabilities", "Operating"), ("Finance lease liabilities", "Finance")):
         current = facts.get(prefix + "LeaseLiabilityCurrent")

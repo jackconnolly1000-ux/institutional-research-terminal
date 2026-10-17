@@ -1,6 +1,6 @@
 {
   "funding_sha256": "39618aa4d149c91583c6158fdb91ba693c0a2b4b6fe19a841d91d6055745ad6a",
-  "borrowing_leases_sha256": "5071768f770c41063f1e2e9f89796417c5a2a85a024faabb8839e792c500fefa",
+  "borrowing_leases_sha256": "50421a30cb6de6bf88ff9a0e4bc4110fe3e130fbbc3ac9155ab5d7ec1d31312d",
   "ratios_sha256": {
     "ratio_review.py": "efe06493218912afce97c5d49a5a3093f8cfbf530b1cbbd1cb784851350a5f9d",
     "liquidity_pilot.py": "779bc075a935cf852bb3b28177ca965d2d59f6409b9144ba515b91ca6bf08660",
@@ -45,5 +45,5 @@
   },
   "review_sha256": "8f4bdb5f276cb38b2929c998565168869f02b0ce2d6b84e7c285e9002ea0affd",
   "interest_sha256": "6a18cf366130ac1aeaf1edccb748b96a1abc3361864651a13b99504d2defa2d4",
-  "workbook_sha256": "023f85c5ec4decc6e638a553ce6f5e0f8992d87e5d5dc2147d189c5e0464d012"
+  "workbook_sha256": "4b3fe2442cc38fa1d9887424532c1697086a5b896c7dbe1d8dde85b8bc6b2a1a"
 }

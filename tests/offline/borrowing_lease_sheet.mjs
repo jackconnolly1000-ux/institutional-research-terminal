@@ -15,16 +15,16 @@ export async function finishBorrowingLeaseSheet(wb,root,ticker,state){
  const date=s=>s?new Date(s+'T00:00:00Z'):null,USD='#,##0,,;(#,##0,,);"-"';
  const start=data.getUsedRange().values.length+3;
  const headers=data.getRange(ticker==='LLY'?'A1:O1':'A1:R1').values[0];
- if(ticker==='LLY'){headers[12]='Filing location';headers[14]='Reviewed source SHA256';}
+ if(ticker==='LLY'){headers[12]='Filing location';headers[13]='Selection / Unavailable reason';headers[14]='Reviewed source SHA256';}
  data.getRangeByIndexes(start-1,0,1,headers.length).values=[headers];
  const records=[];
  function input(f,label){
   const n=start+records.length+1;
   const base=ticker==='LLY'?
-   [label,f.value,null,date(f.period_end),f.form,date(f.filed),f.accession,f.tag||null,f.context_id||null,f.scale??null,f.decimals??null,f.source_url,f.location,f.detail||'',f.source_sha256||'']:
+   [label,f.value,null,date(f.period_end),f.form,date(f.filed),f.accession,f.tag||null,f.context_id||null,f.scale??null,f.decimals??null,f.source_url,f.location,(f.selection_rule||'')+(f.detail?' '+f.detail:''),f.source_sha256||'']:
    [label,f.value,label,null,date(f.period_end),f.form,date(f.filed),f.accession,f.tag||null,f.context_id||null,
     ...(ticker==='VST'?[JSON.stringify(f.dimensions||[]),f.scale??null,f.decimals??null]:[f.scale??null,f.decimals??null]),
-    f.source_url,f.location,f.detail||'',...(ticker==='VST'?[]:[JSON.stringify(f.dimensions||[])]),f.source_sha256||'',f.value===null?'Unavailable; no numeric fact established':'USD; exact checked instant'];
+    f.source_url,f.location,f.detail||'',...(ticker==='VST'?[]:[JSON.stringify(f.dimensions||[])]),f.source_sha256||'',f.value===null?'Unavailable; no numeric fact established':'USD; '+(f.selection_rule||'exact checked instant')];
   records.push(base);
   return `=IF(ISNUMBER('Data'!B${n}),'Data'!B${n},NA())`;
  }
