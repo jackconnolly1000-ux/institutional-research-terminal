@@ -53,15 +53,30 @@ class Exclusions(unittest.TestCase):
         for name, status, proof in ls.EXCLUDED:
             self.assertIn(status, ("Inside OCF", "Not in starting cash"), name)
             self.assertTrue(("10-K" in proof or "10-Q" in proof or "ASC" in proof), name)
-        self.assertNotIn("Finance-lease principal", [e[0] for e in ls.EXCLUDED])
+        self.assertFalse(any("principal" in e[0].lower() for e in ls.EXCLUDED))   # principal is a financing flow
 
     def test_uses_outside_the_model_trace_to_the_evidence(self):
         uses = {u.name: u for u in ls.oracle_uses_outside_model()}
-        self.assertEqual(uses["Finance-lease principal"].amount, 620 * M)          # 10-Q Note 6, Sep–May
-        self.assertIn("financing cash flow", uses["Finance-lease principal"].why_outside)
-        self.assertEqual(uses["Short-term financing related to capex"].amount, (1_422 + 3_345 - 830) * M)
+        self.assertEqual(uses["Finance-lease payments (principal proxy)"].amount, 620 * M)   # 10-Q Note 6, Sep–May
+        self.assertIn("financing cash flow", uses["Finance-lease payments (principal proxy)"].why_outside)
+        self.assertEqual(uses["Short-term capex financing (cumulative proceeds proxy)"].amount, (1_422 + 3_345 - 830) * M)
         self.assertEqual(uses["Purchase and other obligations"].amount, 5_449 * M)  # 10-Q Note 6, Sep–May
         self.assertIn("not established", uses["Purchase and other obligations"].why_outside)
+
+    def test_outside_amounts_are_stated_as_sensitivities_not_balances(self):
+        uses = {u.name: u for u in ls.oracle_uses_outside_model()}
+        for u in uses.values():
+            self.assertTrue(u.amount_basis.startswith("Sensitivity amount"), u.name)
+        self.assertIn("not an outstanding balance or a payment due", uses["Short-term capex financing (cumulative proceeds proxy)"].amount_basis)
+        self.assertIn("include interest", uses["Finance-lease payments (principal proxy)"].amount_basis)
+        self.assertIn("not established principal", uses["Finance-lease payments (principal proxy)"].amount_basis)
+        self.assertIn("Unavailable", uses["Purchase and other obligations"].amount_basis)
+        self.assertIn("count them twice", uses["Purchase and other obligations"].amount_basis)
+        for phrase in ("not established balances or payments due", "may overlap", "missing"):
+            self.assertIn(phrase, ls.SENSITIVITY_NOTE)
+        self.assertIn("may overlap", ls.ALL_THREE)
+        for text in (ls.MONTHLY_BASIS, ls.TIMING_LIMIT):
+            self.assertIn("do not establish liquidity on actual payment dates", text)
 
     def test_an_added_use_lowers_every_trial_by_exactly_its_amount(self):
         i, d = ls.oracle_inputs(), ls.oracle_decisions()[0]

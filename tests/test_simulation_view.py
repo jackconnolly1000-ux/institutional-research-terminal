@@ -125,9 +125,10 @@ class ScenarioPanel(unittest.TestCase):
         self.assertIn("not probabilities of default", text)
         self.assertNotIn("probability", " ".join(self.app.dataframe[0].value.columns).lower())
         uses = self.app.dataframe[3].value
-        self.assertEqual(list(uses["Scenario"]), ["Base model", "Finance-lease principal",
-                                                 "Short-term financing related to capex",
-                                                 "Purchase and other obligations", "All three together"])
+        self.assertEqual(list(uses["Scenario"]), ["Base model", "Finance-lease payments (principal proxy)", "Short-term capex financing (cumulative proceeds proxy)",
+                                                 "Purchase and other obligations", ls.ALL_THREE])
+        self.assertIn("Sensitivity amount ($B)", uses.columns)
+        self.assertIn("not established balances or payments due", text)
         self.assertIn("financing cash flow", text)                     # why finance-lease principal is outside OCF
 
     def test_download_records_every_use_left_out_and_its_effect(self):
@@ -144,6 +145,9 @@ class ScenarioPanel(unittest.TestCase):
         everything = " ".join(str(c.value) for s in wb for row in s.iter_rows() for c in row if c.value)
         self.assertNotIn("Shortfall probability", everything)
         self.assertNotIn("finance lease payments (inside OCF", everything)   # the corrected claim
+        self.assertNotIn("Added use", everything)
+        self.assertIn(ls.SENSITIVITY_NOTE, everything)
+        self.assertEqual(wb["Outside-use effects"]["C1"].value, "Sensitivity amount (USD, displayed in millions)")
 
 
     def test_month_end_table_sits_beside_the_end_of_window_result(self):
@@ -157,7 +161,7 @@ class ScenarioPanel(unittest.TestCase):
         self.assertAlmostEqual(table["Mean ($B)"][1], round(path["lowest_mean"] / ls.B, 2))
         captions = " ".join(c.value for c in self.app.caption)
         self.assertIn("Aug 2027 in 100.0% of trials", captions)
-        self.assertIn("Apr 2027 \$2.250B", captions)
+        self.assertIn(r"Apr 2027 \$2.250B", captions)
         self.assertIn("September 2026", captions)                      # where commercial paper is assumed due
         self.assertNotIn("probability", " ".join(table.columns).lower())
 
