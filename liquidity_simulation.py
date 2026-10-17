@@ -11,7 +11,8 @@ Model (uncertain inputs -> business logic -> outputs, as in class):
     ending cash = starting cash + OCF excluding prepayments + prepayments
                   - capital spending - dividends - dated debt principal - commercial paper due
                   (+ revolver draw, a hypothetical, capped at the $10B commitment)
-Fixed inputs come from the saved, checked JSON and keep their sources. Uncertain inputs are triangular. Capex
+Fixed inputs come from the saved, checked JSON and keep their sources. Uncertain inputs are triangular. OCF and
+prepayments can be drawn with a stated correlation (default 0, independent); see correlated_uniforms. Capex
 and dividends are decisions the user sets, not uncertainties. Lease payments are NOT subtracted: operating lease
 payments are already inside OCF, finance-lease interest is too and its principal split is not disclosed, and
 purchase obligations overlap capex. Subtracting them as well would count the same cash twice.
@@ -20,7 +21,8 @@ No Streamlit, no network. Seeded, so the same inputs and seed give identical out
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+import math
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +33,12 @@ LABEL = "Illustrative scenario from stated assumptions, not a forecast or fundin
 DEFAULT_TRIALS = 10_000
 DEFAULT_SEED = 2026
 B = 1_000_000_000
+COMPARE_CORRELATIONS = (-0.5, 0.0, 0.5)
+CORRELATION_BASIS = ("No filing establishes how OCF excluding prepayments and customer prepayments move together, so "
+                     "the default is 0 (independent). Positive: strong cloud demand could raise both. Negative: "
+                     "prepaid cash is not collected again later. The setting is the correlation of the normal scores "
+                     "behind each draw; the realized correlation of the dollar draws is reported beside it.")
+_PHI = np.vectorize(lambda z: 0.5 * (1 + math.erf(z / math.sqrt(2))), otypes=[float])
 
 
 @dataclass(frozen=True)
@@ -54,6 +62,30 @@ class Triangular:
             return np.full(n, float(self.low))
         return rng.triangular(self.low, self.mode, self.high, n)
 
+    def quantile(self, u) -> np.ndarray:
+        """Inverse CDF: the value with a share u of the triangle below it. Turns uniforms into triangular draws."""
+        u = np.asarray(u, dtype=float)
+        a, c, b = self.low, self.mode, self.high
+        if a == b:
+            return np.full(u.shape, float(a))
+        split = (c - a) / (b - a)    # share of the area left of the mode
+        left = a + np.sqrt(u * (b - a) * (c - a))
+        right = b - np.sqrt((1 - u) * (b - a) * (b - c))
+        return np.where(u < split, left, right)
+
+
+def correlated_uniforms(rng: np.random.Generator, n: int, rho: float) -> tuple[np.ndarray, np.ndarray]:
+    """Two uniform series whose normal scores have correlation rho (a Gaussian copula).
+
+    Each series stays uniform, so each input keeps its own triangle; only how they move together changes, as in
+    class. The second score is rho * z1 + sqrt(1 - rho^2) * z2. With the same seed, every rho reuses the same z1 and
+    z2, so differences between correlation settings come from the correlation, not from new random numbers.
+    """
+    if not -1 < rho < 1:
+        raise ValueError(f"Correlation must be between -1 and 1 (exclusive), got {rho}")
+    z1, z2 = rng.standard_normal((2, n))
+    return _PHI(z1), _PHI(rho * z1 + math.sqrt(1 - rho * rho) * z2)
+
 
 @dataclass(frozen=True)
 class Decision:
@@ -73,6 +105,7 @@ class Inputs:
     prepayments: Triangular
     commercial_paper_due: Triangular
     sources: dict = field(default_factory=dict)
+    correlation: float = 0.0      # OCF excluding prepayments vs prepayments, normal-score correlation
 
 
 def oracle_inputs(folder: Path | None = None) -> Inputs | None:
@@ -145,13 +178,17 @@ def simulate(inputs: Inputs, decision: Decision, trials: int = DEFAULT_TRIALS, s
     if trials < 1:
         raise ValueError("trials must be positive")
     rng = np.random.default_rng(seed)
-    ocf = inputs.ocf_ex_prepayments.draw(rng, trials)
-    pre = inputs.prepayments.draw(rng, trials)
+    u_ocf, u_pre = correlated_uniforms(rng, trials, inputs.correlation)
+    ocf = inputs.ocf_ex_prepayments.quantile(u_ocf)
+    pre = inputs.prepayments.quantile(u_pre)
     cp = inputs.commercial_paper_due.draw(rng, trials)
     before, after = ending_cash(inputs, decision, ocf, pre, cp)
     short = after < 0
+    varies = trials > 1 and ocf.std() > 0 and pre.std() > 0
     return {
         "decision": decision.name, "trials": trials, "seed": seed, "label": LABEL,
+        "correlation": inputs.correlation,
+        "realized_correlation": float(np.corrcoef(ocf, pre)[0, 1]) if varies else None,
         "mean": float(after.mean()), "sd": float(after.std(ddof=1)) if trials > 1 else 0.0,
         "p10": float(np.percentile(after, 10)), "p50": float(np.percentile(after, 50)),
         "p90": float(np.percentile(after, 90)),
@@ -160,6 +197,12 @@ def simulate(inputs: Inputs, decision: Decision, trials: int = DEFAULT_TRIALS, s
         "probability_revolver_used": float((after > before).mean()) if decision.revolver else 0.0,
         "ending_cash": after,
     }
+
+
+def compare_correlations(inputs: Inputs, decision: Decision, trials: int = DEFAULT_TRIALS,
+                         seed: int = DEFAULT_SEED, rhos=COMPARE_CORRELATIONS) -> list[dict]:
+    """One decision at several correlations, same seed: the class check that correlation moves spread, not mean."""
+    return [simulate(replace(inputs, correlation=rho), decision, trials, seed) for rho in rhos]
 
 
 def run(folder: Path | None = None, trials: int = DEFAULT_TRIALS, seed: int = DEFAULT_SEED) -> dict | None:

@@ -28,6 +28,7 @@ ending cash = starting cash + OCF excluding prepayments + prepayments
 | Decision | Capex | A: $75.66B (TTM) · B: $55.663B (fiscal 2026) | Management chooses this; it isn't an uncertainty |
 | Decision | Dividends | $6.26B | Jun–Aug 2026 dividends of $1.565B, times four |
 | Decision (hypothetical) | Revolver usable | No / yes, up to $10B | The commitment is checked; the drawable amount is Unavailable |
+| Assumption | Correlation, OCF excluding prepayments vs prepayments | 0 (independent) | No filing establishes it; editable from −0.9 to +0.9 |
 
 Every default is editable in the app. Trials default to 10,000 with seed 2026, and the same inputs and seed reproduce the results exactly.
 
@@ -42,17 +43,47 @@ Subtracting these too would count the same cash twice. Also excluded: new borrow
 
 | Decision | Mean ending cash | 10th percentile | Shortfall probability | Mean shortfall when short |
 |---|---:|---:|---:|---:|
-| A: TTM capex | −$11.21B | −$16.59B | 99.4% | $11.29B |
-| A, revolver usable | −$2.39B | −$6.59B | 62.7% | $3.82B |
-| B: FY2026 capex | $8.79B | $3.41B | 0.1% | $0.22B |
-| B, revolver usable | $8.79B | $3.41B | 0.0% | $0 |
+| A: TTM capex | −$11.23B | −$16.63B | 99.5% | $11.30B |
+| A, revolver usable | −$2.40B | −$6.63B | 62.6% | $3.84B |
+| B: FY2026 capex | $8.76B | $3.37B | 0.2% | $0.30B |
+| B, revolver usable | $8.76B | $3.37B | 0.0% | $0 |
 
 **Reading it:**
 - At the TTM capex rate, checked cash plus the stated range of operating cash flow doesn't cover the dated uses without outside funding. Even the whole revolver closes the gap in only about a third of trials, because the mean gap ($11.2B) is larger than the $10B commitment. That's consistent with Oracle raising $19.9B of equity in Jun–Aug 2026.
 - At the fiscal 2026 capex level, the uses are covered in almost every trial.
 - The decision that matters most is capex, not the uncertainty in operating cash flow.
 
-These results describe the assumptions, not what will happen.
+These results describe the assumptions, not what will happen. They moved slightly on October 17 (decision A from 99.4% to 99.5%) when OCF and prepayments began to be drawn through the correlation step below. The random stream changed; the model didn't.
+
+## Correlation between OCF and prepayments (added October 17, 2026)
+
+**What it asks:** if prepayment-heavy quarters also tend to be strong (or weak) quarters for the rest of operating cash flow, how does the picture change?
+
+**The course rule it applies:** correlation changes how inputs move together. It doesn't change each input's own distribution, so the mean of a sum stays the same while its spread changes.
+
+**How the draws are tied together (a Gaussian copula):**
+1. Draw two independent standard normal scores per trial, z1 and z2.
+2. Tie the second to the first: z2′ = ρ·z1 + √(1 − ρ²)·z2. The pair now has correlation ρ.
+3. Turn each score into a percentile (0 to 1) with the normal CDF.
+4. Read each percentile off its own triangle with the triangle's inverse CDF (`Triangular.quantile`), so each input keeps its stated low, most likely and high.
+
+The class covers the principle, not these mechanics; the copula is this app's implementation choice. ρ is the correlation of the normal scores. The dollar draws end up slightly less correlated (+0.48 for a setting of +0.5), and the app shows that realized value.
+
+**Default:** 0. No filing establishes the sign. Strong cloud demand could raise both (positive), while prepaid cash isn't collected again later (negative).
+
+**Comparison (decision A, 10,000 trials, seed 2026):**
+
+| Setting | Realized | Mean ending cash | Std dev | 10th percentile | Shortfall probability |
+|---:|---:|---:|---:|---:|---:|
+| −0.5 | −0.48 | −$11.23B | $3.05B | −$15.21B | 100.0% |
+| 0 | −0.01 | −$11.23B | $4.17B | −$16.63B | 99.5% |
+| +0.5 | +0.48 | −$11.23B | $5.08B | −$17.57B | 98.1% |
+
+The mean doesn't move and the spread does, as the class rule predicts; a test checks this. With the revolver assumed usable, the mean moves too (−$1.94B, −$2.40B, −$2.78B). The draw fills only shortfalls and stops at $10B, so ending cash is no longer a plain sum of the inputs.
+
+All three settings reuse the same seed, so the same underlying normal scores appear in each. The differences come from the correlation, not from new random numbers.
+
+In the app, the slider sets the correlation for every result, and a table under the histogram compares −0.5, 0 and +0.5 for the decision shown. The download adds a Correlation sheet with that table, and the slider value is a row on the Scenario sheet.
 
 ## Validation (the four checks from class)
 
@@ -61,11 +92,12 @@ These results describe the assumptions, not what will happen.
 | Logic | With every input fixed, the simulation equals a hand calculation | Pass |
 | Boundary | The revolver covers a gap up to $10B and no more; zero spending never falls short; every trial lies between the worst and best corners; a reversed triangle is rejected | Pass |
 | Distribution | 200,000 draws stay within the range, the mean is within 1% of (low + mode + high) / 3, and the histogram peaks at the mode | Pass |
-| Stability | 10,000 and 50,000 trials agree; the same seed reproduces exactly. The app also shows a live stability check (5× the trials, new seed). | Pass |
+| Stability | 10,000 and 50,000 trials agree; the same seed reproduces exactly, with or without correlation. The app also shows a live stability check (5× the trials, new seed). | Pass |
+| Correlation | The inverse CDF hits each triangle's corners and mode; correlated draws keep each triangle (range and mean) and reach the target within 0.05; without the revolver, −0.5, 0 and +0.5 give the same mean and a rising standard deviation; a correlation of ±1 or beyond is rejected | Pass |
 
 ## The Excel record
 
-**"Download this scenario (Excel)"** saves whatever is on screen. The Scenario sheet holds the label, horizon, seed and trials, plus each input with its low, most likely, high and source. The Results sheet has one row per decision: mean, standard deviation, percentiles, shortfall probability and mean shortfall. It's Arial 10, with numbers stored as numbers.
+**"Download this scenario (Excel)"** saves whatever is on screen. The Scenario sheet holds the label, horizon, seed and trials, plus each input with its low, most likely, high and source. The Results sheet has one row per decision: mean, standard deviation, percentiles, shortfall probability and mean shortfall. The Correlation sheet compares −0.5, 0 and +0.5 for the decision shown. It's Arial 10, with numbers stored as numbers.
 
 It is deliberately separate from Oracle's checked evidence workbook: assumptions are not filing facts, and the checked workbook's fingerprints stay unchanged.
 
@@ -82,7 +114,7 @@ It is deliberately separate from Oracle's checked evidence workbook: assumptions
 ## Limits
 
 - The OCF range rests on three checked periods. The high end annualizes a single quarter.
-- There's no correlation between OCF and prepayments yet (covered in class; a possible addition).
+- The OCF–prepayment correlation is an assumption with no filing evidence. Its default of 0 is a neutral choice, not a finding. Commercial paper is drawn independently.
 - Capex and dividends are held at the decision values, with no timing within the year.
 - The commercial paper range is implied, not reported.
 - Oracle only. Lilly and Vistra need dated obligations first.
