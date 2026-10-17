@@ -708,7 +708,8 @@ def render_app() -> None:
     snapshot = snapshots[ticker]
     st.caption("Saved filing reviews · source dates shown in each review · no live or paid request")
     try:
-        page = render(snapshot) + evidence_html(snapshot) + financing_html(snapshot)
+        page = render(snapshot)
+        tail = evidence_html(snapshot) + financing_html(snapshot)
     except (OSError, KeyError, TypeError, ValueError):
         # A saved file edited out of shape shows a stated gap, not a stack trace or partial figures.
         import traceback
@@ -718,6 +719,10 @@ def render_app() -> None:
         return
     render_download(st, snapshot, saved["snapshots"])
     st.markdown(page, unsafe_allow_html=True)
+    # The illustrative scenario sits after the checked review and before its evidence trail, so facts come first
+    import simulation_view
+    simulation_view.render(st, snapshot)
+    st.markdown(tail, unsafe_allow_html=True)
     with st.expander("Optional combined export"):
         import export_guide
         st.caption(export_guide.COMBINED_CAPTION)
